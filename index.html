@@ -1159,6 +1159,8 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
             const [language, setLanguage] = useState('uk');
             const [saveStatus, setSaveStatus] = useState(null);
             const [showMenu, setShowMenu] = useState(false);
+            const [activeTab, setActiveTab] = useState('stats');
+            const [showQuickActions, setShowQuickActions] = useState(false);
             const [showAddStatsModal, setShowAddStatsModal] = useState(false);
             const [showEditColumnModal, setShowEditColumnModal] = useState(false);
             const [showTeamModal, setShowTeamModal] = useState(false);
@@ -1526,9 +1528,6 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
             );
             
             if (!user) return <AuthForm t={t} onAuth={handleAuth} isLoading={isSubmitting} />;
-
-            const [activeTab, setActiveTab] = useState('stats');
-            const [showQuickActions, setShowQuickActions] = useState(false);
 
             return (
                 <div className="min-h-screen bg-gray-50">
