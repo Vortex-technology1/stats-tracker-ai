@@ -470,6 +470,7 @@
                 overview: 'Загальна картина', bottleneck: 'Вузьке місце', recommendations: 'Рекомендації', weekPlan: 'План на тиждень',
                 filled: 'Заповнено', pending: 'Очікує', overdue: 'Прострочено',
                 editColumn: 'Редагувати показник', columnSettings: 'Налаштування показника',
+                valueFormat: 'Формат значення', formatNumber: 'Число', formatPercent: 'Відсотки %', formatUAH: 'Гривні ₴', formatUSD: 'Долари $', formatEUR: 'Євро €',
             },
             ru: {
                 appName: 'Трекер статистики',
@@ -486,6 +487,28 @@
                 teamManagement: 'Управление командой', addEmployee: 'Добавить сотрудника',
                 aiAnalysis: 'AI Анализ', businessContext: 'Контекст бизнеса', priorities: 'Приоритеты', runAnalysis: 'Запустить анализ',
                 overview: 'Общая картина', bottleneck: 'Узкое место', recommendations: 'Рекомендации', weekPlan: 'План на неделю',
+                valueFormat: 'Формат значения', formatNumber: 'Число', formatPercent: 'Проценты %', formatUAH: 'Гривны ₴', formatUSD: 'Доллары $', formatEUR: 'Евро €',
+            }
+        };
+
+        // ==================== FORMAT VALUE ====================
+        const formatValue = (value, format) => {
+            if (value === '' || value === null || value === undefined || value === '-') return '-';
+            const num = parseFloat(value);
+            if (isNaN(num)) return value;
+            
+            switch (format) {
+                case 'percent':
+                    return `${num.toLocaleString('uk-UA')}%`;
+                case 'uah':
+                    return `${num.toLocaleString('uk-UA')} ₴`;
+                case 'usd':
+                    return `$${num.toLocaleString('en-US')}`;
+                case 'eur':
+                    return `€${num.toLocaleString('de-DE')}`;
+                case 'number':
+                default:
+                    return num.toLocaleString('uk-UA');
             }
         };
 
@@ -785,6 +808,14 @@
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-semibold text-gray-900">{col.name}</span>
+                                                {col.format && col.format !== 'number' && (
+                                                    <span className="text-xs text-gray-400">
+                                                        {col.format === 'percent' && '%'}
+                                                        {col.format === 'uah' && '₴'}
+                                                        {col.format === 'usd' && '$'}
+                                                        {col.format === 'eur' && '€'}
+                                                    </span>
+                                                )}
                                                 {hasComment && (
                                                     <button onClick={() => setActiveComment(activeComment === col.id ? null : col.id)} className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
                                                         <Icons.MessageCircle className="w-3.5 h-3.5 text-blue-600" />
@@ -815,14 +846,20 @@
                                         )}
                                         <div className="flex-1">
                                             <label className="text-xs text-gray-500 font-medium mb-1 block">{showTargets || hasTarget ? 'Факт' : 'Значення'}</label>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={row.values?.[col.id] || ''}
-                                                onChange={(e) => onValueChange(col.id, e.target.value)}
-                                                className="w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-xl text-center font-bold text-lg focus:border-primary-500 focus:ring-0"
-                                                placeholder="0"
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={row.values?.[col.id] || ''}
+                                                    onChange={(e) => onValueChange(col.id, e.target.value)}
+                                                    className={`w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-xl text-center font-bold text-lg focus:border-primary-500 focus:ring-0 ${col.format === 'usd' || col.format === 'eur' ? 'pl-7' : ''} ${col.format === 'percent' || col.format === 'uah' ? 'pr-7' : ''}`}
+                                                    placeholder="0"
+                                                />
+                                                {col.format === 'usd' && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>}
+                                                {col.format === 'eur' && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">€</span>}
+                                                {col.format === 'uah' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₴</span>}
+                                                {col.format === 'percent' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>}
+                                            </div>
                                         </div>
                                     </div>
                                     
@@ -918,6 +955,14 @@
                                                         <div className="flex items-center gap-2">
                                                             {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
                                                             <span>{col.name}</span>
+                                                            {col.format && col.format !== 'number' && (
+                                                                <span className="text-xs font-normal text-gray-400">
+                                                                    {col.format === 'percent' && '%'}
+                                                                    {col.format === 'uah' && '₴'}
+                                                                    {col.format === 'usd' && '$'}
+                                                                    {col.format === 'eur' && '€'}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <span className="period-badge">{getPeriodLabel(col.period, t)}</span>
@@ -2081,6 +2126,7 @@ ${aiSettings.businessContext}
             const [newStatsResponsible, setNewStatsResponsible] = useState('');
             const [newStatsPeriod, setNewStatsPeriod] = useState('weekly');
             const [newStatsTarget, setNewStatsTarget] = useState('');
+            const [newStatsFormat, setNewStatsFormat] = useState('number'); // number, percent, uah, usd, eur
             const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
             const [newEmployeeName, setNewEmployeeName] = useState('');
             const [selectedColumns, setSelectedColumns] = useState([]);
@@ -2313,14 +2359,14 @@ ${aiSettings.businessContext}
                 if (!isOwner || !newStatsName.trim()) return;
                 const newColumn = {
                     id: Date.now().toString(), name: newStatsName, responsible: newStatsResponsible,
-                    period: newStatsPeriod, visibleToEmployees: []
+                    period: newStatsPeriod, format: newStatsFormat, visibleToEmployees: []
                 };
                 setColumns([...columns, newColumn]);
                 // Add target value
                 if (newStatsTarget) {
                     setRows(rows.map(row => row.isTarget ? { ...row, values: { ...row.values, [newColumn.id]: newStatsTarget } } : row));
                 }
-                setNewStatsName(''); setNewStatsResponsible(''); setNewStatsPeriod('weekly'); setNewStatsTarget('');
+                setNewStatsName(''); setNewStatsResponsible(''); setNewStatsPeriod('weekly'); setNewStatsTarget(''); setNewStatsFormat('number');
                 setShowAddStatsModal(false);
                 toast.success(t.addStats);
             };
@@ -2761,6 +2807,28 @@ ${aiSettings.businessContext}
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.target}</label>
                                 <input type="text" value={newStatsTarget} onChange={(e) => setNewStatsTarget(e.target.value)} className="input-field" placeholder="Наприклад: 100" />
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.valueFormat}</label>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {[
+                                        { value: 'number', label: '123', title: t.formatNumber },
+                                        { value: 'percent', label: '%', title: t.formatPercent },
+                                        { value: 'uah', label: '₴', title: t.formatUAH },
+                                        { value: 'usd', label: '$', title: t.formatUSD },
+                                        { value: 'eur', label: '€', title: t.formatEUR },
+                                    ].map(fmt => (
+                                        <button
+                                            key={fmt.value}
+                                            type="button"
+                                            onClick={() => setNewStatsFormat(fmt.value)}
+                                            title={fmt.title}
+                                            className={`p-3 rounded-xl text-lg font-bold transition-all ${newStatsFormat === fmt.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                        >
+                                            {fmt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <div className="flex gap-3 pt-2">
                                 <button onClick={() => setShowAddStatsModal(false)} className="btn btn-secondary flex-1">{t.cancel}</button>
                                 <button onClick={addColumn} disabled={!newStatsName.trim()} className="btn btn-primary flex-1">{t.add}</button>
@@ -2792,6 +2860,28 @@ ${aiSettings.businessContext}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.target}</label>
                                     <input type="text" value={targetRow?.values?.[editingColumn.id] || ''} onChange={(e) => updateValue('target', editingColumn.id, e.target.value)} className="input-field" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.valueFormat}</label>
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {[
+                                            { value: 'number', label: '123', title: t.formatNumber },
+                                            { value: 'percent', label: '%', title: t.formatPercent },
+                                            { value: 'uah', label: '₴', title: t.formatUAH },
+                                            { value: 'usd', label: '$', title: t.formatUSD },
+                                            { value: 'eur', label: '€', title: t.formatEUR },
+                                        ].map(fmt => (
+                                            <button
+                                                key={fmt.value}
+                                                type="button"
+                                                onClick={() => setEditingColumn({ ...editingColumn, format: fmt.value })}
+                                                title={fmt.title}
+                                                className={`p-3 rounded-xl text-lg font-bold transition-all ${(editingColumn.format || 'number') === fmt.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                            >
+                                                {fmt.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                                 
                                 {Object.keys(employees).length > 0 && (
