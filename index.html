@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#22c55e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Трекер статистики Pro</title>
     
@@ -2204,12 +2204,13 @@ ${aiSettings.businessContext}
             // ==================== DEMO DATA ====================
             const loadDemoData = () => {
                 const demoColumns = [
-                    { id: 'col1', name: 'Проведено консультацій', responsible: 'Олена', period: 'weekly', visibleToEmployees: [] },
-                    { id: 'col2', name: 'Нових лідів', responsible: 'Марія', period: 'weekly', visibleToEmployees: [] },
-                    { id: 'col3', name: 'Закритих угод', responsible: 'Олена', period: 'weekly', visibleToEmployees: [] },
-                    { id: 'col4', name: 'Дохід (тис грн)', responsible: 'Олександр', period: 'weekly', visibleToEmployees: [] },
-                    { id: 'col5', name: 'NPS оцінка', responsible: 'Марія', period: 'monthly', visibleToEmployees: [] },
-                    { id: 'col6', name: 'Витрати на маркетинг (тис)', responsible: 'Ігор', period: 'weekly', visibleToEmployees: [] },
+                    { id: 'col1', name: 'Консультацій', responsible: 'Олена', period: 'weekly', format: 'number', visibleToEmployees: [] },
+                    { id: 'col2', name: 'Нових лідів', responsible: 'Марія', period: 'weekly', format: 'number', visibleToEmployees: [] },
+                    { id: 'col3', name: 'Конверсія', responsible: 'Олена', period: 'weekly', format: 'percent', visibleToEmployees: [] },
+                    { id: 'col4', name: 'Закритих угод', responsible: 'Олена', period: 'weekly', format: 'number', visibleToEmployees: [] },
+                    { id: 'col5', name: 'Дохід', responsible: 'Олександр', period: 'weekly', format: 'uah', visibleToEmployees: [] },
+                    { id: 'col6', name: 'Маркетинг бюджет', responsible: 'Ігор', period: 'weekly', format: 'usd', visibleToEmployees: [] },
+                    { id: 'col7', name: 'Середній чек', responsible: 'Олена', period: 'monthly', format: 'uah', visibleToEmployees: [] },
                 ];
                 
                 const today = new Date();
@@ -2221,28 +2222,28 @@ ${aiSettings.businessContext}
                 
                 const demoRows = [
                     { id: 'row1', isTarget: false, date: getWeekDate(5), 
-                      values: { col1: '18', col2: '42', col3: '6', col4: '156', col5: '8.5', col6: '28' }, 
-                      targets: { col1: '20', col2: '45', col3: '8', col4: '180', col5: '9', col6: '30' },
-                      comments: { col3: 'Сезонний спад' } },
+                      values: { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850', col7: '25000' }, 
+                      targets: { col1: '20', col2: '45', col3: '15', col4: '7', col5: '175000', col6: '800', col7: '28000' },
+                      comments: { col4: 'Сезонний спад' } },
                     { id: 'row2', isTarget: false, date: getWeekDate(4), 
-                      values: { col1: '22', col2: '38', col3: '7', col4: '178', col5: '', col6: '32' }, 
-                      targets: { col1: '20', col2: '50', col3: '8', col4: '200', col5: '', col6: '30' },
+                      values: { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920', col7: '28000' }, 
+                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '800', col7: '28000' },
                       comments: { col1: 'Додали вебінар' } },
                     { id: 'row3', isTarget: false, date: getWeekDate(3), 
-                      values: { col1: '15', col2: '51', col3: '5', col4: '145', col5: '', col6: '45' }, 
-                      targets: { col1: '22', col2: '50', col3: '9', col4: '200', col5: '', col6: '35' },
+                      values: { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200', col7: '29000' }, 
+                      targets: { col1: '22', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '28000' },
                       comments: { col6: 'Запустили рекламу' } },
                     { id: 'row4', isTarget: false, date: getWeekDate(2), 
-                      values: { col1: '19', col2: '67', col3: '4', col4: '132', col5: '8.2', col6: '48' }, 
-                      targets: { col1: '22', col2: '55', col3: '10', col4: '220', col5: '9', col6: '40' },
-                      comments: { col3: 'Проблема з закриттям!' } },
+                      values: { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100', col7: '28000' }, 
+                      targets: { col1: '22', col2: '55', col3: '15', col4: '9', col5: '225000', col6: '900', col7: '28000' },
+                      comments: { col3: 'Впала конверсія!' } },
                     { id: 'row5', isTarget: false, date: getWeekDate(1), 
-                      values: { col1: '21', col2: '58', col3: '6', col4: '168', col5: '', col6: '35' }, 
-                      targets: { col1: '20', col2: '50', col3: '8', col4: '200', col5: '', col6: '35' },
+                      values: { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950', col7: '29000' }, 
+                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '28000' },
                       comments: {} },
                     { id: 'row6', isTarget: false, date: getWeekDate(0), 
-                      values: { col1: '17', col2: '44', col3: '5', col4: '148', col5: '', col6: '30' }, 
-                      targets: { col1: '20', col2: '50', col3: '8', col4: '200', col5: '', col6: '30' },
+                      values: { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880', col7: '27000' }, 
+                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '28000' },
                       comments: { col2: 'Впала конверсія з реклами' } },
                 ];
                 
@@ -2250,13 +2251,14 @@ ${aiSettings.businessContext}
                     businessContext: `Консалтингова компанія "TALKO Consulting"
 - Спеціалізація: бізнес-трансформація для МСБ
 - Команда: 4 консультанти + 2 менеджери з продажів
-- Середній чек: 25,000 грн за проект
+- Середній чек: 28,000 грн за проект
 - Цикл угоди: 2-3 тижні від ліда до контракту
 - Основні канали: рекомендації (60%), реклама Facebook/Google (30%), вебінари (10%)
-- Поточна проблема: багато лідів, але низька конверсія в угоди`,
-                    priorities: `1. Підвищити конверсію лідів в угоди (зараз ~10%, ціль 15%)
+- Маркетинг бюджет: $800-1200/тиждень
+- Поточна проблема: багато лідів, але низька конверсія в угоди (10% замість 15%)`,
+                    priorities: `1. Підвищити конверсію лідів в угоди (зараз 10%, ціль 15%)
 2. Оптимізувати витрати на маркетинг (ROI впав)
-3. Збільшити кількість консультацій на людину`,
+3. Збільшити середній чек до 30,000 грн`,
                     analysisPeriod: 5
                 };
                 
