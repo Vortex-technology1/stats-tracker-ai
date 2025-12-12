@@ -246,6 +246,41 @@
         /* AI Result */
         .ai-result { background: linear-gradient(135deg, #faf5ff 0%, #f0f9ff 100%); border: 1px solid #e9d5ff; border-radius: 20px; padding: 20px; }
         
+        /* Support button - плаваюча кнопка */
+        .support-btn {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 15px;
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+            text-decoration: none;
+            transition: all 0.2s;
+            z-index: 100;
+        }
+        .support-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
+        }
+        .support-btn:active {
+            transform: scale(0.96);
+        }
+        @media (max-width: 640px) {
+            .support-btn {
+                bottom: calc(80px + var(--sab));
+                left: 16px;
+                padding: 14px;
+                border-radius: 50%;
+            }
+        }
+        
         /* Mobile optimizations */
         @media (max-width: 640px) {
             .desktop-only { display: none !important; }
@@ -2073,9 +2108,9 @@ ${aiSettings.businessContext}
                         </>
                     )}
                     
-                    {/* Support button - тепер в меню на мобільному */}
-                    <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="support-btn desktop-only">
-                        <Icons.MessageCircle className="w-5 h-5" /><span>{t.support}</span>
+                    {/* Support button - видима на всіх пристроях */}
+                    <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="support-btn">
+                        <Icons.MessageCircle className="w-5 h-5" /><span className="hidden sm:inline">{t.support}</span>
                     </a>
                     
                     {/* Mobile menu - покращене */}
