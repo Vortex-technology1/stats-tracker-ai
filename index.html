@@ -342,7 +342,7 @@
         };
 
         // OpenAI API Key (встановіть ліміт $20 в OpenAI Dashboard!)
-        const OPENAI_API_KEY = "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";
+        const OPENAI_API_KEY = null; // Ключ зберігається в Cloudflare Worker
         const OPENAI_MODEL = "gpt-4o";
 
         const SUPPORT_URL = "https://chatgpt.com/g/g-693bf67a13e48191940632f9d6bedb63-talko-statistics-ai-support";
@@ -1022,16 +1022,13 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
 □ Ср: [конкретна дія]
 □ Пт: [конкретна дія]`;
 
-                    // Cloudflare Worker для обходу CORS
+                    // Cloudflare Worker для обходу CORS (ключ зберігається там)
                     const WORKER_URL = 'https://openai-proxy.management-talco.workers.dev/';
                     
-                    const targetUrl = WORKER_URL || 'https://api.openai.com/v1/chat/completions';
-                    
-                    const response = await fetch(targetUrl, {
+                    const response = await fetch(WORKER_URL, {
                         method: 'POST',
                         headers: { 
-                            'Content-Type': 'application/json', 
-                            'Authorization': `Bearer ${OPENAI_API_KEY}`
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             model: OPENAI_MODEL,
