@@ -713,7 +713,12 @@
             
             const runAnalysis = async () => {
                 if (!aiSettings.businessContext) {
-                    toast.warning('Спочатку заповніть контекст бізнесу в налаштуваннях');
+                    toast.warning('Заповніть контекст бізнесу вище ☝️');
+                    return;
+                }
+                
+                if (rows.filter(r => !r.isTarget).length < 2) {
+                    toast.warning('Додайте більше даних (мінімум 2 записи)');
                     return;
                 }
                 
@@ -899,7 +904,6 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
             const [showTeamModal, setShowTeamModal] = useState(false);
             const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
             const [showAIModal, setShowAIModal] = useState(false);
-            const [showAISettingsModal, setShowAISettingsModal] = useState(false);
             const [confirmDialog, setConfirmDialog] = useState({ isOpen: false });
             const [editingColumn, setEditingColumn] = useState(null);
             
@@ -980,6 +984,57 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
                 const defaultRows = [targetRow, { id: Date.now().toString() + '-1', isTarget: false, date: new Date().toISOString().split('T')[0], values: {}, comments: {} }];
                 setColumns(defaultColumns);
                 setRows(defaultRows);
+            };
+            
+            // ==================== DEMO DATA ====================
+            const loadDemoData = () => {
+                const demoColumns = [
+                    { id: 'col1', name: 'Проведено консультацій', responsible: 'Олена', period: 'weekly', visibleToEmployees: [] },
+                    { id: 'col2', name: 'Нових лідів', responsible: 'Марія', period: 'weekly', visibleToEmployees: [] },
+                    { id: 'col3', name: 'Закритих угод', responsible: 'Олена', period: 'weekly', visibleToEmployees: [] },
+                    { id: 'col4', name: 'Дохід (тис грн)', responsible: 'Олександр', period: 'weekly', visibleToEmployees: [] },
+                    { id: 'col5', name: 'NPS оцінка', responsible: 'Марія', period: 'monthly', visibleToEmployees: [] },
+                    { id: 'col6', name: 'Витрати на маркетинг (тис)', responsible: 'Ігор', period: 'weekly', visibleToEmployees: [] },
+                ];
+                
+                const today = new Date();
+                const getWeekDate = (weeksAgo) => {
+                    const d = new Date(today);
+                    d.setDate(d.getDate() - (weeksAgo * 7));
+                    return d.toISOString().split('T')[0];
+                };
+                
+                const demoRows = [
+                    { id: 'target', isTarget: true, date: '', values: { col1: '20', col2: '50', col3: '8', col4: '200', col5: '9', col6: '30' }, comments: {} },
+                    { id: 'row1', isTarget: false, date: getWeekDate(5), values: { col1: '18', col2: '42', col3: '6', col4: '156', col5: '8.5', col6: '28' }, comments: { col3: 'Сезонний спад' } },
+                    { id: 'row2', isTarget: false, date: getWeekDate(4), values: { col1: '22', col2: '38', col3: '7', col4: '178', col5: '', col6: '32' }, comments: { col1: 'Додали вебінар' } },
+                    { id: 'row3', isTarget: false, date: getWeekDate(3), values: { col1: '15', col2: '51', col3: '5', col4: '145', col5: '', col6: '45' }, comments: { col6: 'Запустили рекламу' } },
+                    { id: 'row4', isTarget: false, date: getWeekDate(2), values: { col1: '19', col2: '67', col3: '4', col4: '132', col5: '8.2', col6: '48' }, comments: { col3: 'Проблема з закриттям!' } },
+                    { id: 'row5', isTarget: false, date: getWeekDate(1), values: { col1: '21', col2: '58', col3: '6', col4: '168', col5: '', col6: '35' }, comments: {} },
+                    { id: 'row6', isTarget: false, date: getWeekDate(0), values: { col1: '17', col2: '44', col3: '5', col4: '148', col5: '', col6: '30' }, comments: { col2: 'Впала конверсія з реклами' } },
+                ];
+                
+                const demoAiSettings = {
+                    businessContext: `Консалтингова компанія "TALKO Consulting"
+- Спеціалізація: бізнес-трансформація для МСБ
+- Команда: 4 консультанти + 2 менеджери з продажів
+- Середній чек: 25,000 грн за проект
+- Цикл угоди: 2-3 тижні від ліда до контракту
+- Основні канали: рекомендації (60%), реклама Facebook/Google (30%), вебінари (10%)
+- Поточна проблема: багато лідів, але низька конверсія в угоди`,
+                    priorities: `1. Підвищити конверсію лідів в угоди (зараз ~10%, ціль 15%)
+2. Оптимізувати витрати на маркетинг (ROI впав)
+3. Збільшити кількість консультацій на людину`,
+                    analysisPeriod: 5
+                };
+                
+                setColumns(demoColumns);
+                setRows(demoRows);
+                setAiSettings(demoAiSettings);
+                setEmployees({});
+                setSavedAnalyses([]);
+                
+                toast.success('Демо-дані завантажено! Спробуйте AI Аналіз 🤖');
             };
             
             const handleAuth = async (email, password, isRegister, companyName, inviteCode) => {
@@ -1238,9 +1293,10 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
                                             <>
                                                 <button onClick={() => setShowAIModal(true)} className="btn btn-ai"><Icons.Brain className="w-4 h-4" /><span className="hidden lg:inline">{t.aiAnalysis}</span></button>
                                                 <button onClick={() => setShowTeamModal(true)} className="btn btn-secondary"><Icons.Users className="w-4 h-4" /></button>
+                                                <button onClick={loadDemoData} className="btn btn-secondary" title="Завантажити демо-дані"><Icons.Sparkles className="w-4 h-4" /></button>
                                             </>
                                         )}
-                                        <button onClick={exportToExcel} className="btn btn-secondary"><Icons.Download className="w-4 h-4" /></button>
+                                        <button onClick={exportToExcel} className="btn btn-secondary"><Icons.Download className="w-4 h-4" /><span className="hidden lg:inline">Excel</span></button>
                                         <button onClick={handleLogout} className="btn btn-ghost btn-icon"><Icons.LogOut className="w-5 h-5" /></button>
                                     </div>
                                 </div>
@@ -1325,11 +1381,12 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
                                     <button onClick={() => { setShowAddStatsModal(true); setShowMenu(false); }} className="btn btn-primary w-full"><Icons.Plus className="w-5 h-5" />{t.addStats}</button>
                                     <button onClick={() => { addRow(); setShowMenu(false); }} className="btn btn-secondary w-full"><Icons.Plus className="w-5 h-5" />{t.addRow}</button>
                                     <button onClick={() => { setShowTeamModal(true); setShowMenu(false); }} className="btn btn-secondary w-full"><Icons.Users className="w-5 h-5" />{t.teamManagement}</button>
+                                    <button onClick={() => { loadDemoData(); setShowMenu(false); }} className="btn btn-secondary w-full"><Icons.Sparkles className="w-5 h-5" />Демо-дані</button>
                                 </>
                             )}
                             
                             <hr className="my-3 border-gray-200" />
-                            <button onClick={() => { exportToExcel(); setShowMenu(false); }} className="btn btn-ghost w-full justify-start"><Icons.Download className="w-5 h-5" />{t.exportExcel}</button>
+                            <button onClick={() => { exportToExcel(); setShowMenu(false); }} className="btn btn-primary w-full"><Icons.Download className="w-5 h-5" />Експорт в Excel</button>
                             <button onClick={() => { handleLogout(); setShowMenu(false); }} className="btn btn-ghost w-full justify-start text-red-600"><Icons.LogOut className="w-5 h-5" />{t.logout}</button>
                         </div>
                     </Modal>
@@ -1523,11 +1580,42 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
                     {/* AI Analysis modal */}
                     <Modal isOpen={showAIModal} onClose={() => setShowAIModal(false)} title={t.aiAnalysis} size="xl">
                         <div className="space-y-4">
-                            <button onClick={() => setShowAISettingsModal(true)} className="btn btn-secondary w-full"><Icons.Settings className="w-4 h-4" />{t.aiSettings}</button>
+                            {/* Контекст бізнесу - одразу видимий */}
+                            <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="font-bold text-purple-900 flex items-center gap-2">
+                                        <Icons.Building className="w-5 h-5" />
+                                        Контекст вашого бізнесу
+                                    </h3>
+                                    <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">Обов'язково</span>
+                                </div>
+                                <textarea
+                                    value={aiSettings.businessContext} 
+                                    onChange={(e) => setAiSettings({ ...aiSettings, businessContext: e.target.value })}
+                                    className="textarea-field border-purple-200 focus:border-purple-400" 
+                                    rows={3} 
+                                    placeholder="Опишіть ваш бізнес: галузь, послуги, команда, середній чек, канали залучення клієнтів..."
+                                />
+                            </div>
+                            
+                            <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                                <h3 className="font-bold text-amber-900 flex items-center gap-2 mb-3">
+                                    <Icons.Target className="w-5 h-5" />
+                                    Пріоритети зараз
+                                </h3>
+                                <textarea
+                                    value={aiSettings.priorities} 
+                                    onChange={(e) => setAiSettings({ ...aiSettings, priorities: e.target.value })}
+                                    className="textarea-field border-amber-200 focus:border-amber-400" 
+                                    rows={2} 
+                                    placeholder="Що найважливіше зараз? Збільшити продажі, оптимізувати витрати, покращити конверсію..."
+                                />
+                            </div>
                             
                             {!aiSettings.businessContext && (
-                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                                    <p className="text-sm text-amber-700">⚠️ Спочатку заповніть контекст бізнесу в налаштуваннях</p>
+                                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                                    <Icons.AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                                    <p className="text-sm text-red-700">Заповніть контекст бізнесу вище — без нього AI не зможе дати корисні рекомендації</p>
                                 </div>
                             )}
                             
@@ -1535,35 +1623,7 @@ ${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additiona
                         </div>
                     </Modal>
                     
-                    {/* AI Settings modal */}
-                    <Modal isOpen={showAISettingsModal} onClose={() => setShowAISettingsModal(false)} title={t.aiSettings} size="lg">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.businessContext}</label>
-                                <textarea
-                                    value={aiSettings.businessContext} onChange={(e) => setAiSettings({ ...aiSettings, businessContext: e.target.value })}
-                                    className="textarea-field" rows={4} placeholder={t.businessContextPlaceholder}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.priorities}</label>
-                                <textarea
-                                    value={aiSettings.priorities} onChange={(e) => setAiSettings({ ...aiSettings, priorities: e.target.value })}
-                                    className="textarea-field" rows={3} placeholder={t.prioritiesPlaceholder}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.analysisPeriod} (за замовчуванням)</label>
-                                <select value={aiSettings.analysisPeriod || 5} onChange={(e) => setAiSettings({ ...aiSettings, analysisPeriod: Number(e.target.value) })} className="select-field">
-                                    <option value={3}>3 {t.lastWeeks}</option>
-                                    <option value={5}>5 {t.lastWeeks}</option>
-                                    <option value={7}>7 {t.lastWeeks}</option>
-                                    <option value={10}>10 {t.lastWeeks}</option>
-                                </select>
-                            </div>
-                            <button onClick={() => { setShowAISettingsModal(false); toast.success(t.saved); }} className="btn btn-primary w-full">{t.save}</button>
-                        </div>
-                    </Modal>
+                    {/* AI Settings modal - видалено, тепер все в одному місці */}
                     
                     {/* Confirm dialog */}
                     <ConfirmDialog isOpen={confirmDialog.isOpen} onClose={() => setConfirmDialog({ isOpen: false })} onConfirm={confirmDialog.onConfirm} title={confirmDialog.title} message={confirmDialog.message} />
