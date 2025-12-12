@@ -122,7 +122,7 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 9000; animation: fadeIn 0.2s ease-out; }
         .modal-content { position: fixed; background: white; z-index: 9001; overflow-y: auto; overscroll-behavior: contain; }
         @media (min-width: 640px) { 
-            .modal-content { top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 24px; max-width: 560px; width: 90%; max-height: 90vh; animation: scaleIn 0.3s ease-out; } 
+            .modal-content { top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 24px; width: 90%; max-height: 90vh; animation: scaleIn 0.3s ease-out; } 
         }
         @media (max-width: 639px) { 
             .modal-content { 
@@ -488,7 +488,8 @@
                 return () => { document.body.style.overflow = ''; };
             }, [isOpen]);
             if (!isOpen) return null;
-            const sizeClass = size === 'lg' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-2xl' : 'sm:max-w-md';
+            const sizeClass = size === 'lg' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-2xl' : size === '2xl' ? 'sm:max-w-4xl' : size === 'full' ? 'sm:max-w-[90vw] sm:max-h-[90vh]' : 'sm:max-w-md';
+            const heightClass = size === '2xl' || size === 'full' ? 'max-h-[85vh]' : 'max-h-[70vh]';
             return (
                 <>
                     <div className="modal-overlay" onClick={onClose} />
@@ -499,7 +500,7 @@
                                 <h2 className="text-xl font-bold text-gray-900">{title}</h2>
                                 <button onClick={onClose} className="btn btn-ghost btn-icon"><Icons.Close className="w-5 h-5" /></button>
                             </div>
-                            <div className="max-h-[70vh] overflow-y-auto">{children}</div>
+                            <div className={`${heightClass} overflow-y-auto`}>{children}</div>
                         </div>
                     </div>
                 </>
@@ -960,6 +961,8 @@
             const [messages, setMessages] = useState([]);
             const [analysisData, setAnalysisData] = useState(null);
             const [selectedSolution, setSelectedSolution] = useState(null);
+            const [customSolution, setCustomSolution] = useState('');
+            const [showCustomInput, setShowCustomInput] = useState(false);
             const chatEndRef = React.useRef(null);
             
             // Scroll to bottom on new messages
@@ -1145,7 +1148,8 @@ ${aiSettings.businessContext}
                             { text: '1️⃣ Обираю варіант 1', action: 'solution_1' },
                             { text: '2️⃣ Обираю варіант 2', action: 'solution_2' },
                             { text: '3️⃣ Обираю варіант 3', action: 'solution_3' },
-                            { text: '⭐ Обираю рекомендований', action: 'solution_recommended' }
+                            { text: '⭐ Обираю рекомендований', action: 'solution_recommended' },
+                            { text: '✏️ Свій варіант', action: 'custom_solution' }
                         ]);
                     }
                 } catch (error) {
@@ -1226,6 +1230,74 @@ ${aiSettings.businessContext}
                 setIsAnalyzing(false);
             };
             
+            // ЕТАП 3 (власний варіант): План дій для custom solution
+            const createCustomPlan = async (customText) => {
+                setStep(3);
+                setSelectedSolution('custom');
+                setIsAnalyzing(true);
+                
+                addMessage('user', `✏️ Мій варіант: ${customText}`);
+                addMessage('system', '📋 Аналізую ваш варіант та складаю план...');
+                
+                const previousContext = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n');
+                
+                const prompt = `Користувач запропонував ВЛАСНИЙ ВАРІАНТ рішення. Спочатку оціни його, потім склади план.
+
+ВАРІАНТ КОРИСТУВАЧА:
+${customText}
+
+Попередній контекст (вузьке місце):
+${previousContext}
+
+Контекст бізнесу:
+${aiSettings.businessContext}
+
+Дай відповідь українською у форматі:
+
+📝 ОЦІНКА ВАШОГО ВАРІАНТУ:
+✅ Сильні сторони: [2-3 пункти]
+⚠️ Можливі ризики: [1-2 пункти]
+💡 Рекомендація: [як покращити або на що звернути увагу]
+
+📋 ПЛАН ВПРОВАДЖЕННЯ
+
+🎯 ЦІЛЬ: [що хочемо досягти + конкретна метрика]
+
+📅 ТИЖДЕНЬ 1:
+□ Завдання 1.1: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+□ Завдання 1.2: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+
+📅 ТИЖДЕНЬ 2:
+□ Завдання 2.1: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+
+✅ КРИТЕРІЇ УСПІХУ:
+• [Метрика 1]: було [X] → стало [Y]
+
+⚡ ПЕРШИЙ КРОК ПРЯМО ЗАРАЗ:
+[Одна конкретна дія яку можна зробити сьогодні]`;
+
+                try {
+                    const response = await callAI(prompt);
+                    addMessage('ai', response);
+                    addMessage('buttons', null, [
+                        { text: '💾 Зберегти план', action: 'save' },
+                        { text: '📋 Скопіювати', action: 'copy' },
+                        { text: '🔄 Почати спочатку', action: 'restart' }
+                    ]);
+                } catch (error) {
+                    addMessage('error', 'Помилка: ' + error.message);
+                }
+                
+                setIsAnalyzing(false);
+                setCustomSolution('');
+            };
+            
             // Обробка кнопок
             const handleButton = (action) => {
                 switch(action) {
@@ -1247,6 +1319,17 @@ ${aiSettings.businessContext}
                     case 'solution_recommended':
                         createPlan('recommended');
                         break;
+                    case 'custom_solution':
+                        setShowCustomInput(true);
+                        addMessage('system', '✏️ Опишіть ваш варіант рішення:');
+                        addMessage('custom_input', null);
+                        break;
+                    case 'submit_custom':
+                        if (customSolution.trim()) {
+                            createCustomPlan(customSolution);
+                            setShowCustomInput(false);
+                        }
+                        break;
                     case 'save':
                         const fullText = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n\n---\n\n');
                         onSaveAnalysis({ text: fullText, date: new Date().toISOString(), period });
@@ -1261,6 +1344,8 @@ ${aiSettings.businessContext}
                         setStep(0);
                         setMessages([]);
                         setSelectedSolution(null);
+                        setShowCustomInput(false);
+                        setCustomSolution('');
                         break;
                 }
             };
@@ -1280,6 +1365,40 @@ ${aiSettings.businessContext}
                                     {btn.text}
                                 </button>
                             ))}
+                        </div>
+                    );
+                }
+                
+                if (msg.type === 'custom_input') {
+                    return (
+                        <div key={idx} className="my-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                            <textarea
+                                value={customSolution}
+                                onChange={(e) => setCustomSolution(e.target.value)}
+                                placeholder="Опишіть ваш варіант рішення... Наприклад: Хочу найняти ще одного менеджера з продажів та налаштувати автоматичну воронку в CRM"
+                                className="w-full p-3 border border-amber-300 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                rows={4}
+                                disabled={isAnalyzing}
+                            />
+                            <div className="flex gap-2 mt-3">
+                                <button 
+                                    onClick={() => handleButton('submit_custom')}
+                                    disabled={isAnalyzing || !customSolution.trim()}
+                                    className="btn btn-primary text-sm"
+                                >
+                                    {isAnalyzing ? <><Icons.Loader className="w-4 h-4" /> Аналізую...</> : '📋 Скласти план'}
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        setShowCustomInput(false);
+                                        setMessages(prev => prev.filter(m => m.type !== 'custom_input' && m.content !== '✏️ Опишіть ваш варіант рішення:'));
+                                    }}
+                                    disabled={isAnalyzing}
+                                    className="btn btn-ghost text-sm"
+                                >
+                                    Скасувати
+                                </button>
+                            </div>
                         </div>
                     );
                 }
@@ -1360,7 +1479,7 @@ ${aiSettings.businessContext}
                     
                     {/* Чат */}
                     {step > 0 && (
-                        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                        <div className="space-y-3 overflow-y-auto pr-2">
                             {/* Progress */}
                             <div className="flex items-center gap-2 p-3 bg-gray-100 rounded-xl sticky top-0 z-10">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-purple-500 text-white' : 'bg-gray-300'}`}>1</div>
@@ -2220,7 +2339,7 @@ ${aiSettings.businessContext}
                     </Modal>
                     
                     {/* AI Analysis modal */}
-                    <Modal isOpen={showAIModal} onClose={() => setShowAIModal(false)} title={t.aiAnalysis} size="xl">
+                    <Modal isOpen={showAIModal} onClose={() => setShowAIModal(false)} title={t.aiAnalysis} size="2xl">
                         <div className="space-y-4">
                             {/* Контекст бізнесу - одразу видимий */}
                             <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
