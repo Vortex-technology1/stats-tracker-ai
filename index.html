@@ -2204,12 +2204,20 @@ ${aiSettings.businessContext}
                 if (isOwner) return columns;
                 // Для співробітника беремо його дані з employees
                 const employeeData = employees[user?.uid];
+                console.log('Employee visibility check:', { 
+                    uid: user?.uid, 
+                    employeeData, 
+                    allEmployeeIds: Object.keys(employees),
+                    columnsCount: columns.length 
+                });
                 if (!employeeData?.visibleColumns || employeeData.visibleColumns.length === 0) {
                     // Якщо немає збережених колонок - показуємо всі (fallback)
                     console.log('Employee columns not found, showing all columns');
                     return columns;
                 }
-                return columns.filter(col => employeeData.visibleColumns.includes(col.id));
+                const filtered = columns.filter(col => employeeData.visibleColumns.includes(col.id));
+                console.log('Filtered columns for employee:', filtered.length);
+                return filtered;
             }, [columns, isOwner, employees, user]);
 
             // ==================== AUTH ====================
@@ -2227,9 +2235,13 @@ ${aiSettings.businessContext}
                     const userDoc = await db.collection('users').doc(userId).get();
                     if (userDoc.exists) {
                         const profile = userDoc.data();
+                        console.log('User profile loaded:', { userId, role: profile.role, ownerId: profile.ownerId });
                         setUserProfile(profile);
                         const ownerId = profile.role === 'owner' ? userId : profile.ownerId;
+                        console.log('Loading workspace for ownerId:', ownerId);
                         if (ownerId) await loadWorkspaceData(ownerId);
+                    } else {
+                        console.log('User profile not found for:', userId);
                     }
                 } catch (error) {
                     console.error('Error loading profile:', error);
@@ -2241,9 +2253,15 @@ ${aiSettings.businessContext}
             
             const loadWorkspaceData = async (ownerId) => {
                 try {
+                    console.log('Fetching workspace:', ownerId);
                     const workspaceDoc = await db.collection('workspaces').doc(ownerId).get();
                     if (workspaceDoc.exists) {
                         const data = workspaceDoc.data();
+                        console.log('Workspace loaded:', { 
+                            columnsCount: data.columns?.length, 
+                            rowsCount: data.rows?.length,
+                            employeesCount: Object.keys(data.employees || {}).length 
+                        });
                         setColumns(data.columns || []);
                         setRows(data.rows || []);
                         
@@ -2402,23 +2420,38 @@ ${aiSettings.businessContext}
             };
             
             const handleLogout = async () => {
+                // Скасовуємо pending save
+                if (saveTimeoutRef.current) {
+                    clearTimeout(saveTimeoutRef.current);
+                    saveTimeoutRef.current = null;
+                }
                 await auth.signOut();
                 setColumns([]); setRows([]); setEmployees({}); setUserProfile(null);
                 toast.info('До побачення!');
             };
 
             // ==================== DATA SAVING ====================
+            // Ref для актуальних даних (уникаємо stale closure)
+            const dataRef = useRef({ columns, rows, employees, aiSettings, savedAnalyses });
             useEffect(() => {
-                // Зберігаємо тільки якщо власник
-                if (user && workspaceOwnerId && columns.length > 0 && isOwner) debouncedSave();
-            }, [columns, rows, employees, aiSettings, savedAnalyses, isOwner]);
+                dataRef.current = { columns, rows, employees, aiSettings, savedAnalyses };
+            }, [columns, rows, employees, aiSettings, savedAnalyses]);
             
-            const saveData = async () => {
+            const saveData = useCallback(async () => {
                 if (!user || !workspaceOwnerId || !isOwner) return;
+                const data = dataRef.current;
+                if (!data.columns || data.columns.length === 0 || !data.rows || data.rows.length === 0) {
+                    console.log('Skip save - no data', { cols: data.columns?.length, rows: data.rows?.length });
+                    return;
+                }
                 setSaveStatus('saving');
                 try {
                     await db.collection('workspaces').doc(workspaceOwnerId).set({
-                        columns, rows, employees, aiSettings, savedAnalyses,
+                        columns: data.columns, 
+                        rows: data.rows, 
+                        employees: data.employees, 
+                        aiSettings: data.aiSettings, 
+                        savedAnalyses: data.savedAnalyses,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                     setSaveStatus('saved');
@@ -2428,12 +2461,23 @@ ${aiSettings.businessContext}
                     setSaveStatus('error');
                     toast.error(t.saveError);
                 }
-            };
+            }, [user, workspaceOwnerId, isOwner]);
             
             const debouncedSave = useCallback(() => {
                 if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                 saveTimeoutRef.current = setTimeout(saveData, 2000);
-            }, [workspaceOwnerId, isOwner]);
+            }, [saveData]);
+            
+            useEffect(() => {
+                // Зберігаємо тільки якщо:
+                // - є юзер і workspace
+                // - це власник
+                // - є дані (columns і rows)
+                // - не йде завантаження
+                if (user && workspaceOwnerId && columns.length > 0 && rows.length > 0 && isOwner && !authLoading) {
+                    debouncedSave();
+                }
+            }, [columns, rows, employees, aiSettings, savedAnalyses, isOwner, debouncedSave, authLoading]);
 
             // ==================== DATA HANDLERS ====================
             const addColumn = () => {
