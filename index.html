@@ -947,18 +947,72 @@
             );
         };
 
-        // ==================== AI ANALYSIS ====================
-        const AIAnalysis = ({ columns, rows, targetRow, aiSettings, language, onSaveAnalysis, savedAnalyses, t }) => {
+        // ==================== AI ANALYSIS (INTERACTIVE CHAT) ====================
+        const AIAnalysis = ({ columns, rows, targetRow, aiSettings, language, onSaveAnalysis, savedAnalyses, onUpdateAiSettings, t }) => {
             const toast = useToast();
             const [isAnalyzing, setIsAnalyzing] = useState(false);
-            const [result, setResult] = useState(null);
             const [period, setPeriod] = useState(5);
             const [additionalFocus, setAdditionalFocus] = useState('');
             const [showHistory, setShowHistory] = useState(false);
             
-            const runAnalysis = async () => {
+            // Chat state
+            const [step, setStep] = useState(0); // 0=start, 1=bottleneck, 2=solutions, 3=plan
+            const [messages, setMessages] = useState([]);
+            const [analysisData, setAnalysisData] = useState(null);
+            const [selectedSolution, setSelectedSolution] = useState(null);
+            const chatEndRef = React.useRef(null);
+            
+            // Scroll to bottom on new messages
+            React.useEffect(() => {
+                chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+            
+            const WORKER_URL = 'https://openai-proxy.management-talco.workers.dev/';
+            
+            const getTableData = () => {
+                const weeksAgo = new Date();
+                weeksAgo.setDate(weeksAgo.getDate() - (period * 7));
+                const filteredRows = rows.filter(r => !r.isTarget && new Date(r.date) >= weeksAgo);
+                
+                return filteredRows.map(row => {
+                    const rowData = { 'Дата': row.date };
+                    columns.forEach(col => {
+                        const fact = row.values?.[col.id] || '-';
+                        const plan = row.targets?.[col.id] || '-';
+                        const diff = (parseFloat(fact) && parseFloat(plan)) 
+                            ? Math.round((parseFloat(fact) / parseFloat(plan)) * 100) + '%' 
+                            : '-';
+                        rowData[col.name] = `Факт: ${fact}, План: ${plan}, Виконання: ${diff}`;
+                    });
+                    return rowData;
+                });
+            };
+            
+            const callAI = async (prompt) => {
+                const response = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: OPENAI_MODEL,
+                        messages: [{ role: 'user', content: prompt }],
+                        max_tokens: 2000,
+                        temperature: 0.7
+                    })
+                });
+                
+                if (!response.ok) throw new Error('API Error');
+                const data = await response.json();
+                return data.choices[0].message.content;
+            };
+            
+            const addMessage = (type, content, buttons = null) => {
+                setMessages(prev => [...prev, { type, content, buttons, time: new Date() }]);
+            };
+            
+            // ЕТАП 1: Визначення вузького місця
+            const startAnalysis = async () => {
                 if (!aiSettings.businessContext) {
-                    toast.warning('Заповніть контекст бізнесу вище ☝️');
+                    toast.warning('Заповніть контекст бізнесу');
                     return;
                 }
                 
@@ -967,168 +1021,360 @@
                     return;
                 }
                 
+                setStep(1);
+                setMessages([]);
                 setIsAnalyzing(true);
-                try {
-                    const weeksAgo = new Date();
-                    weeksAgo.setDate(weeksAgo.getDate() - (period * 7));
-                    const filteredRows = rows.filter(r => !r.isTarget && new Date(r.date) >= weeksAgo);
-                    
-                    // Формуємо таблицю з планом і фактом для кожного періоду
-                    const tableData = filteredRows.map(row => {
-                        const rowData = { 'Дата': row.date };
-                        columns.forEach(col => {
-                            const fact = row.values?.[col.id] || '-';
-                            const plan = row.targets?.[col.id] || '-';
-                            const diff = (parseFloat(fact) && parseFloat(plan)) 
-                                ? Math.round((parseFloat(fact) / parseFloat(plan)) * 100) + '%' 
-                                : '-';
-                            rowData[col.name] = `Факт: ${fact}, План: ${plan}, Виконання: ${diff}`;
-                        });
-                        return rowData;
-                    });
-                    
-                    const langName = language === 'uk' ? 'українською' : language === 'ru' ? 'російською' : 'українською';
-                    
-                    const prompt = `Ти — внутрішній експерт компанії з системного аналізу та стратегічного планування.
+                
+                addMessage('system', '🔍 Аналізую ваші дані... Це займе 1-2 хвилини.');
+                
+                const tableData = getTableData();
+                setAnalysisData(tableData);
+                
+                const prompt = `Ти — бізнес-консультант з 10+ років досвіду. Проаналізуй дані та визнач ГОЛОВНЕ вузьке місце.
 
 КОНТЕКСТ БІЗНЕСУ:
 ${aiSettings.businessContext}
 
-ПРІОРИТЕТИ ЗАРАЗ:
+ПРІОРИТЕТИ:
 ${aiSettings.priorities || 'Не вказано'}
 
-СТАТИСТИКА ЗА ОСТАННІ ${period} ТИЖНІВ (План/Факт для кожного періоду):
+СТАТИСТИКА ЗА ${period} ТИЖНІВ:
 ${JSON.stringify(tableData, null, 2)}
 
-${additionalFocus ? `ДОДАТКОВИЙ ФОКУС АНАЛІЗУ: ${additionalFocus}` : ''}
+${additionalFocus ? `ФОКУС: ${additionalFocus}` : ''}
 
-Проаналізуй дані та дай відповідь ${langName} у такому форматі:
+Дай відповідь українською у форматі:
 
-📊 ЗАГАЛЬНА КАРТИНА
-[2-3 речення про загальний стан справ]
+⚠️ ВУЗЬКЕ МІСЦЕ: [назва проблеми]
 
-⚠️ ВУЗЬКЕ МІСЦЕ: [назва]
-• Чому: [конкретні факти з даних]
-• Вплив: [на що впливає]  
-• Втрати: [скільки приблизно втрачається]
+📉 ФАКТИ З ДАНИХ:
+• [конкретна цифра 1]
+• [конкретна цифра 2]
+• [конкретна цифра 3]
 
-💡 РЕКОМЕНДАЦІЇ:
-1. [Конкретна дія + очікуваний результат]
-2. [Конкретна дія + очікуваний результат]
-3. [Конкретна дія + очікуваний результат]
+🔗 ПРИЧИННО-НАСЛІДКОВИЙ ЗВ'ЯЗОК:
+[Поясни ланцюжок: ця проблема → призводить до → що впливає на → кінцевий результат]
 
-📋 ПЛАН НА ТИЖДЕНЬ:
-□ Пн: [конкретна дія]
-□ Ср: [конкретна дія]
-□ Пт: [конкретна дія]`;
+💸 ВТРАТИ:
+Через це ви втрачаєте приблизно [сума] грн на [період].
 
-                    // Cloudflare Worker для обходу CORS (ключ зберігається там)
-                    const WORKER_URL = 'https://openai-proxy.management-talco.workers.dev/';
-                    
-                    const response = await fetch(WORKER_URL, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            model: OPENAI_MODEL,
-                            messages: [{ role: 'user', content: prompt }],
-                            max_tokens: 1500,
-                            temperature: 0.7
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        const errData = await response.json().catch(() => ({}));
-                        if (response.status === 0 || errData.message?.includes('CORS')) {
-                            throw new Error('CORS помилка. Створи Cloudflare Worker (інструкція в консолі)');
-                        }
-                        throw new Error(errData.error?.message || `HTTP ${response.status}`);
-                    }
-                    
-                    const data = await response.json();
-                    const analysisResult = {
-                        text: data.choices[0].message.content,
-                        date: new Date().toISOString(),
-                        period: period
-                    };
-                    setResult(analysisResult);
-                    toast.success('Аналіз завершено!');
+Будь конкретним, використовуй реальні цифри з даних.`;
+
+                try {
+                    const response = await callAI(prompt);
+                    addMessage('ai', response);
+                    addMessage('buttons', null, [
+                        { text: '✅ Так, зрозуміло. Що робити?', action: 'understood' },
+                        { text: '🤔 Поясни детальніше', action: 'explain_more' }
+                    ]);
                 } catch (error) {
-                    console.error('AI Error:', error);
-                    toast.error('Помилка аналізу. Перевірте API ключ.');
-                } finally {
-                    setIsAnalyzing(false);
+                    addMessage('error', 'Помилка аналізу: ' + error.message);
+                }
+                
+                setIsAnalyzing(false);
+            };
+            
+            // ЕТАП 2: Варіанти рішення
+            const showSolutions = async (needMoreExplanation = false) => {
+                setStep(2);
+                setIsAnalyzing(true);
+                
+                if (needMoreExplanation) {
+                    addMessage('user', '🤔 Поясни детальніше');
+                    addMessage('system', '📚 Готую розгорнуте пояснення...');
+                } else {
+                    addMessage('user', '✅ Так, зрозуміло. Що робити?');
+                    addMessage('system', '💡 Готую варіанти рішення...');
+                }
+                
+                const previousContext = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n');
+                
+                const prompt = needMoreExplanation 
+                    ? `Поясни детальніше причинно-наслідковий зв'язок вузького місця. Використовуй аналогії та приклади. Покажи як кожен крок впливає на наступний.
+
+Попередній аналіз:
+${previousContext}
+
+Дай розгорнуте пояснення українською, потім запитай чи зрозуміло.`
+                    : `На основі виявленого вузького місця, запропонуй 3 ВАРІАНТИ РІШЕННЯ.
+
+Попередній аналіз:
+${previousContext}
+
+Контекст бізнесу:
+${aiSettings.businessContext}
+
+Дай відповідь українською у форматі:
+
+📋 ТРИ ВАРІАНТИ РІШЕННЯ:
+
+1️⃣ ВАРІАНТ: [Назва]
+✅ Плюси: [2-3 пункти]
+❌ Мінуси: [1-2 пункти]
+⏱ Термін: [скільки часу]
+💰 Вартість: [орієнтовно]
+📈 Очікуваний результат: [конкретно]
+
+2️⃣ ВАРІАНТ: [Назва]
+✅ Плюси: [2-3 пункти]
+❌ Мінуси: [1-2 пункти]
+⏱ Термін: [скільки часу]
+💰 Вартість: [орієнтовно]
+📈 Очікуваний результат: [конкретно]
+
+3️⃣ ВАРІАНТ: [Назва]
+✅ Плюси: [2-3 пункти]
+❌ Мінуси: [1-2 пункти]
+⏱ Термін: [скільки часу]
+💰 Вартість: [орієнтовно]
+📈 Очікуваний результат: [конкретно]
+
+⭐ РЕКОМЕНДУЮ: Варіант [номер], тому що [коротке пояснення чому саме цей варіант найкращий для вашої ситуації].`;
+
+                try {
+                    const response = await callAI(prompt);
+                    addMessage('ai', response);
+                    
+                    if (needMoreExplanation) {
+                        addMessage('buttons', null, [
+                            { text: '✅ Тепер зрозуміло. Що робити?', action: 'understood' },
+                            { text: '🤔 Ще раз поясни', action: 'explain_more' }
+                        ]);
+                    } else {
+                        addMessage('buttons', null, [
+                            { text: '1️⃣ Обираю варіант 1', action: 'solution_1' },
+                            { text: '2️⃣ Обираю варіант 2', action: 'solution_2' },
+                            { text: '3️⃣ Обираю варіант 3', action: 'solution_3' },
+                            { text: '⭐ Обираю рекомендований', action: 'solution_recommended' }
+                        ]);
+                    }
+                } catch (error) {
+                    addMessage('error', 'Помилка: ' + error.message);
+                }
+                
+                setIsAnalyzing(false);
+            };
+            
+            // ЕТАП 3: План дій
+            const createPlan = async (solutionNum) => {
+                setStep(3);
+                setSelectedSolution(solutionNum);
+                setIsAnalyzing(true);
+                
+                const solutionText = solutionNum === 'recommended' ? 'рекомендований варіант' : `варіант ${solutionNum}`;
+                addMessage('user', `⭐ Обираю ${solutionText}`);
+                addMessage('system', '📋 Складаю детальний план дій та завдання...');
+                
+                const previousContext = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n');
+                
+                const prompt = `Склади ДЕТАЛЬНИЙ ПЛАН ВПРОВАДЖЕННЯ обраного рішення.
+
+Обрано: ${solutionText}
+
+Попередній контекст:
+${previousContext}
+
+Контекст бізнесу:
+${aiSettings.businessContext}
+
+Дай відповідь українською у форматі:
+
+📋 ПЛАН ВПРОВАДЖЕННЯ
+
+🎯 ЦІЛЬ: [що хочемо досягти + конкретна метрика]
+
+📅 ТИЖДЕНЬ 1:
+□ Завдання 1.1: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+□ Завдання 1.2: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+
+📅 ТИЖДЕНЬ 2:
+□ Завдання 2.1: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+□ Завдання 2.2: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+
+📅 ТИЖДЕНЬ 3-4:
+□ Завдання 3.1: [конкретна дія]
+  → Відповідальний: [хто]
+  → Результат: [що отримаємо]
+
+✅ КРИТЕРІЇ УСПІХУ:
+• [Метрика 1]: було [X] → стало [Y]
+• [Метрика 2]: було [X] → стало [Y]
+
+⚡ ПЕРШИЙ КРОК ПРЯМО ЗАРАЗ:
+[Одна конкретна дія яку можна зробити сьогодні]`;
+
+                try {
+                    const response = await callAI(prompt);
+                    addMessage('ai', response);
+                    addMessage('buttons', null, [
+                        { text: '💾 Зберегти план', action: 'save' },
+                        { text: '📋 Скопіювати', action: 'copy' },
+                        { text: '🔄 Почати спочатку', action: 'restart' }
+                    ]);
+                } catch (error) {
+                    addMessage('error', 'Помилка: ' + error.message);
+                }
+                
+                setIsAnalyzing(false);
+            };
+            
+            // Обробка кнопок
+            const handleButton = (action) => {
+                switch(action) {
+                    case 'understood':
+                        showSolutions(false);
+                        break;
+                    case 'explain_more':
+                        showSolutions(true);
+                        break;
+                    case 'solution_1':
+                        createPlan('1');
+                        break;
+                    case 'solution_2':
+                        createPlan('2');
+                        break;
+                    case 'solution_3':
+                        createPlan('3');
+                        break;
+                    case 'solution_recommended':
+                        createPlan('recommended');
+                        break;
+                    case 'save':
+                        const fullText = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n\n---\n\n');
+                        onSaveAnalysis({ text: fullText, date: new Date().toISOString(), period });
+                        toast.success('План збережено!');
+                        break;
+                    case 'copy':
+                        const textToCopy = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n\n---\n\n');
+                        navigator.clipboard.writeText(textToCopy);
+                        toast.success('Скопійовано!');
+                        break;
+                    case 'restart':
+                        setStep(0);
+                        setMessages([]);
+                        setSelectedSolution(null);
+                        break;
                 }
             };
             
-            const copyResult = async () => {
-                if (result) {
-                    await navigator.clipboard.writeText(result.text);
-                    toast.success(t.linkCopied);
+            // Рендер повідомлення
+            const renderMessage = (msg, idx) => {
+                if (msg.type === 'buttons') {
+                    return (
+                        <div key={idx} className="flex flex-wrap gap-2 my-4">
+                            {msg.buttons.map((btn, i) => (
+                                <button 
+                                    key={i} 
+                                    onClick={() => handleButton(btn.action)}
+                                    disabled={isAnalyzing}
+                                    className="btn btn-secondary text-sm"
+                                >
+                                    {btn.text}
+                                </button>
+                            ))}
+                        </div>
+                    );
                 }
-            };
-            
-            const saveResult = () => {
-                if (result) {
-                    onSaveAnalysis(result);
-                    toast.success('Збережено!');
-                }
+                
+                const styles = {
+                    system: 'bg-blue-50 border-blue-200 text-blue-800',
+                    ai: 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200 text-gray-800',
+                    user: 'bg-green-50 border-green-200 text-green-800 ml-auto max-w-[80%]',
+                    error: 'bg-red-50 border-red-200 text-red-800'
+                };
+                
+                return (
+                    <div key={idx} className={`p-4 rounded-2xl border ${styles[msg.type]} animate-fade-in`}>
+                        {msg.type === 'system' && <div className="flex items-center gap-2 mb-1"><Icons.Loader className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} /><span className="font-medium text-sm">Система</span></div>}
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
+                    </div>
+                );
             };
             
             return (
                 <div className="space-y-4">
-                    <div className="flex items-center gap-3 mb-4">
-                        <label className="text-sm font-medium text-gray-700">{t.analysisPeriod}:</label>
-                        <select value={period} onChange={(e) => setPeriod(Number(e.target.value))} className="select-field w-auto">
-                            <option value={3}>3 {t.lastWeeks}</option>
-                            <option value={5}>5 {t.lastWeeks}</option>
-                            <option value={7}>7 {t.lastWeeks}</option>
-                            <option value={10}>10 {t.lastWeeks}</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.additionalFocus}</label>
-                        <input
-                            type="text" value={additionalFocus} onChange={(e) => setAdditionalFocus(e.target.value)}
-                            className="input-field" placeholder={t.additionalFocusPlaceholder}
-                        />
-                    </div>
-                    
-                    <div className="flex gap-3">
-                        <button onClick={runAnalysis} disabled={isAnalyzing} className="btn btn-ai flex-1">
-                            {isAnalyzing ? <><Icons.Loader className="w-5 h-5" />{t.analyzing}</> : <><Icons.Brain className="w-5 h-5" />{t.runAnalysis}</>}
-                        </button>
-                        {savedAnalyses?.length > 0 && (
-                            <button onClick={() => setShowHistory(!showHistory)} className="btn btn-secondary">
-                                <Icons.History className="w-5 h-5" />
-                            </button>
-                        )}
-                    </div>
-                    
-                    {showHistory && savedAnalyses?.length > 0 && (
-                        <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
-                            <h4 className="font-semibold text-gray-700 mb-2">{t.analysisHistory}</h4>
-                            {savedAnalyses.slice(0, 5).map((analysis, i) => (
-                                <button key={i} onClick={() => setResult(analysis)} className="w-full text-left p-3 bg-white rounded-lg hover:bg-gray-100 transition-colors">
-                                    <div className="text-sm font-medium text-gray-900">{new Date(analysis.date).toLocaleDateString()}</div>
-                                    <div className="text-xs text-gray-500">{analysis.period} {t.lastWeeks}</div>
+                    {/* Налаштування (тільки на старті) */}
+                    {step === 0 && (
+                        <>
+                            <div className="flex items-center gap-3 mb-4">
+                                <label className="text-sm font-medium text-gray-700">{t.analysisPeriod}:</label>
+                                <select value={period} onChange={(e) => setPeriod(Number(e.target.value))} className="select-field w-auto">
+                                    <option value={3}>3 {t.lastWeeks}</option>
+                                    <option value={5}>5 {t.lastWeeks}</option>
+                                    <option value={7}>7 {t.lastWeeks}</option>
+                                    <option value={10}>10 {t.lastWeeks}</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.additionalFocus}</label>
+                                <input
+                                    type="text" value={additionalFocus} onChange={(e) => setAdditionalFocus(e.target.value)}
+                                    className="input-field" placeholder={t.additionalFocusPlaceholder}
+                                />
+                            </div>
+                            
+                            <div className="flex gap-3">
+                                <button onClick={startAnalysis} disabled={isAnalyzing} className="btn btn-ai flex-1">
+                                    {isAnalyzing ? <><Icons.Loader className="w-5 h-5" />{t.analyzing}</> : <><Icons.Brain className="w-5 h-5" />{t.runAnalysis}</>}
                                 </button>
-                            ))}
-                        </div>
+                                {savedAnalyses?.length > 0 && (
+                                    <button onClick={() => setShowHistory(!showHistory)} className="btn btn-secondary">
+                                        <Icons.History className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {showHistory && savedAnalyses?.length > 0 && (
+                                <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                                    <h4 className="font-semibold text-gray-700 mb-2">{t.analysisHistory}</h4>
+                                    {savedAnalyses.slice(0, 5).map((analysis, i) => (
+                                        <div key={i} className="p-3 bg-white rounded-lg">
+                                            <div className="text-sm font-medium text-gray-900">{new Date(analysis.date).toLocaleDateString()}</div>
+                                            <div className="text-xs text-gray-500 mt-1 line-clamp-2">{analysis.text?.substring(0, 100)}...</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            {/* Підказка */}
+                            <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl border border-purple-100">
+                                <h4 className="font-bold text-purple-900 mb-2">🤖 Як працює AI-консультант:</h4>
+                                <ol className="text-sm text-purple-800 space-y-1">
+                                    <li><strong>1.</strong> Визначаю вузьке місце та поясню причини</li>
+                                    <li><strong>2.</strong> Запропоную 3 варіанти рішення з плюсами/мінусами</li>
+                                    <li><strong>3.</strong> Складу план дій з конкретними завданнями</li>
+                                </ol>
+                                <p className="text-xs text-purple-600 mt-2">⏱ Весь процес займає 3-5 хвилин</p>
+                            </div>
+                        </>
                     )}
                     
-                    {result && (
-                        <div className="ai-result animate-fade-in">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-bold text-purple-900">{t.aiResult}</h3>
-                                <div className="flex gap-2">
-                                    <button onClick={copyResult} className="btn btn-ghost btn-icon"><Icons.Copy className="w-4 h-4" /></button>
-                                    <button onClick={saveResult} className="btn btn-ghost btn-icon"><Icons.Save className="w-4 h-4" /></button>
-                                </div>
+                    {/* Чат */}
+                    {step > 0 && (
+                        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                            {/* Progress */}
+                            <div className="flex items-center gap-2 p-3 bg-gray-100 rounded-xl sticky top-0 z-10">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'bg-purple-500 text-white' : 'bg-gray-300'}`}>1</div>
+                                <div className={`flex-1 h-1 rounded ${step >= 2 ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'bg-purple-500 text-white' : 'bg-gray-300'}`}>2</div>
+                                <div className={`flex-1 h-1 rounded ${step >= 3 ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 3 ? 'bg-purple-500 text-white' : 'bg-gray-300'}`}>3</div>
                             </div>
-                            <div className="prose prose-sm max-w-none whitespace-pre-wrap text-gray-800">{result.text}</div>
+                            
+                            {/* Messages */}
+                            {messages.map((msg, idx) => renderMessage(msg, idx))}
+                            
+                            {/* Scroll anchor */}
+                            <div ref={chatEndRef} />
                         </div>
                     )}
                 </div>
