@@ -2264,21 +2264,7 @@ ${aiSettings.businessContext}
                         });
                         setColumns(data.columns || []);
                         setRows(data.rows || []);
-                        
-                        // Очищення дублікатів співробітників
-                        const employeesData = data.employees || {};
-                        const cleanedEmployees = {};
-                        const seenEmails = new Set();
-                        
-                        Object.entries(employeesData).forEach(([id, emp]) => {
-                            const emailLower = emp.email?.toLowerCase();
-                            if (!seenEmails.has(emailLower)) {
-                                seenEmails.add(emailLower);
-                                cleanedEmployees[id] = emp;
-                            }
-                        });
-                        
-                        setEmployees(cleanedEmployees);
+                        setEmployees(data.employees || {});
                         setAiSettings(data.aiSettings || { businessContext: '', priorities: '', analysisPeriod: 5 });
                         setSavedAnalyses(data.savedAnalyses || []);
                     } else {
@@ -2446,14 +2432,22 @@ ${aiSettings.businessContext}
                 }
                 setSaveStatus('saving');
                 try {
-                    await db.collection('workspaces').doc(workspaceOwnerId).set({
+                    // Формуємо об'єкт для збереження
+                    const savePayload = {
                         columns: data.columns, 
                         rows: data.rows, 
-                        employees: data.employees, 
                         aiSettings: data.aiSettings, 
-                        savedAnalyses: data.savedAnalyses,
+                        savedAnalyses: data.savedAnalyses || [],
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
+                    };
+                    
+                    // Зберігаємо employees тільки якщо вони не порожні
+                    // або якщо явно оновлювались (не при першому завантаженні)
+                    if (data.employees && Object.keys(data.employees).length > 0) {
+                        savePayload.employees = data.employees;
+                    }
+                    
+                    await db.collection('workspaces').doc(workspaceOwnerId).set(savePayload, { merge: true });
                     setSaveStatus('saved');
                     setTimeout(() => setSaveStatus(null), 2000);
                 } catch (error) {
@@ -2568,9 +2562,16 @@ ${aiSettings.businessContext}
                     });
                     
                     const tempId = `pending_${code}`;
-                    setEmployees(prev => ({
-                        ...prev, [tempId]: { email: newEmployeeEmail, name: newEmployeeName, visibleColumns: selectedColumns, pending: true, inviteCode: code }
-                    }));
+                    const newEmployees = {
+                        ...employees, 
+                        [tempId]: { email: newEmployeeEmail, name: newEmployeeName, visibleColumns: selectedColumns, pending: true, inviteCode: code }
+                    };
+                    setEmployees(newEmployees);
+                    
+                    // Зберігаємо одразу в Firebase
+                    await db.collection('workspaces').doc(workspaceOwnerId).update({ 
+                        employees: newEmployees 
+                    });
                     
                     setGeneratedInviteLink(inviteLink);
                     toast.success(t.inviteLink);
@@ -2588,18 +2589,43 @@ ${aiSettings.businessContext}
             const removeEmployee = (employeeId) => {
                 setConfirmDialog({
                     isOpen: true, title: 'Видалити співробітника?',
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         const newEmployees = { ...employees };
                         delete newEmployees[employeeId];
                         setEmployees(newEmployees);
+                        
+                        // Зберігаємо одразу в Firebase
+                        if (workspaceOwnerId) {
+                            try {
+                                await db.collection('workspaces').doc(workspaceOwnerId).update({ 
+                                    employees: newEmployees 
+                                });
+                            } catch (error) {
+                                console.error('Error removing employee:', error);
+                            }
+                        }
                     }
                 });
             };
             
-            const updateEmployeeColumns = (employeeId, visibleCols) => {
-                setEmployees(prev => ({
-                    ...prev, [employeeId]: { ...prev[employeeId], visibleColumns: visibleCols }
-                }));
+            const updateEmployeeColumns = async (employeeId, visibleCols) => {
+                const newEmployees = {
+                    ...employees, 
+                    [employeeId]: { ...employees[employeeId], visibleColumns: visibleCols }
+                };
+                setEmployees(newEmployees);
+                
+                // Зберігаємо одразу в Firebase
+                if (workspaceOwnerId) {
+                    try {
+                        await db.collection('workspaces').doc(workspaceOwnerId).update({ 
+                            employees: newEmployees 
+                        });
+                        console.log('Employees saved to Firebase');
+                    } catch (error) {
+                        console.error('Error saving employees:', error);
+                    }
+                }
             };
 
             // ==================== AI HANDLERS ====================
