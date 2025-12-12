@@ -152,9 +152,13 @@
         .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; }
         .stats-table th { background: #f9fafb; padding: 14px 18px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
         .stats-table td { padding: 14px 18px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
-        .stats-table tr:hover td { background: #f9fafb; }
-        .stats-table .sticky-col { position: sticky; left: 0; background: white; z-index: 5; box-shadow: 2px 0 4px rgba(0,0,0,0.05); }
-        .stats-table tr:hover .sticky-col { background: #f9fafb; }
+        .stats-table tbody tr:nth-child(odd) td { background: #ffffff; }
+        .stats-table tbody tr:nth-child(even) td { background: #f9fafb; }
+        .stats-table tr:hover td { background: #f0fdf4 !important; }
+        .stats-table .sticky-col { position: sticky; left: 0; z-index: 5; box-shadow: 2px 0 4px rgba(0,0,0,0.05); }
+        .stats-table tbody tr:nth-child(odd) .sticky-col { background: #ffffff; }
+        .stats-table tbody tr:nth-child(even) .sticky-col { background: #f9fafb; }
+        .stats-table tr:hover .sticky-col { background: #f0fdf4 !important; }
         .target-row { background: linear-gradient(90deg, #fef3c7 0%, #fefce8 100%); }
         .target-row td { border-bottom: 2px solid #fcd34d; }
         .target-row .sticky-col { background: linear-gradient(90deg, #fef3c7 0%, #fefce8 100%); }
@@ -736,7 +740,7 @@
         };
 
         // ==================== STATS CARD (MOBILE) ====================
-        const StatsCard = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, t }) => {
+        const StatsCard = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t }) => {
             const [isExpanded, setIsExpanded] = useState(false);
             const [activeComment, setActiveComment] = useState(null);
             const [showTargets, setShowTargets] = useState(false);
@@ -759,7 +763,7 @@
             const hasAnyTarget = columns.some(col => row.targets?.[col.id]);
             
             return (
-                <div className="stats-card animate-fade-in">
+                <div className={`stats-card animate-fade-in ${isEven ? 'bg-gray-50/50' : ''}`} style={isEven ? {borderLeft: '4px solid #e5e7eb'} : {borderLeft: '4px solid #22c55e'}}>
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
@@ -2597,6 +2601,7 @@ ${aiSettings.businessContext}
                                         row={row} 
                                         columns={visibleColumns} 
                                         editable
+                                        isEven={index % 2 === 1}
                                         onDelete={() => deleteRow(row.id)} 
                                         onDateChange={(date) => updateDate(row.id, date)}
                                         onValueChange={(colId, value) => updateValue(row.id, colId, value)}
