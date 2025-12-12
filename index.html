@@ -159,6 +159,9 @@
         .stats-table tbody tr:nth-child(odd) .sticky-col { background: #ffffff; }
         .stats-table tbody tr:nth-child(even) .sticky-col { background: #f9fafb; }
         .stats-table tr:hover .sticky-col { background: #f0fdf4 !important; }
+        .stats-table th[draggable="true"] { cursor: grab; user-select: none; }
+        .stats-table th[draggable="true"]:active { cursor: grabbing; }
+        .stats-table th.drag-over { background: #dcfce7 !important; box-shadow: inset 0 0 0 2px #22c55e; }
         .target-row { background: linear-gradient(90deg, #fef3c7 0%, #fefce8 100%); }
         .target-row td { border-bottom: 2px solid #fcd34d; }
         .target-row .sticky-col { background: linear-gradient(90deg, #fef3c7 0%, #fefce8 100%); }
@@ -438,6 +441,7 @@
             Circle: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/></svg>,
             FileText: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>,
             RefreshCw: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
+            GripVertical: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>,
         };
 
         // ==================== TRANSLATIONS ====================
@@ -919,7 +923,10 @@
         };
 
         // ==================== STATS TABLE (DESKTOP) ====================
-        const StatsTable = ({ columns, rows, targetRow, onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, editable, t }) => {
+        const StatsTable = ({ columns, rows, targetRow, onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
+            const [draggedCol, setDraggedCol] = useState(null);
+            const [dragOverCol, setDragOverCol] = useState(null);
+            
             const calculateProgress = (row, colId) => {
                 if (!targetRow || !row.values) return null;
                 const target = parseFloat(String(targetRow.values[colId] || '').replace(',', '.'));
@@ -943,6 +950,37 @@
                 return isFilled ? 'filled' : 'pending';
             };
             
+            const handleDragStart = (e, colId) => {
+                setDraggedCol(colId);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', colId);
+            };
+            
+            const handleDragOver = (e, colId) => {
+                e.preventDefault();
+                if (draggedCol && draggedCol !== colId) {
+                    setDragOverCol(colId);
+                }
+            };
+            
+            const handleDragLeave = () => {
+                setDragOverCol(null);
+            };
+            
+            const handleDrop = (e, targetColId) => {
+                e.preventDefault();
+                if (draggedCol && draggedCol !== targetColId && onMoveColumn) {
+                    onMoveColumn(draggedCol, targetColId);
+                }
+                setDraggedCol(null);
+                setDragOverCol(null);
+            };
+            
+            const handleDragEnd = () => {
+                setDraggedCol(null);
+                setDragOverCol(null);
+            };
+            
             return (
                 <div className="card overflow-hidden">
                     <div className="overflow-x-auto">
@@ -950,27 +988,44 @@
                             <thead>
                                 <tr>
                                     <th className="sticky-col" style={{ minWidth: 140 }}>{t.date}</th>
-                                    {columns.map(col => {
+                                    {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
+                                        const isDragging = draggedCol === col.id;
+                                        const isDragOver = dragOverCol === col.id;
                                         return (
-                                            <th key={col.id} style={{ minWidth: 180 }}>
+                                            <th 
+                                                key={col.id} 
+                                                style={{ minWidth: 180 }}
+                                                draggable={editable}
+                                                onDragStart={(e) => handleDragStart(e, col.id)}
+                                                onDragOver={(e) => handleDragOver(e, col.id)}
+                                                onDragLeave={handleDragLeave}
+                                                onDrop={(e) => handleDrop(e, col.id)}
+                                                onDragEnd={handleDragEnd}
+                                                className={`${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                                            >
                                                 <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
-                                                            <span>{col.name}</span>
-                                                            {col.format && col.format !== 'number' && (
-                                                                <span className="text-xs font-normal text-gray-400">
-                                                                    {col.format === 'percent' && '%'}
-                                                                    {col.format === 'uah' && '₴'}
-                                                                    {col.format === 'usd' && '$'}
-                                                                    {col.format === 'eur' && '€'}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className="period-badge">{getPeriodLabel(col.period, t)}</span>
-                                                            {col.responsible && <span className="text-xs font-normal text-gray-400">{col.responsible}</span>}
+                                                    <div className="flex items-center gap-2">
+                                                        {editable && (
+                                                            <Icons.GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                                                        )}
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
+                                                                <span>{col.name}</span>
+                                                                {col.format && col.format !== 'number' && (
+                                                                    <span className="text-xs font-normal text-gray-400">
+                                                                        {col.format === 'percent' && '%'}
+                                                                        {col.format === 'uah' && '₴'}
+                                                                        {col.format === 'usd' && '$'}
+                                                                        {col.format === 'eur' && '€'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="period-badge">{getPeriodLabel(col.period, t)}</span>
+                                                                {col.responsible && <span className="text-xs font-normal text-gray-400">{col.responsible}</span>}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     {editable && (
@@ -2381,6 +2436,18 @@ ${aiSettings.businessContext}
                 setColumns(columns.map(col => col.id === colId ? { ...col, ...updates } : col));
             };
             
+            const moveColumn = (draggedId, targetId) => {
+                const draggedIdx = columns.findIndex(c => c.id === draggedId);
+                const targetIdx = columns.findIndex(c => c.id === targetId);
+                if (draggedIdx === -1 || targetIdx === -1) return;
+                
+                const newColumns = [...columns];
+                const [dragged] = newColumns.splice(draggedIdx, 1);
+                newColumns.splice(targetIdx, 0, dragged);
+                setColumns(newColumns);
+                toast.success('Порядок змінено');
+            };
+            
             const deleteColumn = (id) => {
                 setConfirmDialog({
                     isOpen: true, title: t.confirmDelete, message: 'Всі дані цього показника буде видалено',
@@ -2638,6 +2705,7 @@ ${aiSettings.businessContext}
                             <StatsTable columns={visibleColumns} rows={rows} targetRow={targetRow}
                                 onDeleteRow={deleteRow} onDateChange={updateDate} onValueChange={updateValue} onCommentChange={updateComment}
                                 onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
+                                onMoveColumn={moveColumn}
                                 editable={isOwner} t={t} />
                         </div>
                         </>
@@ -2888,6 +2956,44 @@ ${aiSettings.businessContext}
                                                 {fmt.label}
                                             </button>
                                         ))}
+                                    </div>
+                                </div>
+                                
+                                {/* Кнопки переміщення */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Позиція</label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const idx = columns.findIndex(c => c.id === editingColumn.id);
+                                                if (idx > 0) {
+                                                    moveColumn(editingColumn.id, columns[idx - 1].id);
+                                                }
+                                            }}
+                                            disabled={columns.findIndex(c => c.id === editingColumn.id) === 0}
+                                            className="flex-1 btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                            Вліво
+                                        </button>
+                                        <div className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium text-gray-600 flex items-center">
+                                            {columns.findIndex(c => c.id === editingColumn.id) + 1} / {columns.length}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const idx = columns.findIndex(c => c.id === editingColumn.id);
+                                                if (idx < columns.length - 1) {
+                                                    moveColumn(editingColumn.id, columns[idx + 1].id);
+                                                }
+                                            }}
+                                            disabled={columns.findIndex(c => c.id === editingColumn.id) === columns.length - 1}
+                                            className="flex-1 btn btn-secondary flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            Вправо
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                        </button>
                                     </div>
                                 </div>
                                 
