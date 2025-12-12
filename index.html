@@ -2202,8 +2202,13 @@ ${aiSettings.businessContext}
             // Visible columns for employees
             const visibleColumns = useMemo(() => {
                 if (isOwner) return columns;
+                // Для співробітника беремо його дані з employees
                 const employeeData = employees[user?.uid];
-                if (!employeeData?.visibleColumns) return [];
+                if (!employeeData?.visibleColumns || employeeData.visibleColumns.length === 0) {
+                    // Якщо немає збережених колонок - показуємо всі (fallback)
+                    console.log('Employee columns not found, showing all columns');
+                    return columns;
+                }
                 return columns.filter(col => employeeData.visibleColumns.includes(col.id));
             }, [columns, isOwner, employees, user]);
 
@@ -2241,7 +2246,21 @@ ${aiSettings.businessContext}
                         const data = workspaceDoc.data();
                         setColumns(data.columns || []);
                         setRows(data.rows || []);
-                        setEmployees(data.employees || {});
+                        
+                        // Очищення дублікатів співробітників
+                        const employeesData = data.employees || {};
+                        const cleanedEmployees = {};
+                        const seenEmails = new Set();
+                        
+                        Object.entries(employeesData).forEach(([id, emp]) => {
+                            const emailLower = emp.email?.toLowerCase();
+                            if (!seenEmails.has(emailLower)) {
+                                seenEmails.add(emailLower);
+                                cleanedEmployees[id] = emp;
+                            }
+                        });
+                        
+                        setEmployees(cleanedEmployees);
                         setAiSettings(data.aiSettings || { businessContext: '', priorities: '', analysisPeriod: 5 });
                         setSavedAnalyses(data.savedAnalyses || []);
                     } else {
@@ -2390,11 +2409,12 @@ ${aiSettings.businessContext}
 
             // ==================== DATA SAVING ====================
             useEffect(() => {
-                if (user && workspaceOwnerId && columns.length > 0) debouncedSave();
-            }, [columns, rows, employees, aiSettings, savedAnalyses]);
+                // Зберігаємо тільки якщо власник
+                if (user && workspaceOwnerId && columns.length > 0 && isOwner) debouncedSave();
+            }, [columns, rows, employees, aiSettings, savedAnalyses, isOwner]);
             
             const saveData = async () => {
-                if (!user || !workspaceOwnerId) return;
+                if (!user || !workspaceOwnerId || !isOwner) return;
                 setSaveStatus('saving');
                 try {
                     await db.collection('workspaces').doc(workspaceOwnerId).set({
@@ -2413,7 +2433,7 @@ ${aiSettings.businessContext}
             const debouncedSave = useCallback(() => {
                 if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                 saveTimeoutRef.current = setTimeout(saveData, 2000);
-            }, [columns, rows, employees, aiSettings, savedAnalyses, workspaceOwnerId]);
+            }, [workspaceOwnerId, isOwner]);
 
             // ==================== DATA HANDLERS ====================
             const addColumn = () => {
@@ -2484,6 +2504,16 @@ ${aiSettings.businessContext}
             
             const addEmployee = async () => {
                 if (!newEmployeeEmail.trim() || !isOwner) return;
+                
+                // Перевірка на дублікат
+                const existingEmployee = Object.values(employees).find(emp => 
+                    emp.email?.toLowerCase() === newEmployeeEmail.trim().toLowerCase()
+                );
+                if (existingEmployee) {
+                    toast.error('Співробітник з таким email вже існує');
+                    return;
+                }
+                
                 const code = generateInviteCode();
                 const inviteLink = `${window.location.origin}${window.location.pathname}?invite=${code}`;
                 
