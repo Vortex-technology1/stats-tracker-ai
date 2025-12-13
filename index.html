@@ -423,6 +423,7 @@
             EyeOff: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>,
             Settings: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
             AlertCircle: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+            AlertTriangle: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>,
             CheckCircle: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>,
             Info: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>,
             Loader: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin" {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>,
@@ -482,6 +483,7 @@
                 filled: 'Заповнено', pending: 'Очікує', overdue: 'Прострочено',
                 editColumn: 'Редагувати показник', columnSettings: 'Налаштування показника',
                 valueFormat: 'Формат значення', formatNumber: 'Число', formatPercent: 'Відсотки %', formatUAH: 'Гривні ₴', formatUSD: 'Долари $', formatEUR: 'Євро €',
+                importance: 'Важливість', importanceCritical: 'Критично (впливає на гроші)', importanceHigh: 'Висока', importanceMedium: 'Середня', importanceLow: 'Низька (допоміжний)',
             },
             ru: {
                 appName: 'Трекер статистики',
@@ -932,7 +934,7 @@
                                         const status = getPeriodStatus(period.key);
                                         return (
                                             <option key={period.key} value={period.key}>
-                                                {period.label} {period.isCurrent ? '⬅' : ''} {status === 'filled' ? '✓' : ''}
+                                                {period.label} {period.isCurrent ? '(зараз)' : ''} {status === 'filled' ? 'ok' : ''}
                                             </option>
                                         );
                                     })}
@@ -1298,9 +1300,7 @@
                                                             value={period.key}
                                                             className={status === 'filled' && !isCurrentRow ? 'text-gray-400' : ''}
                                                         >
-                                                            {period.label} {period.isCurrent ? '(поточний)' : ''} {status === 'filled' && !isCurrentRow ? '✓' : ''}
-                                                        </option>
-                                                    );
+                                                            {period.label} {period.isCurrent ? '(поточний)' : ''} {status === 'filled' && !isCurrentRow ? 'ok' : ''}
                                                         </option>
                                                     );
                                                 })}
@@ -1388,31 +1388,492 @@
                     'monthly': 'щомісяця',
                     'custom': 'довільно'
                 };
+                const formatLabels = {
+                    'number': 'число',
+                    'percent': 'відсотки (%)',
+                    'uah': 'гривні (₴)',
+                    'usd': 'долари ($)',
+                    'eur': 'євро (€)'
+                };
+                const importanceLabels = {
+                    'critical': 'КРИТИЧНИЙ (впливає на гроші)',
+                    'high': 'Високий',
+                    'medium': 'Середній',
+                    'low': 'Низький (допоміжний)'
+                };
                 return columns.map(col => ({
                     name: col.name,
                     period: periodLabels[col.period] || col.period,
+                    periodType: col.period === 'monthly' ? 'monthly' : 'weekly',
                     responsible: col.responsible || 'не вказано',
-                    format: col.format || 'число'
+                    format: formatLabels[col.format] || 'число',
+                    formatType: col.format || 'number',
+                    importance: col.importance || 'medium',
+                    importanceLabel: importanceLabels[col.importance] || 'Середній'
                 }));
+            };
+            
+            const formatValueForAI = (value, format) => {
+                if (!value || value === '-') return '-';
+                const num = parseFloat(String(value).replace(',', '.').replace(/\s/g, ''));
+                if (isNaN(num)) return value;
+                
+                const formatted = new Intl.NumberFormat('uk-UA').format(num);
+                switch (format) {
+                    case 'percent': return `${formatted}%`;
+                    case 'uah': return `${formatted} ₴`;
+                    case 'usd': return `$${formatted}`;
+                    case 'eur': return `€${formatted}`;
+                    default: return formatted;
+                }
+            };
+            
+            const formatDateForAI = (date, periodType) => {
+                if (!date) return '-';
+                if (periodType === 'monthly') {
+                    return formatMonthLabel(date); // "Грудень 2024"
+                } else {
+                    return formatWeekLabel(date); // "09-15.12.24"
+                }
             };
             
             const getTableData = () => {
                 const weeksAgo = new Date();
                 weeksAgo.setDate(weeksAgo.getDate() - (period * 7));
-                const filteredRows = rows.filter(r => !r.isTarget && new Date(r.date) >= weeksAgo);
                 
-                return filteredRows.map(row => {
-                    const rowData = { 'Дата': row.date };
-                    columns.forEach(col => {
-                        const fact = row.values?.[col.id] || '-';
-                        const plan = row.targets?.[col.id] || targetRow?.values?.[col.id] || '-';
-                        const diff = (parseFloat(fact) && parseFloat(plan)) 
-                            ? Math.round((parseFloat(fact) / parseFloat(plan)) * 100) + '%' 
-                            : '-';
-                        rowData[col.name] = `Факт: ${fact}, План: ${plan}, Виконання: ${diff}`;
+                // Розділяємо колонки по періоду
+                const weeklyColumns = columns.filter(c => c.period !== 'monthly');
+                const monthlyColumns = columns.filter(c => c.period === 'monthly');
+                
+                // Фільтруємо і сортуємо тижневі рядки
+                const weeklyRows = rows
+                    .filter(r => !r.isTarget && r.periodType !== 'monthly' && r.date)
+                    .filter(r => {
+                        const rowDate = new Date(r.date);
+                        return !isNaN(rowDate.getTime()) && rowDate >= weeksAgo;
+                    })
+                    .sort((a, b) => new Date(b.date) - new Date(a.date)); // Новіші зверху
+                
+                // Фільтруємо і сортуємо місячні рядки (за останні N місяців)
+                const monthsAgo = Math.ceil(period / 4); // Приблизно
+                const monthlyRows = rows
+                    .filter(r => !r.isTarget && r.periodType === 'monthly' && r.date)
+                    .sort((a, b) => b.date.localeCompare(a.date)) // "2024-12" > "2024-11"
+                    .slice(0, monthsAgo + 2); // Беремо кілька останніх місяців
+                
+                // Форматуємо тижневі дані
+                const weeklyData = weeklyRows.map(row => {
+                    const rowData = { 'Період': formatDateForAI(row.date, 'weekly') };
+                    weeklyColumns.forEach(col => {
+                        const fact = row.values?.[col.id];
+                        const plan = row.targets?.[col.id] || targetRow?.values?.[col.id];
+                        const factFormatted = formatValueForAI(fact, col.format);
+                        const planFormatted = formatValueForAI(plan, col.format);
+                        
+                        let diff = '-';
+                        if (parseFloat(fact) && parseFloat(plan)) {
+                            diff = Math.round((parseFloat(fact) / parseFloat(plan)) * 100) + '%';
+                        }
+                        
+                        rowData[col.name] = `${factFormatted} (план: ${planFormatted}, виконання: ${diff})`;
                     });
                     return rowData;
                 });
+                
+                // Форматуємо місячні дані
+                const monthlyData = monthlyRows.map(row => {
+                    const rowData = { 'Період': formatDateForAI(row.date, 'monthly') };
+                    monthlyColumns.forEach(col => {
+                        const fact = row.values?.[col.id];
+                        const plan = row.targets?.[col.id] || targetRow?.values?.[col.id];
+                        const factFormatted = formatValueForAI(fact, col.format);
+                        const planFormatted = formatValueForAI(plan, col.format);
+                        
+                        let diff = '-';
+                        if (parseFloat(fact) && parseFloat(plan)) {
+                            diff = Math.round((parseFloat(fact) / parseFloat(plan)) * 100) + '%';
+                        }
+                        
+                        rowData[col.name] = `${factFormatted} (план: ${planFormatted}, виконання: ${diff})`;
+                    });
+                    return rowData;
+                });
+                
+                return {
+                    weekly: { columns: weeklyColumns, data: weeklyData, rows: weeklyRows },
+                    monthly: { columns: monthlyColumns, data: monthlyData, rows: monthlyRows }
+                };
+            };
+            
+            // === НОВЕ: Аналіз трендів та червоних прапорців ===
+            const analyzeMetrics = (tableData) => {
+                const results = {
+                    weekly: [],
+                    monthly: [],
+                    redFlags: [],
+                    periodComparison: []
+                };
+                
+                const parseNum = (val) => {
+                    if (!val) return null;
+                    const num = parseFloat(String(val).replace(',', '.').replace(/\s/g, ''));
+                    return isNaN(num) ? null : num;
+                };
+                
+                // Аналіз тижневих показників
+                tableData.weekly.columns.forEach(col => {
+                    const values = tableData.weekly.rows.map(r => ({
+                        date: r.date,
+                        dateLabel: formatDateForAI(r.date, 'weekly'),
+                        fact: parseNum(r.values?.[col.id]),
+                        plan: parseNum(r.targets?.[col.id]) || parseNum(targetRow?.values?.[col.id])
+                    })).filter(v => v.fact !== null);
+                    
+                    if (values.length < 2) return;
+                    
+                    // Розрахунки
+                    const facts = values.map(v => v.fact);
+                    const latest = facts[0];
+                    const previous = facts[1];
+                    const oldest = facts[facts.length - 1];
+                    const avg = facts.reduce((a, b) => a + b, 0) / facts.length;
+                    const min = Math.min(...facts);
+                    const max = Math.max(...facts);
+                    
+                    // Тренд (останній vs попередній)
+                    const weekChange = previous ? Math.round((latest - previous) / previous * 100) : 0;
+                    
+                    // Тренд за весь період
+                    const periodChange = oldest ? Math.round((latest - oldest) / oldest * 100) : 0;
+                    
+                    // Напрямок тренду (падає 3+ рази поспіль?)
+                    let consecutiveDrops = 0;
+                    for (let i = 0; i < facts.length - 1; i++) {
+                        if (facts[i] < facts[i + 1]) consecutiveDrops++;
+                        else break;
+                    }
+                    
+                    // Виконання плану
+                    const planExecutions = values
+                        .filter(v => v.plan)
+                        .map(v => Math.round(v.fact / v.plan * 100));
+                    const avgPlanExecution = planExecutions.length 
+                        ? Math.round(planExecutions.reduce((a, b) => a + b, 0) / planExecutions.length)
+                        : null;
+                    const latestPlanExecution = values[0]?.plan 
+                        ? Math.round(values[0].fact / values[0].plan * 100)
+                        : null;
+                    
+                    // Визначення напрямку
+                    let direction = 'стабільно';
+                    if (periodChange > 10) direction = 'зростає';
+                    else if (periodChange < -10) direction = 'падає';
+                    
+                    const metric = {
+                        name: col.name,
+                        responsible: col.responsible || 'не вказано',
+                        format: col.format,
+                        importance: col.importance || 'medium',
+                        latest: { value: latest, date: values[0]?.dateLabel },
+                        previous: { value: previous, date: values[1]?.dateLabel },
+                        weekChange: weekChange,
+                        periodChange: periodChange,
+                        direction: direction,
+                        avg: Math.round(avg * 10) / 10,
+                        min: { value: min, date: values.find(v => v.fact === min)?.dateLabel },
+                        max: { value: max, date: values.find(v => v.fact === max)?.dateLabel },
+                        avgPlanExecution: avgPlanExecution,
+                        latestPlanExecution: latestPlanExecution,
+                        consecutiveDrops: consecutiveDrops
+                    };
+                    
+                    results.weekly.push(metric);
+                    
+                    // === ЧЕРВОНІ ПРАПОРЦІ (з урахуванням importance) ===
+                    const importanceMultiplier = { critical: 4, high: 3, medium: 2, low: 1 };
+                    const colImportance = col.importance || 'medium';
+                    
+                    // 1. Падає 3+ періоди поспіль
+                    if (consecutiveDrops >= 3) {
+                        results.redFlags.push({
+                            type: 'consecutive_drop',
+                            severity: 'high',
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * 3,
+                            metric: col.name,
+                            message: `${col.name}: падає ${consecutiveDrops} тижні поспіль`,
+                            details: `${formatValueForAI(oldest, col.format)} → ${formatValueForAI(latest, col.format)} (${periodChange > 0 ? '+' : ''}${periodChange}%)`
+                        });
+                    }
+                    
+                    // 2. Виконання плану < 70%
+                    if (latestPlanExecution !== null && latestPlanExecution < 70) {
+                        const sev = latestPlanExecution < 50 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'low_execution',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: виконання плану лише ${latestPlanExecution}%`,
+                            details: `Факт: ${formatValueForAI(latest, col.format)}, План: ${formatValueForAI(values[0]?.plan, col.format)}`
+                        });
+                    }
+                    
+                    // 3. Різке падіння (>20% за тиждень)
+                    if (weekChange < -20) {
+                        const sev = weekChange < -30 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'sharp_drop',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: різке падіння ${weekChange}% за тиждень`,
+                            details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
+                        });
+                    }
+                    
+                    // 4. Значення нижче мінімуму (за винятком останнього)
+                    const prevMin = Math.min(...facts.slice(1));
+                    if (latest < prevMin && facts.length > 2) {
+                        results.redFlags.push({
+                            type: 'new_minimum',
+                            severity: 'medium',
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * 2,
+                            metric: col.name,
+                            message: `${col.name}: новий мінімум за період`,
+                            details: `${formatValueForAI(latest, col.format)} — найнижче значення за ${facts.length} тижнів`
+                        });
+                    }
+                    
+                    // === ПОРІВНЯННЯ ПЕРІОДІВ ===
+                    results.periodComparison.push({
+                        metric: col.name,
+                        type: 'weekly',
+                        importance: colImportance,
+                        current: { 
+                            period: values[0]?.dateLabel, 
+                            value: formatValueForAI(latest, col.format),
+                            planExecution: latestPlanExecution ? `${latestPlanExecution}%` : '-'
+                        },
+                        previous: {
+                            period: values[1]?.dateLabel,
+                            value: formatValueForAI(previous, col.format),
+                            planExecution: values[1]?.plan ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
+                        },
+                        change: `${weekChange > 0 ? '+' : ''}${weekChange}%`,
+                        trend: weekChange > 5 ? '📈' : weekChange < -5 ? '📉' : '➡️'
+                    });
+                });
+                
+                // Аналіз місячних показників (аналогічно)
+                tableData.monthly.columns.forEach(col => {
+                    const values = tableData.monthly.rows.map(r => ({
+                        date: r.date,
+                        dateLabel: formatDateForAI(r.date, 'monthly'),
+                        fact: parseNum(r.values?.[col.id]),
+                        plan: parseNum(r.targets?.[col.id]) || parseNum(targetRow?.values?.[col.id])
+                    })).filter(v => v.fact !== null);
+                    
+                    if (values.length < 2) return;
+                    
+                    const facts = values.map(v => v.fact);
+                    const latest = facts[0];
+                    const previous = facts[1];
+                    const avg = facts.reduce((a, b) => a + b, 0) / facts.length;
+                    
+                    const monthChange = previous ? Math.round((latest - previous) / previous * 100) : 0;
+                    const latestPlanExecution = values[0]?.plan 
+                        ? Math.round(values[0].fact / values[0].plan * 100)
+                        : null;
+                    
+                    let direction = 'стабільно';
+                    if (monthChange > 10) direction = 'зростає';
+                    else if (monthChange < -10) direction = 'падає';
+                    
+                    const metric = {
+                        name: col.name,
+                        responsible: col.responsible || 'не вказано',
+                        format: col.format,
+                        importance: col.importance || 'medium',
+                        latest: { value: latest, date: values[0]?.dateLabel },
+                        previous: { value: previous, date: values[1]?.dateLabel },
+                        monthChange: monthChange,
+                        direction: direction,
+                        avg: Math.round(avg * 10) / 10,
+                        latestPlanExecution: latestPlanExecution
+                    };
+                    
+                    results.monthly.push(metric);
+                    
+                    // Червоні прапорці для місячних (з importance)
+                    const importanceMultiplier = { critical: 4, high: 3, medium: 2, low: 1 };
+                    const colImportance = col.importance || 'medium';
+                    
+                    if (latestPlanExecution !== null && latestPlanExecution < 70) {
+                        const sev = latestPlanExecution < 50 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'low_execution',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: виконання плану лише ${latestPlanExecution}%`,
+                            details: `Факт: ${formatValueForAI(latest, col.format)}, План: ${formatValueForAI(values[0]?.plan, col.format)}`
+                        });
+                    }
+                    
+                    if (monthChange < -15) {
+                        const sev = monthChange < -25 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'monthly_drop',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: падіння ${monthChange}% за місяць`,
+                            details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
+                        });
+                    }
+                    
+                    results.periodComparison.push({
+                        metric: col.name,
+                        type: 'monthly',
+                        importance: colImportance,
+                        current: { 
+                            period: values[0]?.dateLabel, 
+                            value: formatValueForAI(latest, col.format),
+                            planExecution: latestPlanExecution ? `${latestPlanExecution}%` : '-'
+                        },
+                        previous: {
+                            period: values[1]?.dateLabel,
+                            value: formatValueForAI(previous, col.format),
+                            planExecution: values[1]?.plan ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
+                        },
+                        change: `${monthChange > 0 ? '+' : ''}${monthChange}%`,
+                        trend: monthChange > 5 ? '📈' : monthChange < -5 ? '📉' : '➡️'
+                    });
+                });
+                
+                // Сортуємо червоні прапорці по importanceScore (більший = важливіший)
+                results.redFlags.sort((a, b) => (b.importanceScore || 0) - (a.importanceScore || 0));
+                
+                return results;
+            };
+            
+            // === ДЕТЕКЦІЯ ОБМЕЖЕНЬ АНАЛІЗУ ===
+            const detectLimitations = (tableData, analysis) => {
+                const limitations = [];
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                
+                // 1. Сезонність
+                const seasonalMonths = [11, 0, 6, 7]; // Грудень, Січень, Липень, Серпень
+                if (seasonalMonths.includes(currentMonth)) {
+                    const monthNames = { 11: 'грудень', 0: 'січень', 6: 'липень', 7: 'серпень' };
+                    limitations.push({
+                        type: 'seasonality',
+                        icon: '📅',
+                        title: 'Можлива сезонність',
+                        description: `${monthNames[currentMonth].charAt(0).toUpperCase() + monthNames[currentMonth].slice(1)} — це сезонний місяць. Падіння може бути нормою для цього періоду.`,
+                        question: 'Чи є у вас сезонний бізнес?',
+                        action: 'check_seasonality'
+                    });
+                }
+                
+                // 2. Свята
+                const holidays = [
+                    { month: 11, days: [24, 25, 31], name: 'Новорічні свята' },
+                    { month: 0, days: [1, 7], name: 'Новорічні/Різдво' },
+                    { month: 2, days: [8], name: '8 Березня' },
+                    { month: 4, days: [1, 9], name: 'Травневі свята' },
+                    { month: 7, days: [24], name: 'День Незалежності' }
+                ];
+                const today = now.getDate();
+                const nearHoliday = holidays.find(h => h.month === currentMonth && h.days.some(d => Math.abs(d - today) <= 7));
+                if (nearHoliday) {
+                    limitations.push({
+                        type: 'holidays',
+                        icon: '🎄',
+                        title: 'Період свят',
+                        description: `Зараз ${nearHoliday.name}. Активність клієнтів може бути нижчою.`,
+                        question: 'Чи впливають свята на ваш бізнес?',
+                        action: 'check_holidays'
+                    });
+                }
+                
+                // 3. Мало даних
+                const weeklyCount = tableData.weekly?.rows?.length || 0;
+                const monthlyCount = tableData.monthly?.rows?.length || 0;
+                if (weeklyCount < 6 && weeklyCount > 0) {
+                    limitations.push({
+                        type: 'insufficient_data',
+                        icon: '📊',
+                        title: 'Мало тижневих даних',
+                        description: `Лише ${weeklyCount} тижнів. Для точного аналізу трендів потрібно 6-8 тижнів.`,
+                        question: 'Чи потрібен аналіз з такою вибіркою?',
+                        action: 'proceed_anyway'
+                    });
+                }
+                if (monthlyCount < 3 && monthlyCount > 0) {
+                    limitations.push({
+                        type: 'insufficient_monthly',
+                        icon: '📊',
+                        title: 'Мало місячних даних',
+                        description: `Лише ${monthlyCount} місяці. Для аналізу трендів потрібно 3+ місяці.`,
+                        question: 'Чи достатньо цих даних?',
+                        action: 'proceed_anyway'
+                    });
+                }
+                
+                // 4. Пропущені значення
+                let missingValues = 0;
+                tableData.weekly?.rows?.forEach(row => {
+                    tableData.weekly?.columns?.forEach(col => {
+                        if (!row.values?.[col.id]) missingValues++;
+                    });
+                });
+                if (missingValues > 3) {
+                    limitations.push({
+                        type: 'missing_values',
+                        icon: '⚠️',
+                        title: 'Пропущені значення',
+                        description: `${missingValues} значень не заповнені. Це може спотворити аналіз.`,
+                        question: 'Продовжити з неповними даними?',
+                        action: 'proceed_anyway'
+                    });
+                }
+                
+                // 5. Зовнішні фактори (якщо є валютні показники)
+                const hasCurrency = tableData.weekly?.columns?.some(c => c.format === 'usd' || c.format === 'eur') ||
+                                    tableData.monthly?.columns?.some(c => c.format === 'usd' || c.format === 'eur');
+                if (hasCurrency) {
+                    limitations.push({
+                        type: 'currency',
+                        icon: '💱',
+                        title: 'Валютні показники',
+                        description: 'Є показники в іноземній валюті. Курс міг вплинути на результати.',
+                        question: 'Врахувати зміни курсу?',
+                        action: 'check_currency'
+                    });
+                }
+                
+                // 6. Аномалії (різкі стрибки)
+                const anomalies = analysis.redFlags?.filter(f => f.type === 'sharp_drop' && Math.abs(parseInt(f.message.match(/-?\d+/)?.[0] || 0)) > 40);
+                if (anomalies?.length > 0) {
+                    limitations.push({
+                        type: 'anomaly',
+                        icon: '🔍',
+                        title: 'Аномальні дані',
+                        description: `Є різкі зміни >40%. Це може бути помилка введення або реальна подія.`,
+                        question: 'Перевірити коректність даних?',
+                        action: 'check_anomaly'
+                    });
+                }
+                
+                return limitations;
             };
             
             const callAI = async (prompt) => {
@@ -1456,55 +1917,281 @@
                 
                 const tableData = getTableData();
                 const columnsInfo = getColumnsInfo();
-                setAnalysisData(tableData);
+                const analysis = analyzeMetrics(tableData);
+                setAnalysisData({ tableData, analysis });
                 
-                const prompt = `Ти — бізнес-консультант з 10+ років досвіду. Проаналізуй дані та визнач ГОЛОВНЕ вузьке місце.
+                // === ФОРМУЄМО БЛОК ТРЕНДІВ ===
+                let trendsBlock = '';
+                
+                if (analysis.weekly.length > 0) {
+                    trendsBlock += '\n### ТИЖНЕВІ ПОКАЗНИКИ — ТРЕНДИ:\n';
+                    analysis.weekly.forEach(m => {
+                        const arrow = m.direction === 'зростає' ? '↑' : m.direction === 'падає' ? '↓' : '→';
+                        trendsBlock += `\n**${m.name}** (відповідальний: ${m.responsible}):\n`;
+                        trendsBlock += `- Останній тиждень (${m.latest.date}): ${formatValueForAI(m.latest.value, m.format)}\n`;
+                        trendsBlock += `- Попередній (${m.previous.date}): ${formatValueForAI(m.previous.value, m.format)}\n`;
+                        trendsBlock += `- Зміна за тиждень: ${m.weekChange > 0 ? '+' : ''}${m.weekChange}% ${arrow}\n`;
+                        trendsBlock += `- Тренд за період: ${m.direction} (${m.periodChange > 0 ? '+' : ''}${m.periodChange}%)\n`;
+                        trendsBlock += `- Середнє: ${formatValueForAI(m.avg, m.format)}, Мін: ${formatValueForAI(m.min.value, m.format)} (${m.min.date}), Макс: ${formatValueForAI(m.max.value, m.format)} (${m.max.date})\n`;
+                        if (m.latestPlanExecution) {
+                            trendsBlock += `- Виконання плану: ${m.latestPlanExecution}% (середнє: ${m.avgPlanExecution}%)\n`;
+                        }
+                    });
+                }
+                
+                if (analysis.monthly.length > 0) {
+                    trendsBlock += '\n\n### МІСЯЧНІ ПОКАЗНИКИ — ТРЕНДИ:\n';
+                    analysis.monthly.forEach(m => {
+                        const arrow = m.direction === 'зростає' ? '↑' : m.direction === 'падає' ? '↓' : '→';
+                        trendsBlock += `\n**${m.name}** (відповідальний: ${m.responsible}):\n`;
+                        trendsBlock += `- Останній місяць (${m.latest.date}): ${formatValueForAI(m.latest.value, m.format)}\n`;
+                        trendsBlock += `- Попередній (${m.previous.date}): ${formatValueForAI(m.previous.value, m.format)}\n`;
+                        trendsBlock += `- Зміна: ${m.monthChange > 0 ? '+' : ''}${m.monthChange}% ${arrow}\n`;
+                        if (m.latestPlanExecution) {
+                            trendsBlock += `- Виконання плану: ${m.latestPlanExecution}%\n`;
+                        }
+                    });
+                }
+                
+                // === ФОРМУЄМО БЛОК ЧЕРВОНИХ ПРАПОРЦІВ ===
+                let redFlagsBlock = '';
+                if (analysis.redFlags.length > 0) {
+                    redFlagsBlock = '\n\n### ⚠️ КРИТИЧНІ ПРОБЛЕМИ (автоматично виявлені):\n';
+                    analysis.redFlags.forEach((flag, idx) => {
+                        const icon = flag.severity === 'critical' ? '🔴' : flag.severity === 'high' ? '🟠' : '🟡';
+                        redFlagsBlock += `${idx + 1}. ${icon} ${flag.message}\n   └ ${flag.details}\n`;
+                    });
+                }
+                
+                // === ФОРМУЄМО БЛОК ПОРІВНЯННЯ ===
+                let comparisonBlock = '\n\n### ПОРІВНЯННЯ ПЕРІОДІВ:\n';
+                comparisonBlock += '| Показник | Важливість | Поточний | Попередній | Зміна |\n';
+                comparisonBlock += '|----------|-----------|----------|------------|-------|\n';
+                // Сортуємо по важливості
+                const importanceOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+                const sortedComparison = [...analysis.periodComparison].sort((a, b) => 
+                    importanceOrder[a.importance || 'medium'] - importanceOrder[b.importance || 'medium']
+                );
+                sortedComparison.forEach(c => {
+                    const impIcon = { critical: '💰', high: '🔴', medium: '🟡', low: '🟢' }[c.importance || 'medium'];
+                    comparisonBlock += `| ${c.metric} | ${impIcon} | ${c.current.value} (${c.current.planExecution}) | ${c.previous.value} | ${c.change} ${c.trend} |\n`;
+                });
+                
+                // === ДЕТЕКЦІЯ ОБМЕЖЕНЬ ===
+                const limitations = detectLimitations(tableData, analysis);
+                
+                // === ІСТОРІЯ АНАЛІЗІВ ===
+                let historyBlock = '';
+                if (savedAnalyses.length > 0) {
+                    const lastAnalysis = savedAnalyses[savedAnalyses.length - 1];
+                    const lastDate = new Date(lastAnalysis.date).toLocaleDateString('uk-UA');
+                    historyBlock = `\n\n### 📜 ПОПЕРЕДНІЙ АНАЛІЗ (${lastDate}):\n`;
+                    // Витягуємо вузьке місце з попереднього аналізу
+                    const prevBottleneck = lastAnalysis.content?.match(/## ВУЗЬКЕ МІСЦЕ: (.+)/)?.[1] || 'не визначено';
+                    historyBlock += `Минулого разу виявлено: "${prevBottleneck}"\n`;
+                    historyBlock += `Порівняй з поточною ситуацією — чи є прогрес?\n`;
+                }
+                
+                // === БЛОК ВАЖЛИВОСТІ ПОКАЗНИКІВ ===
+                let importanceBlock = '\n\n### 💰 ВАЖЛИВІСТЬ ПОКАЗНИКІВ:\n';
+                const criticalMetrics = columnsInfo.filter(c => c.importance === 'critical');
+                const highMetrics = columnsInfo.filter(c => c.importance === 'high');
+                if (criticalMetrics.length > 0) {
+                    importanceBlock += `КРИТИЧНІ (впливають на гроші): ${criticalMetrics.map(c => c.name).join(', ')}\n`;
+                }
+                if (highMetrics.length > 0) {
+                    importanceBlock += `ВИСОКІ: ${highMetrics.map(c => c.name).join(', ')}\n`;
+                }
+                importanceBlock += `\nЗверни БІЛЬШЕ уваги на критичні показники!\n`;
+                
+                const prompt = `Ти — бізнес-консультант з 10+ років досвіду. На основі ГОТОВОГО аналізу визнач ГОЛОВНЕ вузьке місце.
 
 КОНТЕКСТ БІЗНЕСУ:
 ${aiSettings.businessContext}
 
-ПРІОРИТЕТИ:
+ПРІОРИТЕТИ ВЛАСНИКА:
 ${aiSettings.priorities || 'Не вказано'}
 
-ПОКАЗНИКИ ТА ЇХ ПЕРІОДИЧНІСТЬ:
-${columnsInfo.map(c => `- ${c.name}: дані вносяться ${c.period}, відповідальний: ${c.responsible}`).join('\n')}
+${additionalFocus ? `ОСОБЛИВИЙ ФОКУС: ${additionalFocus}\n` : ''}
+=== ГОТОВИЙ АНАЛІЗ ДАНИХ ===
+${importanceBlock}
+${redFlagsBlock}
+${trendsBlock}
+${comparisonBlock}
+${historyBlock}
 
-ВАЖЛИВО: Кожен запис в таблиці — це дані за один період (день/тиждень/місяць залежно від показника). Враховуй це при аналізі!
+=== ТВОЄ ЗАВДАННЯ ===
 
-СТАТИСТИКА ЗА ${period} ТИЖНІВ:
-${JSON.stringify(tableData, null, 2)}
-
-${additionalFocus ? `ФОКУС: ${additionalFocus}` : ''}
+На основі готового аналізу вище, визнач ОДНЕ головне вузьке місце.
+ПРІОРИТЕТ: показники з важливістю 💰 КРИТИЧНІ важливіші за інші!
+Не рахуй тренди сам — вони вже пораховані.
 
 Дай відповідь українською СТРОГО у форматі:
 
 ## ВУЗЬКЕ МІСЦЕ: [назва проблеми/функції]
 
-### ФАКТИ З ДАНИХ:
-- [конкретна цифра 1 з таблиці + за який період (день/тиждень/місяць)]
-- [конкретна цифра 2 з таблиці + за який період]
-- [конкретна цифра 3 з таблиці + за який період]
+### ФАКТИ (бери з аналізу вище):
+- [цифра 1 + період + зміна]
+- [цифра 2 + період + зміна]
+- [цифра 3 + період + зміна]
+
+### ЧОМУ ЦЕ КРИТИЧНО:
+[1-2 речення: як це впливає на бізнес прямо зараз]
 
 ### ПРИЧИННО-НАСЛІДКОВИЙ ЗВ'ЯЗОК:
-[Поясни ланцюжок: ця проблема → призводить до → що впливає на → кінцевий результат]
+[Ланцюжок: проблема → наслідок 1 → наслідок 2 → втрати]
 
 ### ВТРАТИ:
-Через це ви втрачаєте приблизно [сума] грн на [період].
+Через це ви втрачаєте приблизно [сума] грн на [період]. Розрахунок: [як порахував].
 
 ### ПРОГНОЗ:
-Якщо не виправити протягом [термін], то [наслідок].
+Якщо не виправити протягом [термін], то [конкретний наслідок з цифрами].
 
-Будь конкретним, використовуй реальні цифри з даних. Не використовуй емоджі.`;
+### САМОПЕРЕВІРКА:
+- Достовірність: [чи всі цифри з наданих даних?]
+- Логіка: [чи логічний причинно-наслідковий зв'язок?]
+- Можливі похибки: [що могло вплинути на аналіз?]
+
+ВАЖЛИВО: Використовуй ТІЛЬКИ цифри з готового аналізу. Не вигадуй і не рахуй сам.`;
 
                 try {
-                    const response = await callAI(prompt);
+                    let response = await callAI(prompt);
+                    
+                    // === ВАЛІДАЦІЯ ВІДПОВІДІ ===
+                    const hasRequiredSections = response.includes('## ВУЗЬКЕ МІСЦЕ:') && 
+                                                 response.includes('### ФАКТИ') && 
+                                                 response.includes('### ВТРАТИ');
+                    
+                    if (!hasRequiredSections) {
+                        // Перепитуємо AI
+                        addMessage('system', 'Уточнюю формат відповіді...');
+                        response = await callAI(`Твоя попередня відповідь була не в правильному форматі. Переформатуй її СТРОГО за шаблоном:
+
+## ВУЗЬКЕ МІСЦЕ: [назва]
+
+### ФАКТИ:
+- [факт 1]
+- [факт 2]
+
+### ЧОМУ ЦЕ КРИТИЧНО:
+[текст]
+
+### ПРИЧИННО-НАСЛІДКОВИЙ ЗВ'ЯЗОК:
+[текст]
+
+### ВТРАТИ:
+[текст з сумою]
+
+### ПРОГНОЗ:
+[текст]
+
+### САМОПЕРЕВІРКА:
+- Достовірність: [...]
+- Логіка: [...]
+- Можливі похибки: [...]
+
+Ось твоя попередня відповідь для переформатування:
+${response}`);
+                    }
+                    
                     addMessage('ai', response);
-                    addMessage('buttons', null, [
-                        { text: 'Так, зрозуміло. Що робити?', action: 'understood', icon: 'CheckCircle' },
-                        { text: 'Поясни детальніше', action: 'explain_more', icon: 'HelpCircle' }
-                    ]);
+                    
+                    // === ПОКАЗУЄМО ОБМЕЖЕННЯ ===
+                    if (limitations.length > 0) {
+                        let limitationsText = '\n\n---\n\n**⚠️ МОЖЛИВІ ОБМЕЖЕННЯ АНАЛІЗУ:**\n';
+                        limitations.forEach(l => {
+                            limitationsText += `\n${l.icon} **${l.title}**\n${l.description}\n`;
+                        });
+                        addMessage('warning', limitationsText);
+                        
+                        // Кнопки для обмежень
+                        const limitationButtons = limitations.slice(0, 3).map(l => ({
+                            text: l.title,
+                            action: l.action,
+                            icon: 'AlertCircle'
+                        }));
+                        limitationButtons.push({ text: 'Все ок, продовжити', action: 'understood', icon: 'CheckCircle' });
+                        addMessage('buttons', null, limitationButtons);
+                    } else {
+                        addMessage('buttons', null, [
+                            { text: 'Так, зрозуміло. Що робити?', action: 'understood', icon: 'CheckCircle' },
+                            { text: 'Поясни детальніше', action: 'explain_more', icon: 'HelpCircle' }
+                        ]);
+                    }
                 } catch (error) {
                     addMessage('error', 'Помилка аналізу: ' + error.message);
+                }
+                
+                setIsAnalyzing(false);
+            };
+            
+            // === ДОДАТКОВИЙ АНАЛІЗ (сезонність, валюта тощо) ===
+            const runAdditionalAnalysis = async (type) => {
+                setIsAnalyzing(true);
+                addMessage('user', `Врахувати: ${type}`);
+                addMessage('system', 'Проводжу додатковий аналіз...');
+                
+                const previousContext = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n');
+                
+                let additionalPrompt = '';
+                switch(type) {
+                    case 'check_seasonality':
+                        additionalPrompt = `Проаналізуй попередній аналіз з урахуванням СЕЗОННОСТІ.
+                        
+Поточний місяць може бути сезонно низьким. Перерахуй:
+1. Чи нормальне падіння для цього періоду?
+2. Як виглядали б результати порівняно з цим же періодом минулого року?
+3. Скоригуй оцінку втрат з урахуванням сезонності.
+
+Попередній аналіз:
+${previousContext}`;
+                        break;
+                    case 'check_holidays':
+                        additionalPrompt = `Проаналізуй попередній аналіз з урахуванням СВЯТКОВОГО ПЕРІОДУ.
+                        
+Зараз період свят — активність може бути нижчою. Оціни:
+1. Наскільки падіння пов'язане зі святами?
+2. Чи варто чекати відновлення після свят?
+3. Які дії доцільні саме зараз?
+
+Попередній аналіз:
+${previousContext}`;
+                        break;
+                    case 'check_currency':
+                        additionalPrompt = `Проаналізуй попередній аналіз з урахуванням КУРСУ ВАЛЮТ.
+                        
+Є показники в іноземній валюті. Оціни:
+1. Як зміна курсу могла вплинути на показники?
+2. Чи коректно порівнювати періоди без урахування курсу?
+3. Скоригуй висновки якщо потрібно.
+
+Попередній аналіз:
+${previousContext}`;
+                        break;
+                    case 'check_anomaly':
+                        additionalPrompt = `Перевір дані на АНОМАЛІЇ та помилки.
+                        
+Є різкі зміни показників (>40%). Проаналізуй:
+1. Чи може це бути помилка введення даних?
+2. Чи була конкретна подія що спричинила зміну?
+3. Чи потрібно виключити цей період з аналізу?
+
+Попередній аналіз:
+${previousContext}`;
+                        break;
+                    default:
+                        additionalPrompt = previousContext;
+                }
+                
+                try {
+                    const response = await callAI(additionalPrompt);
+                    addMessage('ai', response);
+                    addMessage('buttons', null, [
+                        { text: 'Зрозуміло. Що робити?', action: 'understood', icon: 'CheckCircle' },
+                        { text: 'Продовжити без змін', action: 'understood', icon: 'ArrowRight' }
+                    ]);
+                } catch (error) {
+                    addMessage('error', 'Помилка: ' + error.message);
                 }
                 
                 setIsAnalyzing(false);
@@ -1609,6 +2296,10 @@ ${aiSettings.businessContext}
                 addMessage('system', 'Складаю програму розширення вузького місця...');
                 
                 const previousContext = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n');
+                const columnsInfo = getColumnsInfo();
+                
+                // Збираємо унікальних відповідальних
+                const responsibles = [...new Set(columnsInfo.map(c => c.responsible).filter(r => r && r !== 'не вказано'))];
                 
                 const prompt = `Склади ПРОГРАМУ РОЗШИРЕННЯ ВУЗЬКОГО МІСЦЯ на основі обраного рішення.
 
@@ -1619,6 +2310,11 @@ ${previousContext}
 
 Контекст бізнесу:
 ${aiSettings.businessContext}
+
+Відповідальні за показники:
+${columnsInfo.map(c => `- ${c.name}: ${c.responsible}`).join('\n')}
+
+Доступні виконавці: ${responsibles.length > 0 ? responsibles.join(', ') : 'Власник'}
 
 Дай відповідь українською СТРОГО у такому форматі:
 
@@ -1636,19 +2332,19 @@ ${aiSettings.businessContext}
 ### ПРОГРАМА
 
 **Першочергові** (без них не рухаємось):
-1. [Завдання] → Хто: [роль] → Коли: день 1-2 → Готово коли: [критерій]
-2. [Завдання] → Хто: [роль] → Коли: день 2-3 → Готово коли: [критерій]
+1. [Завдання] → Хто: [імя з виконавців] → Коли: день 1-2 → Готово коли: [критерій]
+2. [Завдання] → Хто: [імя з виконавців] → Коли: день 2-3 → Готово коли: [критерій]
 
 **Життєво важливі** (усунути блокери):
-3. [Завдання] → Хто: [роль] → Коли: день 3-5 → Готово коли: [критерій]
-4. [Завдання] → Хто: [роль] → Коли: день 4-6 → Готово коли: [критерій]
+3. [Завдання] → Хто: [імя з виконавців] → Коли: день 3-5 → Готово коли: [критерій]
+4. [Завдання] → Хто: [імя з виконавців] → Коли: день 4-6 → Готово коли: [критерій]
 
 **Робочі** (конкретні кроки):
-5. [Завдання] → Хто: [роль] → Коли: день 5-7 → Готово коли: [критерій]
-6. [Завдання] → Хто: [роль] → Коли: день 6-8 → Готово коли: [критерій]
+5. [Завдання] → Хто: [імя з виконавців] → Коли: день 5-7 → Готово коли: [критерій]
+6. [Завдання] → Хто: [імя з виконавців] → Коли: день 6-8 → Готово коли: [критерій]
 
 **Виробничі** (вимірюваний результат):
-7. [Кількість + що зробити] → Хто: [роль] → Коли: день 7-10 → Готово коли: [число]
+7. [Кількість + що зробити] → Хто: [імя з виконавців] → Коли: день 7-10 → Готово коли: [число]
 
 ### КОНТРОЛЬ
 - Перевірка: день 10
@@ -1656,12 +2352,12 @@ ${aiSettings.businessContext}
 - Якщо ні: [конкретна дія]
 
 ПРАВИЛА яких дотримуйся:
+- Призначай завдання ТІЛЬКИ людям з "Доступні виконавці"
 - Першочергові завжди перші
 - 1 завдання = 1 дія, 1 людина, 1 дедлайн
 - Без "Готово коли" — завдання неповне
 - Максимум 7-10 завдань
-- Дедлайни в днях від старту
-- Використовуй ролі з контексту бізнесу`;
+- Дедлайни в днях від старту`;
 
                 try {
                     const response = await callAI(prompt);
@@ -1690,6 +2386,8 @@ ${aiSettings.businessContext}
                 addMessage('system', 'Аналізую ваш варіант та складаю програму...');
                 
                 const previousContext = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n');
+                const columnsInfo = getColumnsInfo();
+                const responsibles = [...new Set(columnsInfo.map(c => c.responsible).filter(r => r && r !== 'не вказано'))];
                 
                 const prompt = `Користувач запропонував ВЛАСНИЙ ВАРІАНТ рішення. Спочатку оціни його, потім склади програму.
 
@@ -1701,6 +2399,8 @@ ${previousContext}
 
 Контекст бізнесу:
 ${aiSettings.businessContext}
+
+Доступні виконавці: ${responsibles.length > 0 ? responsibles.join(', ') : 'Власник'}
 
 Дай відповідь українською СТРОГО у такому форматі:
 
@@ -1733,23 +2433,25 @@ ${aiSettings.businessContext}
 ### ПРОГРАМА
 
 **Першочергові** (без них не рухаємось):
-1. [Завдання] → Хто: [роль] → Коли: день 1-2 → Готово коли: [критерій]
-2. [Завдання] → Хто: [роль] → Коли: день 2-3 → Готово коли: [критерій]
+1. [Завдання] → Хто: [імя з виконавців] → Коли: день 1-2 → Готово коли: [критерій]
+2. [Завдання] → Хто: [імя з виконавців] → Коли: день 2-3 → Готово коли: [критерій]
 
 **Життєво важливі** (усунути блокери):
-3. [Завдання] → Хто: [роль] → Коли: день 3-5 → Готово коли: [критерій]
+3. [Завдання] → Хто: [імя з виконавців] → Коли: день 3-5 → Готово коли: [критерій]
 
 **Робочі** (конкретні кроки):
-4. [Завдання] → Хто: [роль] → Коли: день 5-7 → Готово коли: [критерій]
-5. [Завдання] → Хто: [роль] → Коли: день 6-8 → Готово коли: [критерій]
+4. [Завдання] → Хто: [імя з виконавців] → Коли: день 5-7 → Готово коли: [критерій]
+5. [Завдання] → Хто: [імя з виконавців] → Коли: день 6-8 → Готово коли: [критерій]
 
 **Виробничі** (вимірюваний результат):
-6. [Кількість + що зробити] → Хто: [роль] → Коли: день 7-10 → Готово коли: [число]
+6. [Кількість + що зробити] → Хто: [імя з виконавців] → Коли: день 7-10 → Готово коли: [число]
 
 ### КОНТРОЛЬ
 - Перевірка: день 10
 - Успіх: [було X] → [стало Y]
-- Якщо ні: [конкретна дія]`;
+- Якщо ні: [конкретна дія]
+
+ПРАВИЛО: Призначай завдання ТІЛЬКИ людям з "Доступні виконавці".`;
 
                 try {
                     const response = await callAI(prompt);
@@ -1918,6 +2620,13 @@ ${aiSettings.businessContext}
                     case 'explain_more':
                         showSolutions(true);
                         break;
+                    case 'check_seasonality':
+                    case 'check_holidays':
+                    case 'check_currency':
+                    case 'check_anomaly':
+                    case 'proceed_anyway':
+                        runAdditionalAnalysis(action);
+                        break;
                     case 'solution_1':
                         createPlan('1');
                         break;
@@ -1956,6 +2665,7 @@ ${aiSettings.businessContext}
                         const fullText = messages.filter(m => m.type === 'ai').map(m => m.content).join('\n\n---\n\n');
                         onSaveAnalysis({ 
                             text: fullText, 
+                            content: fullText,
                             date: new Date().toISOString(), 
                             period,
                             orders: orders.length > 0 ? orders : null
@@ -2106,14 +2816,16 @@ ${aiSettings.businessContext}
                     system: 'bg-blue-50 border-blue-200 text-blue-800',
                     ai: 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200 text-gray-800',
                     user: 'bg-green-50 border-green-200 text-green-800 ml-auto max-w-[80%]',
-                    error: 'bg-red-50 border-red-200 text-red-800'
+                    error: 'bg-red-50 border-red-200 text-red-800',
+                    warning: 'bg-amber-50 border-amber-200 text-amber-800'
                 };
                 
                 const typeIcons = {
                     system: Icons.Settings,
                     ai: Icons.Brain,
                     user: Icons.User,
-                    error: Icons.AlertCircle
+                    error: Icons.AlertCircle,
+                    warning: Icons.AlertTriangle
                 };
                 const TypeIcon = typeIcons[msg.type];
                 
@@ -2121,6 +2833,7 @@ ${aiSettings.businessContext}
                     <div key={idx} className={`p-4 rounded-2xl border ${styles[msg.type]} animate-fade-in`}>
                         {msg.type === 'system' && <div className="flex items-center gap-2 mb-2"><Icons.Loader className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} /><span className="font-medium text-sm">Система</span></div>}
                         {msg.type === 'ai' && <div className="flex items-center gap-2 mb-2"><Icons.Brain className="w-4 h-4 text-purple-600" /><span className="font-medium text-sm text-purple-700">AI Консультант</span></div>}
+                        {msg.type === 'warning' && <div className="flex items-center gap-2 mb-2"><Icons.AlertTriangle className="w-4 h-4 text-amber-600" /><span className="font-medium text-sm text-amber-700">Увага</span></div>}
                         <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
                     </div>
                 );
@@ -2470,6 +3183,7 @@ ${aiSettings.businessContext}
             const [newStatsPeriod, setNewStatsPeriod] = useState('weekly');
             const [newStatsTarget, setNewStatsTarget] = useState('');
             const [newStatsFormat, setNewStatsFormat] = useState('number'); // number, percent, uah, usd, eur
+            const [newStatsImportance, setNewStatsImportance] = useState('medium'); // critical, high, medium, low
             const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
             const [newEmployeeName, setNewEmployeeName] = useState('');
             const [selectedColumns, setSelectedColumns] = useState([]);
@@ -2847,14 +3561,14 @@ ${aiSettings.businessContext}
                 if (!isOwner || !newStatsName.trim()) return;
                 const newColumn = {
                     id: Date.now().toString(), name: newStatsName, responsible: newStatsResponsible,
-                    period: newStatsPeriod, format: newStatsFormat, visibleToEmployees: []
+                    period: newStatsPeriod, format: newStatsFormat, importance: newStatsImportance, visibleToEmployees: []
                 };
                 setColumns([...columns, newColumn]);
                 // Add target value
                 if (newStatsTarget) {
                     setRows(rows.map(row => row.isTarget ? { ...row, values: { ...row.values, [newColumn.id]: newStatsTarget } } : row));
                 }
-                setNewStatsName(''); setNewStatsResponsible(''); setNewStatsPeriod('weekly'); setNewStatsTarget(''); setNewStatsFormat('number');
+                setNewStatsName(''); setNewStatsResponsible(''); setNewStatsPeriod('weekly'); setNewStatsTarget(''); setNewStatsFormat('number'); setNewStatsImportance('medium');
                 setShowAddStatsModal(false);
                 toast.success(t.addStats);
             };
@@ -3111,6 +3825,9 @@ ${aiSettings.businessContext}
                                                 <button onClick={() => setShowAIModal(true)} className="btn btn-ai"><Icons.Brain className="w-4 h-4" /><span className="hidden lg:inline">{t.aiAnalysis}</span></button>
                                                 <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="AI розробник статистик">
                                                     <Icons.Target className="w-4 h-4" /><span className="hidden lg:inline">Статистики</span>
+                                                </a>
+                                                <a href="https://chatgpt.com/g/g-684be37e3bcc81918f64088a2bb094da-instructions-generator" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="Генератор розпоряджень">
+                                                    <Icons.Edit className="w-4 h-4" /><span className="hidden lg:inline">Розпорядження</span>
                                                 </a>
                                                 <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="TALKO Task Manager">
                                                     <Icons.CheckSquare className="w-4 h-4" /><span className="hidden lg:inline">Задачі</span>
@@ -3469,6 +4186,9 @@ ${aiSettings.businessContext}
                                     <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start">
                                         <Icons.Target className="w-5 h-5" />AI Розробник статистик
                                     </a>
+                                    <a href="https://chatgpt.com/g/g-684be37e3bcc81918f64088a2bb094da-instructions-generator" target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start">
+                                        <Icons.Edit className="w-5 h-5" />Генератор розпоряджень
+                                    </a>
                                     <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start">
                                         <Icons.CheckSquare className="w-5 h-5" />TALKO Task Manager
                                     </a>
@@ -3549,6 +4269,27 @@ ${aiSettings.businessContext}
                                     ))}
                                 </div>
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.importance || 'Важливість'}</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { value: 'critical', label: '💰 Критично', desc: 'Впливає на гроші', color: 'red' },
+                                        { value: 'high', label: '🔴 Висока', desc: 'Важливий процес', color: 'orange' },
+                                        { value: 'medium', label: '🟡 Середня', desc: 'Стандартний', color: 'yellow' },
+                                        { value: 'low', label: '🟢 Низька', desc: 'Допоміжний', color: 'green' },
+                                    ].map(imp => (
+                                        <button
+                                            key={imp.value}
+                                            type="button"
+                                            onClick={() => setNewStatsImportance(imp.value)}
+                                            className={`p-2 rounded-xl text-left transition-all ${newStatsImportance === imp.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                        >
+                                            <div className="font-medium text-sm">{imp.label}</div>
+                                            <div className={`text-xs ${newStatsImportance === imp.value ? 'text-white/80' : 'text-gray-500'}`}>{imp.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <div className="flex gap-3 pt-2">
                                 <button onClick={() => setShowAddStatsModal(false)} className="btn btn-secondary flex-1">{t.cancel}</button>
                                 <button onClick={addColumn} disabled={!newStatsName.trim()} className="btn btn-primary flex-1">{t.add}</button>
@@ -3599,6 +4340,27 @@ ${aiSettings.businessContext}
                                                 className={`p-3 rounded-xl text-lg font-bold transition-all ${(editingColumn.format || 'number') === fmt.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                             >
                                                 {fmt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.importance || 'Важливість'}</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { value: 'critical', label: '💰 Критично', desc: 'Впливає на гроші' },
+                                            { value: 'high', label: '🔴 Висока', desc: 'Важливий процес' },
+                                            { value: 'medium', label: '🟡 Середня', desc: 'Стандартний' },
+                                            { value: 'low', label: '🟢 Низька', desc: 'Допоміжний' },
+                                        ].map(imp => (
+                                            <button
+                                                key={imp.value}
+                                                type="button"
+                                                onClick={() => setEditingColumn({ ...editingColumn, importance: imp.value })}
+                                                className={`p-2 rounded-xl text-left transition-all ${(editingColumn.importance || 'medium') === imp.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                            >
+                                                <div className="font-medium text-sm">{imp.label}</div>
+                                                <div className={`text-xs ${(editingColumn.importance || 'medium') === imp.value ? 'text-white/80' : 'text-gray-500'}`}>{imp.desc}</div>
                                             </button>
                                         ))}
                                     </div>
