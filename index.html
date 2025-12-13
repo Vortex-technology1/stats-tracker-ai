@@ -412,6 +412,13 @@
             BarChart: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>,
             Target: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
             Calendar: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>,
+            DollarSign: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+            Gift: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>,
+            Search: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+            Minus: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 12h14"/></svg>,
+            ArrowRight: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>,
+            TrendingUp: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+            TrendingDown: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>,
             Download: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
             Upload: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
             User: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
@@ -1543,11 +1550,15 @@
                     const min = Math.min(...facts);
                     const max = Math.max(...facts);
                     
-                    // Тренд (останній vs попередній)
-                    const weekChange = previous ? Math.round((latest - previous) / previous * 100) : 0;
+                    // Тренд (останній vs попередній) - захист від ділення на 0
+                    const weekChange = (previous && previous !== 0) 
+                        ? Math.round((latest - previous) / previous * 100) 
+                        : 0;
                     
-                    // Тренд за весь період
-                    const periodChange = oldest ? Math.round((latest - oldest) / oldest * 100) : 0;
+                    // Тренд за весь період - захист від ділення на 0
+                    const periodChange = (oldest && oldest !== 0) 
+                        ? Math.round((latest - oldest) / oldest * 100) 
+                        : 0;
                     
                     // Напрямок тренду (падає 3+ рази поспіль?)
                     let consecutiveDrops = 0;
@@ -1556,14 +1567,14 @@
                         else break;
                     }
                     
-                    // Виконання плану
+                    // Виконання плану - захист від ділення на 0
                     const planExecutions = values
-                        .filter(v => v.plan)
+                        .filter(v => v.plan && v.plan !== 0)
                         .map(v => Math.round(v.fact / v.plan * 100));
                     const avgPlanExecution = planExecutions.length 
                         ? Math.round(planExecutions.reduce((a, b) => a + b, 0) / planExecutions.length)
                         : null;
-                    const latestPlanExecution = values[0]?.plan 
+                    const latestPlanExecution = (values[0]?.plan && values[0].plan !== 0)
                         ? Math.round(values[0].fact / values[0].plan * 100)
                         : null;
                     
@@ -1664,10 +1675,10 @@
                         previous: {
                             period: values[1]?.dateLabel,
                             value: formatValueForAI(previous, col.format),
-                            planExecution: values[1]?.plan ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
+                            planExecution: (values[1]?.plan && values[1].plan !== 0) ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
                         },
                         change: `${weekChange > 0 ? '+' : ''}${weekChange}%`,
-                        trend: weekChange > 5 ? '📈' : weekChange < -5 ? '📉' : '➡️'
+                        trend: weekChange > 5 ? 'up' : weekChange < -5 ? 'down' : 'stable'
                     });
                 });
                 
@@ -1687,8 +1698,11 @@
                     const previous = facts[1];
                     const avg = facts.reduce((a, b) => a + b, 0) / facts.length;
                     
-                    const monthChange = previous ? Math.round((latest - previous) / previous * 100) : 0;
-                    const latestPlanExecution = values[0]?.plan 
+                    // Захист від ділення на 0
+                    const monthChange = (previous && previous !== 0) 
+                        ? Math.round((latest - previous) / previous * 100) 
+                        : 0;
+                    const latestPlanExecution = (values[0]?.plan && values[0].plan !== 0)
                         ? Math.round(values[0].fact / values[0].plan * 100)
                         : null;
                     
@@ -1753,10 +1767,10 @@
                         previous: {
                             period: values[1]?.dateLabel,
                             value: formatValueForAI(previous, col.format),
-                            planExecution: values[1]?.plan ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
+                            planExecution: (values[1]?.plan && values[1].plan !== 0) ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
                         },
                         change: `${monthChange > 0 ? '+' : ''}${monthChange}%`,
-                        trend: monthChange > 5 ? '📈' : monthChange < -5 ? '📉' : '➡️'
+                        trend: monthChange > 5 ? 'up' : monthChange < -5 ? 'down' : 'stable'
                     });
                 });
                 
@@ -1778,7 +1792,7 @@
                     const monthNames = { 11: 'грудень', 0: 'січень', 6: 'липень', 7: 'серпень' };
                     limitations.push({
                         type: 'seasonality',
-                        icon: '📅',
+                        iconName: 'Calendar',
                         title: 'Можлива сезонність',
                         description: `${monthNames[currentMonth].charAt(0).toUpperCase() + monthNames[currentMonth].slice(1)} — це сезонний місяць. Падіння може бути нормою для цього періоду.`,
                         question: 'Чи є у вас сезонний бізнес?',
@@ -1799,7 +1813,7 @@
                 if (nearHoliday) {
                     limitations.push({
                         type: 'holidays',
-                        icon: '🎄',
+                        iconName: 'Gift',
                         title: 'Період свят',
                         description: `Зараз ${nearHoliday.name}. Активність клієнтів може бути нижчою.`,
                         question: 'Чи впливають свята на ваш бізнес?',
@@ -1813,7 +1827,7 @@
                 if (weeklyCount < 6 && weeklyCount > 0) {
                     limitations.push({
                         type: 'insufficient_data',
-                        icon: '📊',
+                        iconName: 'BarChart',
                         title: 'Мало тижневих даних',
                         description: `Лише ${weeklyCount} тижнів. Для точного аналізу трендів потрібно 6-8 тижнів.`,
                         question: 'Чи потрібен аналіз з такою вибіркою?',
@@ -1823,7 +1837,7 @@
                 if (monthlyCount < 3 && monthlyCount > 0) {
                     limitations.push({
                         type: 'insufficient_monthly',
-                        icon: '📊',
+                        iconName: 'BarChart',
                         title: 'Мало місячних даних',
                         description: `Лише ${monthlyCount} місяці. Для аналізу трендів потрібно 3+ місяці.`,
                         question: 'Чи достатньо цих даних?',
@@ -1841,7 +1855,7 @@
                 if (missingValues > 3) {
                     limitations.push({
                         type: 'missing_values',
-                        icon: '⚠️',
+                        iconName: 'AlertTriangle',
                         title: 'Пропущені значення',
                         description: `${missingValues} значень не заповнені. Це може спотворити аналіз.`,
                         question: 'Продовжити з неповними даними?',
@@ -1855,7 +1869,7 @@
                 if (hasCurrency) {
                     limitations.push({
                         type: 'currency',
-                        icon: '💱',
+                        iconName: 'DollarSign',
                         title: 'Валютні показники',
                         description: 'Є показники в іноземній валюті. Курс міг вплинути на результати.',
                         question: 'Врахувати зміни курсу?',
@@ -1868,7 +1882,7 @@
                 if (anomalies?.length > 0) {
                     limitations.push({
                         type: 'anomaly',
-                        icon: '🔍',
+                        iconName: 'Search',
                         title: 'Аномальні дані',
                         description: `Є різкі зміни >40%. Це може бути помилка введення або реальна подія.`,
                         question: 'Перевірити коректність даних?',
@@ -1959,9 +1973,9 @@
                 // === ФОРМУЄМО БЛОК ЧЕРВОНИХ ПРАПОРЦІВ ===
                 let redFlagsBlock = '';
                 if (analysis.redFlags.length > 0) {
-                    redFlagsBlock = '\n\n### ⚠️ КРИТИЧНІ ПРОБЛЕМИ (автоматично виявлені):\n';
+                    redFlagsBlock = '\n\n### [!] КРИТИЧНІ ПРОБЛЕМИ (автоматично виявлені):\n';
                     analysis.redFlags.forEach((flag, idx) => {
-                        const icon = flag.severity === 'critical' ? '🔴' : flag.severity === 'high' ? '🟠' : '🟡';
+                        const icon = flag.severity === 'critical' ? '[!!!]' : flag.severity === 'high' ? '[!!]' : '[!]';
                         redFlagsBlock += `${idx + 1}. ${icon} ${flag.message}\n   └ ${flag.details}\n`;
                     });
                 }
@@ -1976,8 +1990,9 @@
                     importanceOrder[a.importance || 'medium'] - importanceOrder[b.importance || 'medium']
                 );
                 sortedComparison.forEach(c => {
-                    const impIcon = { critical: '💰', high: '🔴', medium: '🟡', low: '🟢' }[c.importance || 'medium'];
-                    comparisonBlock += `| ${c.metric} | ${impIcon} | ${c.current.value} (${c.current.planExecution}) | ${c.previous.value} | ${c.change} ${c.trend} |\n`;
+                    const impIcon = { critical: '[КРИТ]', high: '[ВИС]', medium: '[СЕР]', low: '[НИЗ]' }[c.importance || 'medium'];
+                    const trendIcon = { up: '[+]', down: '[-]', stable: '[=]' }[c.trend] || '[=]';
+                    comparisonBlock += `| ${c.metric} | ${impIcon} | ${c.current.value} (${c.current.planExecution}) | ${c.previous.value} | ${c.change} ${trendIcon} |\n`;
                 });
                 
                 // === ДЕТЕКЦІЯ ОБМЕЖЕНЬ ===
@@ -1988,7 +2003,7 @@
                 if (savedAnalyses.length > 0) {
                     const lastAnalysis = savedAnalyses[savedAnalyses.length - 1];
                     const lastDate = new Date(lastAnalysis.date).toLocaleDateString('uk-UA');
-                    historyBlock = `\n\n### 📜 ПОПЕРЕДНІЙ АНАЛІЗ (${lastDate}):\n`;
+                    historyBlock = `\n\n### [ІСТОРІЯ] ПОПЕРЕДНІЙ АНАЛІЗ (${lastDate}):\n`;
                     // Витягуємо вузьке місце з попереднього аналізу
                     const prevBottleneck = lastAnalysis.content?.match(/## ВУЗЬКЕ МІСЦЕ: (.+)/)?.[1] || 'не визначено';
                     historyBlock += `Минулого разу виявлено: "${prevBottleneck}"\n`;
@@ -1996,7 +2011,7 @@
                 }
                 
                 // === БЛОК ВАЖЛИВОСТІ ПОКАЗНИКІВ ===
-                let importanceBlock = '\n\n### 💰 ВАЖЛИВІСТЬ ПОКАЗНИКІВ:\n';
+                let importanceBlock = '\n\n### [$$] ВАЖЛИВІСТЬ ПОКАЗНИКІВ:\n';
                 const criticalMetrics = columnsInfo.filter(c => c.importance === 'critical');
                 const highMetrics = columnsInfo.filter(c => c.importance === 'high');
                 if (criticalMetrics.length > 0) {
@@ -2026,7 +2041,7 @@ ${historyBlock}
 === ТВОЄ ЗАВДАННЯ ===
 
 На основі готового аналізу вище, визнач ОДНЕ головне вузьке місце.
-ПРІОРИТЕТ: показники з важливістю 💰 КРИТИЧНІ важливіші за інші!
+ПРІОРИТЕТ: показники з важливістю [КРИТ] КРИТИЧНІ важливіші за інші!
 Не рахуй тренди сам — вони вже пораховані.
 
 Дай відповідь українською СТРОГО у форматі:
@@ -2101,9 +2116,9 @@ ${response}`);
                     
                     // === ПОКАЗУЄМО ОБМЕЖЕННЯ ===
                     if (limitations.length > 0) {
-                        let limitationsText = '\n\n---\n\n**⚠️ МОЖЛИВІ ОБМЕЖЕННЯ АНАЛІЗУ:**\n';
+                        let limitationsText = '\n\n---\n\n**МОЖЛИВІ ОБМЕЖЕННЯ АНАЛІЗУ:**\n';
                         limitations.forEach(l => {
-                            limitationsText += `\n${l.icon} **${l.title}**\n${l.description}\n`;
+                            limitationsText += `\n[!] **${l.title}**\n${l.description}\n`;
                         });
                         addMessage('warning', limitationsText);
                         
@@ -2111,7 +2126,7 @@ ${response}`);
                         const limitationButtons = limitations.slice(0, 3).map(l => ({
                             text: l.title,
                             action: l.action,
-                            icon: 'AlertCircle'
+                            icon: l.iconName || 'AlertCircle'
                         }));
                         limitationButtons.push({ text: 'Все ок, продовжити', action: 'understood', icon: 'CheckCircle' });
                         addMessage('buttons', null, limitationButtons);
@@ -4276,21 +4291,27 @@ ${aiSettings.businessContext}
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.importance || 'Важливість'}</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {[
-                                        { value: 'critical', label: '💰 Критично', desc: 'Впливає на гроші', color: 'red' },
-                                        { value: 'high', label: '🔴 Висока', desc: 'Важливий процес', color: 'orange' },
-                                        { value: 'medium', label: '🟡 Середня', desc: 'Стандартний', color: 'yellow' },
-                                        { value: 'low', label: '🟢 Низька', desc: 'Допоміжний', color: 'green' },
-                                    ].map(imp => (
-                                        <button
-                                            key={imp.value}
-                                            type="button"
-                                            onClick={() => setNewStatsImportance(imp.value)}
-                                            className={`p-2 rounded-xl text-left transition-all ${newStatsImportance === imp.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                        >
-                                            <div className="font-medium text-sm">{imp.label}</div>
-                                            <div className={`text-xs ${newStatsImportance === imp.value ? 'text-white/80' : 'text-gray-500'}`}>{imp.desc}</div>
-                                        </button>
-                                    ))}
+                                        { value: 'critical', label: 'Критично', desc: 'Впливає на гроші', color: 'bg-red-500', icon: 'DollarSign' },
+                                        { value: 'high', label: 'Висока', desc: 'Важливий процес', color: 'bg-orange-500', icon: 'AlertCircle' },
+                                        { value: 'medium', label: 'Середня', desc: 'Стандартний', color: 'bg-yellow-500', icon: 'Minus' },
+                                        { value: 'low', label: 'Низька', desc: 'Допоміжний', color: 'bg-green-500', icon: 'Check' },
+                                    ].map(imp => {
+                                        const IconComponent = Icons[imp.icon];
+                                        return (
+                                            <button
+                                                key={imp.value}
+                                                type="button"
+                                                onClick={() => setNewStatsImportance(imp.value)}
+                                                className={`p-2 rounded-xl text-left transition-all ${newStatsImportance === imp.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                            >
+                                                <div className="font-medium text-sm flex items-center gap-2">
+                                                    <span className={`w-3 h-3 rounded-full ${imp.color}`}></span>
+                                                    {imp.label}
+                                                </div>
+                                                <div className={`text-xs ${newStatsImportance === imp.value ? 'text-white/80' : 'text-gray-500'}`}>{imp.desc}</div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                             <div className="flex gap-3 pt-2">
@@ -4351,10 +4372,10 @@ ${aiSettings.businessContext}
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.importance || 'Важливість'}</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {[
-                                            { value: 'critical', label: '💰 Критично', desc: 'Впливає на гроші' },
-                                            { value: 'high', label: '🔴 Висока', desc: 'Важливий процес' },
-                                            { value: 'medium', label: '🟡 Середня', desc: 'Стандартний' },
-                                            { value: 'low', label: '🟢 Низька', desc: 'Допоміжний' },
+                                            { value: 'critical', label: 'Критично', desc: 'Впливає на гроші', color: 'bg-red-500' },
+                                            { value: 'high', label: 'Висока', desc: 'Важливий процес', color: 'bg-orange-500' },
+                                            { value: 'medium', label: 'Середня', desc: 'Стандартний', color: 'bg-yellow-500' },
+                                            { value: 'low', label: 'Низька', desc: 'Допоміжний', color: 'bg-green-500' },
                                         ].map(imp => (
                                             <button
                                                 key={imp.value}
@@ -4362,7 +4383,10 @@ ${aiSettings.businessContext}
                                                 onClick={() => setEditingColumn({ ...editingColumn, importance: imp.value })}
                                                 className={`p-2 rounded-xl text-left transition-all ${(editingColumn.importance || 'medium') === imp.value ? 'bg-primary-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                             >
-                                                <div className="font-medium text-sm">{imp.label}</div>
+                                                <div className="font-medium text-sm flex items-center gap-2">
+                                                    <span className={`w-3 h-3 rounded-full ${imp.color}`}></span>
+                                                    {imp.label}
+                                                </div>
                                                 <div className={`text-xs ${(editingColumn.importance || 'medium') === imp.value ? 'text-white/80' : 'text-gray-500'}`}>{imp.desc}</div>
                                             </button>
                                         ))}
