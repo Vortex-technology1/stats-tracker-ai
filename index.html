@@ -392,6 +392,7 @@
         const OPENAI_MODEL = "gpt-4o";
 
         const SUPPORT_URL = "https://chatgpt.com/g/g-693bf67a13e48191940632f9d6bedb63-talko-statistics-ai-support";
+        const GPT_BOTTLENECK_URL = "https://chatgpt.com/g/g-6856346cb4c481918bb7e00d87b59d9c-ai-alex-talko-bottleneck-analysis";
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -2133,7 +2134,8 @@ ${response}`);
                     } else {
                         addMessage('buttons', null, [
                             { text: 'Так, зрозуміло. Що робити?', action: 'understood', icon: 'CheckCircle' },
-                            { text: 'Поясни детальніше', action: 'explain_more', icon: 'HelpCircle' }
+                            { text: 'Поясни детальніше', action: 'explain_more', icon: 'HelpCircle' },
+                            { text: 'Глибший аналіз в ChatGPT', action: 'open_gpt_bottleneck', icon: 'Brain' }
                         ]);
                     }
                 } catch (error) {
@@ -2702,6 +2704,10 @@ ${aiSettings.businessContext}
                         setCustomSolution('');
                         setOrders([]);
                         setCurrentPlan('');
+                        break;
+                    case 'open_gpt_bottleneck':
+                        window.open(GPT_BOTTLENECK_URL, '_blank');
+                        toast.success('Відкрито ChatGPT. Скопіюйте дані з Excel для глибшого аналізу.');
                         break;
                 }
             };
@@ -3864,6 +3870,7 @@ ${aiSettings.businessContext}
                                             </>
                                         )}
                                         <button onClick={exportToExcel} className="btn btn-secondary"><Icons.Download className="w-4 h-4" /><span className="hidden lg:inline">Excel</span></button>
+                                        <a href={GPT_BOTTLENECK_URL} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="AI Аналіз вузьких місць"><Icons.Brain className="w-4 h-4" /><span className="hidden lg:inline">AI GPT</span></a>
                                         <button onClick={handleLogout} className="btn btn-ghost btn-icon"><Icons.LogOut className="w-5 h-5" /></button>
                                     </div>
                                 </div>
@@ -4229,6 +4236,9 @@ ${aiSettings.businessContext}
                             <button onClick={() => { exportToExcel(); setShowMenu(false); }} className="btn btn-primary w-full justify-start">
                                 <Icons.Download className="w-5 h-5" />Експорт в Excel
                             </button>
+                            <a href={GPT_BOTTLENECK_URL} target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start" onClick={() => setShowMenu(false)}>
+                                <Icons.Brain className="w-5 h-5" />AI Аналіз вузьких місць
+                            </a>
                             <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start" onClick={() => setShowMenu(false)}>
                                 <Icons.MessageCircle className="w-5 h-5" />{t.support}
                             </a>
