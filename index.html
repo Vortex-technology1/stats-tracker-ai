@@ -581,11 +581,53 @@
         // Глобальний кеш тижнів (не змінюється протягом сесії)
         const WEEKS_CACHE = generateWeeks(16);
 
+        // ==================== MONTH HELPERS ====================
+        const getMonthKeyFromDate = (date) => {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return null;
+            const year = d.getFullYear();
+            const month = (d.getMonth() + 1).toString().padStart(2, '0');
+            return `${year}-${month}`;
+        };
+
+        const formatMonthLabel = (monthKey) => {
+            if (!monthKey) return 'Невірний місяць';
+            const [year, month] = monthKey.split('-');
+            const monthNames = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 
+                               'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+            return `${monthNames[parseInt(month) - 1]} ${year}`;
+        };
+
+        const generateMonths = (count = 12) => {
+            const months = [];
+            const today = new Date();
+            
+            for (let i = 0; i < count; i++) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const key = getMonthKeyFromDate(d);
+                months.push({
+                    key: key,
+                    label: formatMonthLabel(key),
+                    isCurrent: i === 0
+                });
+            }
+            return months;
+        };
+
+        const MONTHS_CACHE = generateMonths(12);
+
         const isWeekFilled = (weekKey, rows) => {
             return rows.some(row => {
                 if (row.isTarget || !row.date) return false;
                 const rowWeekKey = getWeekKey(row.date);
                 return rowWeekKey === weekKey;
+            });
+        };
+
+        const isMonthFilled = (monthKey, rows) => {
+            return rows.some(row => {
+                if (row.isTarget || !row.date || row.periodType !== 'monthly') return false;
+                return row.date === monthKey;
             });
         };
 
@@ -815,29 +857,38 @@
         };
 
         // ==================== STATS CARD (MOBILE) ====================
-        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows }) => {
+        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows, periodType = 'weekly' }) => {
             const [isExpanded, setIsExpanded] = useState(false);
             const [activeComment, setActiveComment] = useState(null);
             const [showTargets, setShowTargets] = useState(false);
             
-            // #1: Використовуємо глобальний кеш
-            const weeks = WEEKS_CACHE;
+            // Використовуємо відповідний кеш
+            const periods = periodType === 'monthly' ? MONTHS_CACHE : WEEKS_CACHE;
             
-            // #3: Indexed Set для O(1) lookup
-            const filledWeeksSet = useMemo(() => {
+            // Indexed Set для O(1) lookup
+            const filledPeriodsSet = useMemo(() => {
                 if (!allRows) return new Set();
                 const set = new Set();
                 allRows.forEach(r => {
-                    if (!r.isTarget && r.date && r.id !== row.id) {
-                        const key = getWeekKey(r.date);
-                        if (key) set.add(key);
+                    if (!r.isTarget && r.date && r.id !== row.id && r.periodType === periodType) {
+                        if (periodType === 'monthly') {
+                            set.add(r.date);
+                        } else {
+                            const key = getWeekKey(r.date);
+                            if (key) set.add(key);
+                        }
                     }
                 });
                 return set;
-            }, [allRows, row.id]);
+            }, [allRows, row.id, periodType]);
             
-            const getWeekStatus = (weekKey) => {
-                return filledWeeksSet.has(weekKey) ? 'filled' : 'empty';
+            const getPeriodStatus = (periodKey) => {
+                return filledPeriodsSet.has(periodKey) ? 'filled' : 'empty';
+            };
+            
+            const getCurrentPeriodKey = () => {
+                if (!row.date) return '';
+                return periodType === 'monthly' ? row.date : getWeekKey(row.date);
             };
             
             const calculateProgress = (colId) => {
@@ -858,26 +909,30 @@
             const hasAnyTarget = columns.some(col => row.targets?.[col.id]);
             
             return (
-                <div className={`stats-card animate-fade-in ${isEven ? 'bg-gray-50/50' : ''}`} style={isEven ? {borderLeft: '4px solid #e5e7eb'} : {borderLeft: '4px solid #22c55e'}}>
+                <div className={`stats-card animate-fade-in ${isEven ? 'bg-gray-50/50' : ''}`} style={isEven ? {borderLeft: '4px solid #e5e7eb'} : {borderLeft: periodType === 'monthly' ? '4px solid #3b82f6' : '4px solid #22c55e'}}>
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                                <Icons.Calendar className="w-6 h-6 text-gray-600" />
+                            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${periodType === 'monthly' ? 'from-blue-100 to-blue-200' : 'from-gray-100 to-gray-200'} flex items-center justify-center`}>
+                                {periodType === 'monthly' ? (
+                                    <Icons.BarChart className="w-6 h-6 text-blue-600" />
+                                ) : (
+                                    <Icons.Calendar className="w-6 h-6 text-gray-600" />
+                                )}
                             </div>
                             <div className="flex-1">
                                 <select 
-                                    value={row.date ? getWeekKey(row.date) : ''} 
+                                    value={getCurrentPeriodKey()} 
                                     onChange={(e) => onDateChange(e.target.value)}
                                     disabled={!editable}
                                     className="font-bold text-base text-gray-900 bg-white border border-gray-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-primary-200 w-full max-w-[160px]"
                                 >
-                                    <option value="">Оберіть тиждень</option>
-                                    {weeks.map(week => {
-                                        const status = getWeekStatus(week.key);
+                                    <option value="">{periodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}</option>
+                                    {periods.map(period => {
+                                        const status = getPeriodStatus(period.key);
                                         return (
-                                            <option key={week.key} value={week.key}>
-                                                {week.label} {week.isCurrent ? '⬅' : ''} {status === 'filled' ? '✓' : ''}
+                                            <option key={period.key} value={period.key}>
+                                                {period.label} {period.isCurrent ? '⬅' : ''} {status === 'filled' ? '✓' : ''}
                                             </option>
                                         );
                                     })}
@@ -1026,24 +1081,28 @@
         const StatsCard = React.memo(StatsCardComponent);
 
         // ==================== STATS TABLE (DESKTOP) ====================
-        const StatsTable = ({ columns, rows, targetRow, onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
+        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
             const [draggedCol, setDraggedCol] = useState(null);
             const [dragOverCol, setDragOverCol] = useState(null);
             
-            // #1: Використовуємо глобальний кеш замість генерації на кожен рендер
-            const weeks = WEEKS_CACHE;
+            // Використовуємо відповідний кеш залежно від типу періоду
+            const periods = periodType === 'monthly' ? MONTHS_CACHE : WEEKS_CACHE;
             
-            // #3: Indexed Set для O(1) lookup замість O(n)
-            const filledWeeksSet = useMemo(() => {
+            // Indexed Set для O(1) lookup
+            const filledPeriodsSet = useMemo(() => {
                 const set = new Set();
                 rows.forEach(r => {
                     if (!r.isTarget && r.date) {
-                        const key = getWeekKey(r.date);
-                        if (key) set.add(key);
+                        if (periodType === 'monthly') {
+                            set.add(r.date); // Для місяців date вже є ключем
+                        } else {
+                            const key = getWeekKey(r.date);
+                            if (key) set.add(key);
+                        }
                     }
                 });
                 return set;
-            }, [rows]);
+            }, [rows, periodType]);
             
             const calculateProgress = (row, colId) => {
                 if (!targetRow || !row.values) return null;
@@ -1053,13 +1112,13 @@
                 return Math.round((value / target) * 100);
             };
             
-            const getWeekStatus = (weekKey) => {
-                return filledWeeksSet.has(weekKey) ? 'filled' : 'empty';
+            const getPeriodStatus = (periodKey) => {
+                return filledPeriodsSet.has(periodKey) ? 'filled' : 'empty';
             };
             
-            const getCurrentWeekLabel = (date) => {
-                if (!date) return 'Оберіть тиждень';
-                return formatWeekLabel(date);
+            const getPeriodLabel = (date) => {
+                if (!date) return periodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень';
+                return periodType === 'monthly' ? formatMonthLabel(date) : formatWeekLabel(date);
             };
             
             // Форматування значення з кольором
@@ -1149,7 +1208,7 @@
                         <table className="stats-table">
                             <thead>
                                 <tr>
-                                    <th className="sticky-col" style={{ minWidth: 170 }}>ТИЖДЕНЬ</th>
+                                    <th className="sticky-col" style={{ minWidth: 170 }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖДЕНЬ'}</th>
                                     {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
                                         const isDragging = draggedCol === col.id;
@@ -1220,26 +1279,28 @@
                                     </tr>
                                 )}
                                 {rows.filter(r => !r.isTarget).map(row => {
-                                    const currentRowWeekKey = row.date ? getWeekKey(row.date) : null;
+                                    const currentPeriodKey = periodType === 'monthly' ? row.date : (row.date ? getWeekKey(row.date) : null);
                                     return (
                                     <tr key={row.id}>
                                         <td className="sticky-col">
                                             <select 
-                                                value={currentRowWeekKey || ''} 
+                                                value={currentPeriodKey || ''} 
                                                 onChange={(e) => onDateChange(row.id, e.target.value)}
                                                 className="w-full px-2 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:border-primary-400 focus:ring-1 focus:ring-primary-200 cursor-pointer"
                                             >
-                                                <option value="">Оберіть тиждень</option>
-                                                {weeks.map(week => {
-                                                    const status = getWeekStatus(week.key);
-                                                    const isCurrentRow = row.date && getWeekKey(row.date) === week.key;
+                                                <option value="">{periodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}</option>
+                                                {periods.map(period => {
+                                                    const status = getPeriodStatus(period.key);
+                                                    const isCurrentRow = currentPeriodKey === period.key;
                                                     return (
                                                         <option 
-                                                            key={week.key} 
-                                                            value={week.key}
+                                                            key={period.key} 
+                                                            value={period.key}
                                                             className={status === 'filled' && !isCurrentRow ? 'text-gray-400' : ''}
                                                         >
-                                                            {week.label} {week.isCurrent ? '(поточний)' : ''} {status === 'filled' && !isCurrentRow ? '✓' : ''}
+                                                            {period.label} {period.isCurrent ? '(поточний)' : ''} {status === 'filled' && !isCurrentRow ? '✓' : ''}
+                                                        </option>
+                                                    );
                                                         </option>
                                                     );
                                                 })}
@@ -2423,6 +2484,14 @@ ${aiSettings.businessContext}
             const targetRow = rows.find(r => r.isTarget);
             const dataRows = rows.filter(r => !r.isTarget);
             
+            // Групування колонок по періоду
+            const weeklyColumns = useMemo(() => columns.filter(c => c.period === 'weekly' || c.period === 'daily'), [columns]);
+            const monthlyColumns = useMemo(() => columns.filter(c => c.period === 'monthly'), [columns]);
+            
+            // Групування рядків по типу періоду
+            const weeklyRows = useMemo(() => dataRows.filter(r => r.periodType !== 'monthly'), [dataRows]);
+            const monthlyRows = useMemo(() => dataRows.filter(r => r.periodType === 'monthly'), [dataRows]);
+            
             // Visible columns for employees
             const visibleColumns = useMemo(() => {
                 if (isOwner || isSuperAdmin) return columns;
@@ -2558,43 +2627,65 @@ ${aiSettings.businessContext}
                     { id: 'col2', name: 'Нових лідів', responsible: 'Марія', period: 'weekly', format: 'number', visibleToEmployees: [] },
                     { id: 'col3', name: 'Конверсія', responsible: 'Олена', period: 'weekly', format: 'percent', visibleToEmployees: [] },
                     { id: 'col4', name: 'Закритих угод', responsible: 'Олена', period: 'weekly', format: 'number', visibleToEmployees: [] },
-                    { id: 'col5', name: 'Дохід', responsible: 'Олександр', period: 'weekly', format: 'uah', visibleToEmployees: [] },
+                    { id: 'col5', name: 'Дохід тижня', responsible: 'Олександр', period: 'weekly', format: 'uah', visibleToEmployees: [] },
                     { id: 'col6', name: 'Маркетинг бюджет', responsible: 'Ігор', period: 'weekly', format: 'usd', visibleToEmployees: [] },
-                    { id: 'col7', name: 'Середній чек', responsible: 'Олена', period: 'monthly', format: 'uah', visibleToEmployees: [] },
+                    // Місячні показники
+                    { id: 'col7', name: 'Чистий прибуток', responsible: 'Олександр', period: 'monthly', format: 'uah', visibleToEmployees: [] },
+                    { id: 'col8', name: 'Витрати на маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', visibleToEmployees: [] },
+                    { id: 'col9', name: 'ROI маркетингу', responsible: 'Ігор', period: 'monthly', format: 'percent', visibleToEmployees: [] },
                 ];
                 
                 const today = new Date();
-                const getWeekDate = (weeksAgo) => {
+                const getWeekDateKey = (weeksAgo) => {
                     const d = new Date(today);
                     d.setDate(d.getDate() - (weeksAgo * 7));
-                    return d.toISOString().split('T')[0];
+                    return getWeekKey(d);
+                };
+                
+                const getMonthKey = (monthsAgo) => {
+                    const d = new Date(today.getFullYear(), today.getMonth() - monthsAgo, 1);
+                    return getMonthKeyFromDate(d);
                 };
                 
                 const demoRows = [
-                    { id: 'row1', isTarget: false, date: getWeekDate(5), 
-                      values: { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850', col7: '25000' }, 
-                      targets: { col1: '20', col2: '45', col3: '15', col4: '7', col5: '175000', col6: '800', col7: '28000' },
+                    // Тижневі записи
+                    { id: 'row1', isTarget: false, periodType: 'weekly', date: getWeekDateKey(5), 
+                      values: { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850' }, 
+                      targets: { col1: '20', col2: '45', col3: '15', col4: '7', col5: '175000', col6: '800' },
                       comments: { col4: 'Сезонний спад' } },
-                    { id: 'row2', isTarget: false, date: getWeekDate(4), 
-                      values: { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920', col7: '28000' }, 
-                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '800', col7: '28000' },
+                    { id: 'row2', isTarget: false, periodType: 'weekly', date: getWeekDateKey(4), 
+                      values: { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920' }, 
+                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '800' },
                       comments: { col1: 'Додали вебінар' } },
-                    { id: 'row3', isTarget: false, date: getWeekDate(3), 
-                      values: { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200', col7: '29000' }, 
-                      targets: { col1: '22', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '28000' },
+                    { id: 'row3', isTarget: false, periodType: 'weekly', date: getWeekDateKey(3), 
+                      values: { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200' }, 
+                      targets: { col1: '22', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' },
                       comments: { col6: 'Запустили рекламу' } },
-                    { id: 'row4', isTarget: false, date: getWeekDate(2), 
-                      values: { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100', col7: '28000' }, 
-                      targets: { col1: '22', col2: '55', col3: '15', col4: '9', col5: '225000', col6: '900', col7: '28000' },
+                    { id: 'row4', isTarget: false, periodType: 'weekly', date: getWeekDateKey(2), 
+                      values: { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100' }, 
+                      targets: { col1: '22', col2: '55', col3: '15', col4: '9', col5: '225000', col6: '900' },
                       comments: { col3: 'Впала конверсія!' } },
-                    { id: 'row5', isTarget: false, date: getWeekDate(1), 
-                      values: { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950', col7: '29000' }, 
-                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '28000' },
+                    { id: 'row5', isTarget: false, periodType: 'weekly', date: getWeekDateKey(1), 
+                      values: { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950' }, 
+                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' },
                       comments: {} },
-                    { id: 'row6', isTarget: false, date: getWeekDate(0), 
-                      values: { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880', col7: '27000' }, 
-                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '28000' },
+                    { id: 'row6', isTarget: false, periodType: 'weekly', date: getWeekDateKey(0), 
+                      values: { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880' }, 
+                      targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' },
                       comments: { col2: 'Впала конверсія з реклами' } },
+                    // Місячні записи
+                    { id: 'month1', isTarget: false, periodType: 'monthly', date: getMonthKey(2), 
+                      values: { col7: '480000', col8: '45000', col9: '320' }, 
+                      targets: { col7: '600000', col8: '40000', col9: '400' },
+                      comments: { col7: 'Сезонний спад' } },
+                    { id: 'month2', isTarget: false, periodType: 'monthly', date: getMonthKey(1), 
+                      values: { col7: '520000', col8: '52000', col9: '280' }, 
+                      targets: { col7: '600000', col8: '45000', col9: '350' },
+                      comments: { col8: 'Перевитрати на рекламу' } },
+                    { id: 'month3', isTarget: false, periodType: 'monthly', date: getMonthKey(0), 
+                      values: { col7: '410000', col8: '48000', col9: '250' }, 
+                      targets: { col7: '650000', col8: '45000', col9: '380' },
+                      comments: { col9: 'ROI падає!' } },
                 ];
                 
                 const demoAiSettings = {
@@ -2797,11 +2888,34 @@ ${aiSettings.businessContext}
                 });
             };
             
-            const addRow = () => {
-                const currentWeekKey = getWeekKey(new Date());
-                const newRow = { id: Date.now().toString(), isTarget: false, date: currentWeekKey, values: {}, targets: {}, comments: {} };
-                setRows([...rows, newRow]);
-                toast.success(t.addRow);
+            const addRow = (periodType = 'weekly') => {
+                if (periodType === 'monthly') {
+                    const currentMonthKey = getMonthKeyFromDate(new Date());
+                    const newRow = { 
+                        id: Date.now().toString(), 
+                        isTarget: false, 
+                        periodType: 'monthly',
+                        date: currentMonthKey, 
+                        values: {}, 
+                        targets: {}, 
+                        comments: {} 
+                    };
+                    setRows([...rows, newRow]);
+                    toast.success('Додано місячний запис');
+                } else {
+                    const currentWeekKey = getWeekKey(new Date());
+                    const newRow = { 
+                        id: Date.now().toString(), 
+                        isTarget: false, 
+                        periodType: 'weekly',
+                        date: currentWeekKey, 
+                        values: {}, 
+                        targets: {}, 
+                        comments: {} 
+                    };
+                    setRows([...rows, newRow]);
+                    toast.success('Додано тижневий запис');
+                }
             };
             
             const deleteRow = (id) => {
@@ -3045,59 +3159,189 @@ ${aiSettings.businessContext}
                         {isOwner && (
                             <div className="hidden sm:flex gap-3 mb-4">
                                 <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary"><Icons.Plus className="w-5 h-5" />{t.addStats}</button>
-                                <button onClick={addRow} className="btn btn-secondary"><Icons.Plus className="w-5 h-5" />{t.addRow}</button>
+                                <button onClick={() => addRow('weekly')} className="btn btn-secondary"><Icons.Calendar className="w-5 h-5" />+ Тижневий запис</button>
+                                {monthlyColumns.length > 0 && (
+                                    <button onClick={() => addRow('monthly')} className="btn btn-secondary"><Icons.BarChart className="w-5 h-5" />+ Місячний запис</button>
+                                )}
                             </div>
                         )}
                         
                         {/* Mobile: Cards view */}
-                        <div className="sm:hidden space-y-4">
-                            {dataRows.length > 0 ? (
-                                dataRows.map((row, index) => (
-                                    <StatsCard 
-                                        key={row.id} 
-                                        row={row} 
-                                        columns={visibleColumns} 
-                                        editable
-                                        isEven={index % 2 === 1}
-                                        allRows={rows}
-                                        onDelete={() => deleteRow(row.id)} 
-                                        onDateChange={(date) => updateDate(row.id, date)}
-                                        onValueChange={(colId, value) => updateValue(row.id, colId, value)}
-                                        onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
-                                        onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
-                                        t={t} 
-                                    />
-                                ))
-                            ) : (
+                        <div className="sm:hidden space-y-6">
+                            {/* Тижневі показники (mobile) */}
+                            {weeklyColumns.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                                            <Icons.Calendar className="w-4 h-4 text-primary-500" />
+                                            Тижневі
+                                        </h2>
+                                        {isOwner && (
+                                            <button onClick={() => addRow('weekly')} className="text-sm text-primary-600 font-medium">+ Тиждень</button>
+                                        )}
+                                    </div>
+                                    {weeklyRows.length > 0 ? (
+                                        weeklyRows.map((row, index) => (
+                                            <StatsCard 
+                                                key={row.id} 
+                                                row={row} 
+                                                columns={weeklyColumns} 
+                                                periodType="weekly"
+                                                editable
+                                                isEven={index % 2 === 1}
+                                                allRows={rows}
+                                                onDelete={() => deleteRow(row.id)} 
+                                                onDateChange={(date) => updateDate(row.id, date)}
+                                                onValueChange={(colId, value) => updateValue(row.id, colId, value)}
+                                                onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
+                                                onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
+                                                t={t} 
+                                            />
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-6 text-gray-500">
+                                            Немає тижневих записів
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {/* Місячні показники (mobile) */}
+                            {monthlyColumns.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                                            <Icons.BarChart className="w-4 h-4 text-blue-500" />
+                                            Місячні
+                                        </h2>
+                                        {isOwner && (
+                                            <button onClick={() => addRow('monthly')} className="text-sm text-blue-600 font-medium">+ Місяць</button>
+                                        )}
+                                    </div>
+                                    {monthlyRows.length > 0 ? (
+                                        monthlyRows.map((row, index) => (
+                                            <StatsCard 
+                                                key={row.id} 
+                                                row={row} 
+                                                columns={monthlyColumns}
+                                                periodType="monthly"
+                                                editable
+                                                isEven={index % 2 === 1}
+                                                allRows={rows}
+                                                onDelete={() => deleteRow(row.id)} 
+                                                onDateChange={(date) => updateDate(row.id, date)}
+                                                onValueChange={(colId, value) => updateValue(row.id, colId, value)}
+                                                onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
+                                                onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
+                                                t={t} 
+                                            />
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-6 text-gray-500">
+                                            Немає місячних записів
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {/* Порожній стан */}
+                            {weeklyColumns.length === 0 && monthlyColumns.length === 0 && (
                                 <div className="empty-state">
                                     <div className="empty-state-icon">
                                         <Icons.BarChart className="w-10 h-10 text-primary-500" />
                                     </div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-2">{t.noData}</h3>
-                                    <p className="text-gray-500 mb-6">Почніть з додавання першого запису</p>
+                                    <p className="text-gray-500 mb-6">Почніть з додавання показників</p>
                                     {isOwner && (
-                                        <div className="flex flex-col gap-3 w-full max-w-xs">
-                                            <button onClick={loadDemoData} className="btn btn-secondary w-full">
-                                                <Icons.Sparkles className="w-5 h-5" />
-                                                Завантажити демо-дані
-                                            </button>
-                                            <button onClick={addRow} className="btn btn-primary w-full">
-                                                <Icons.Plus className="w-5 h-5" />
-                                                {t.addRow}
-                                            </button>
-                                        </div>
+                                        <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary">
+                                            <Icons.Plus className="w-5 h-5" />{t.addStats}
+                                        </button>
                                     )}
                                 </div>
                             )}
                         </div>
                         
                         {/* Desktop: Table view */}
-                        <div className="hidden sm:block">
-                            <StatsTable columns={visibleColumns} rows={rows} targetRow={targetRow}
-                                onDeleteRow={deleteRow} onDateChange={updateDate} onValueChange={updateValue} onCommentChange={updateComment}
-                                onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
-                                onMoveColumn={moveColumn}
-                                editable={isOwner} t={t} />
+                        <div className="hidden sm:block space-y-6">
+                            {/* Секція тижневих показників */}
+                            {weeklyColumns.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                            <Icons.Calendar className="w-5 h-5 text-primary-500" />
+                                            Тижневі показники
+                                            <span className="text-sm font-normal text-gray-500">({weeklyColumns.length} показників)</span>
+                                        </h2>
+                                        {isOwner && (
+                                            <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm">
+                                                <Icons.Plus className="w-4 h-4" />Додати тиждень
+                                            </button>
+                                        )}
+                                    </div>
+                                    <StatsTable 
+                                        columns={weeklyColumns} 
+                                        rows={[targetRow, ...weeklyRows].filter(Boolean)} 
+                                        targetRow={targetRow}
+                                        periodType="weekly"
+                                        onDeleteRow={deleteRow} 
+                                        onDateChange={updateDate} 
+                                        onValueChange={updateValue} 
+                                        onCommentChange={updateComment}
+                                        onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
+                                        onMoveColumn={moveColumn}
+                                        editable={isOwner} 
+                                        t={t} 
+                                    />
+                                </div>
+                            )}
+                            
+                            {/* Секція місячних показників */}
+                            {monthlyColumns.length > 0 && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                            <Icons.BarChart className="w-5 h-5 text-blue-500" />
+                                            Місячні показники
+                                            <span className="text-sm font-normal text-gray-500">({monthlyColumns.length} показників)</span>
+                                        </h2>
+                                        {isOwner && (
+                                            <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm">
+                                                <Icons.Plus className="w-4 h-4" />Додати місяць
+                                            </button>
+                                        )}
+                                    </div>
+                                    <StatsTable 
+                                        columns={monthlyColumns} 
+                                        rows={[targetRow, ...monthlyRows].filter(Boolean)} 
+                                        targetRow={targetRow}
+                                        periodType="monthly"
+                                        onDeleteRow={deleteRow} 
+                                        onDateChange={updateDate} 
+                                        onValueChange={updateValue} 
+                                        onCommentChange={updateComment}
+                                        onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
+                                        onMoveColumn={moveColumn}
+                                        editable={isOwner} 
+                                        t={t} 
+                                    />
+                                </div>
+                            )}
+                            
+                            {/* Порожній стан */}
+                            {weeklyColumns.length === 0 && monthlyColumns.length === 0 && (
+                                <div className="empty-state">
+                                    <div className="empty-state-icon">
+                                        <Icons.BarChart className="w-10 h-10 text-primary-500" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">{t.noData}</h3>
+                                    <p className="text-gray-500 mb-6">Почніть з додавання показників</p>
+                                    {isOwner && (
+                                        <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary">
+                                            <Icons.Plus className="w-5 h-5" />{t.addStats}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         </>
                         )}
