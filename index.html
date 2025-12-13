@@ -442,6 +442,9 @@
             FileText: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>,
             RefreshCw: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>,
             GripVertical: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>,
+            GitBranch: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>,
+            CheckSquare: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg>,
+            ExternalLink: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
         };
 
         // ==================== TRANSLATIONS ====================
@@ -520,6 +523,72 @@
             }
         };
 
+        // ==================== WEEK HELPERS ====================
+        const getWeekRange = (date) => {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return null;
+            const day = d.getDay();
+            const diffToMonday = day === 0 ? -6 : 1 - day;
+            const monday = new Date(d);
+            monday.setDate(d.getDate() + diffToMonday);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            return { start: monday, end: sunday };
+        };
+
+        const formatWeekLabel = (date) => {
+            const range = getWeekRange(date);
+            if (!range) return 'Невірна дата';
+            const { start, end } = range;
+            const formatDay = (d) => d.getDate().toString().padStart(2, '0');
+            const formatMonth = (d) => (d.getMonth() + 1).toString().padStart(2, '0');
+            const year = end.getFullYear().toString().slice(-2);
+            
+            if (start.getMonth() === end.getMonth()) {
+                return `${formatDay(start)}-${formatDay(end)}.${formatMonth(end)}.${year}`;
+            } else {
+                return `${formatDay(start)}.${formatMonth(start)}-${formatDay(end)}.${formatMonth(end)}.${year}`;
+            }
+        };
+
+        const getWeekKey = (date) => {
+            const range = getWeekRange(date);
+            if (!range) return null;
+            return range.start.toISOString().split('T')[0];
+        };
+
+        const generateWeeks = (count = 12) => {
+            const weeks = [];
+            const today = new Date();
+            
+            for (let i = 0; i < count; i++) {
+                const d = new Date(today);
+                d.setDate(today.getDate() - (i * 7));
+                const range = getWeekRange(d);
+                if (!range) continue;
+                const { start, end } = range;
+                weeks.push({
+                    key: start.toISOString().split('T')[0],
+                    label: formatWeekLabel(d),
+                    start: start,
+                    end: end,
+                    isCurrent: i === 0
+                });
+            }
+            return weeks;
+        };
+
+        // Глобальний кеш тижнів (не змінюється протягом сесії)
+        const WEEKS_CACHE = generateWeeks(16);
+
+        const isWeekFilled = (weekKey, rows) => {
+            return rows.some(row => {
+                if (row.isTarget || !row.date) return false;
+                const rowWeekKey = getWeekKey(row.date);
+                return rowWeekKey === weekKey;
+            });
+        };
+
         // ==================== TOAST ====================
         const ToastContext = createContext();
         const ToastProvider = ({ children }) => {
@@ -561,7 +630,7 @@
                 return () => { document.body.style.overflow = ''; };
             }, [isOpen]);
             if (!isOpen) return null;
-            const sizeClass = size === 'lg' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-2xl' : size === '2xl' ? 'sm:max-w-4xl' : size === 'full' ? 'sm:max-w-[90vw] sm:max-h-[90vh]' : 'sm:max-w-md';
+            const sizeClass = size === 'lg' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-2xl' : size === '2xl' ? 'sm:max-w-4xl' : size === 'full' ? 'sm:max-w-[95vw] sm:w-[95vw]' : 'sm:max-w-md';
             const heightClass = size === '2xl' || size === 'full' ? 'max-h-[85vh]' : 'max-h-[70vh]';
             return (
                 <>
@@ -746,10 +815,30 @@
         };
 
         // ==================== STATS CARD (MOBILE) ====================
-        const StatsCard = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t }) => {
+        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows }) => {
             const [isExpanded, setIsExpanded] = useState(false);
             const [activeComment, setActiveComment] = useState(null);
             const [showTargets, setShowTargets] = useState(false);
+            
+            // #1: Використовуємо глобальний кеш
+            const weeks = WEEKS_CACHE;
+            
+            // #3: Indexed Set для O(1) lookup
+            const filledWeeksSet = useMemo(() => {
+                if (!allRows) return new Set();
+                const set = new Set();
+                allRows.forEach(r => {
+                    if (!r.isTarget && r.date && r.id !== row.id) {
+                        const key = getWeekKey(r.date);
+                        if (key) set.add(key);
+                    }
+                });
+                return set;
+            }, [allRows, row.id]);
+            
+            const getWeekStatus = (weekKey) => {
+                return filledWeeksSet.has(weekKey) ? 'filled' : 'empty';
+            };
             
             const calculateProgress = (colId) => {
                 const target = parseFloat(String(row.targets?.[colId] || '').replace(',', '.'));
@@ -776,15 +865,24 @@
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                                 <Icons.Calendar className="w-6 h-6 text-gray-600" />
                             </div>
-                            <div>
-                                <input 
-                                    type="date" 
-                                    value={row.date || ''} 
-                                    onChange={(e) => onDateChange(e.target.value)} 
-                                    className="font-bold text-lg text-gray-900 bg-transparent border-none p-0 focus:ring-0 w-full" 
-                                    disabled={!editable} 
-                                />
-                                <p className="text-xs text-gray-500">{columns.length} показників</p>
+                            <div className="flex-1">
+                                <select 
+                                    value={row.date ? getWeekKey(row.date) : ''} 
+                                    onChange={(e) => onDateChange(e.target.value)}
+                                    disabled={!editable}
+                                    className="font-bold text-base text-gray-900 bg-white border border-gray-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-primary-200 w-full max-w-[160px]"
+                                >
+                                    <option value="">Оберіть тиждень</option>
+                                    {weeks.map(week => {
+                                        const status = getWeekStatus(week.key);
+                                        return (
+                                            <option key={week.key} value={week.key}>
+                                                {week.label} {week.isCurrent ? '⬅' : ''} {status === 'filled' ? '✓' : ''}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">{columns.length} показників</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -923,11 +1021,29 @@
                 </div>
             );
         };
+        
+        // #2: React.memo для уникнення зайвих ре-рендерів
+        const StatsCard = React.memo(StatsCardComponent);
 
         // ==================== STATS TABLE (DESKTOP) ====================
         const StatsTable = ({ columns, rows, targetRow, onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
             const [draggedCol, setDraggedCol] = useState(null);
             const [dragOverCol, setDragOverCol] = useState(null);
+            
+            // #1: Використовуємо глобальний кеш замість генерації на кожен рендер
+            const weeks = WEEKS_CACHE;
+            
+            // #3: Indexed Set для O(1) lookup замість O(n)
+            const filledWeeksSet = useMemo(() => {
+                const set = new Set();
+                rows.forEach(r => {
+                    if (!r.isTarget && r.date) {
+                        const key = getWeekKey(r.date);
+                        if (key) set.add(key);
+                    }
+                });
+                return set;
+            }, [rows]);
             
             const calculateProgress = (row, colId) => {
                 if (!targetRow || !row.values) return null;
@@ -935,6 +1051,50 @@
                 const value = parseFloat(String(row.values[colId] || '').replace(',', '.'));
                 if (isNaN(target) || isNaN(value) || target === 0) return null;
                 return Math.round((value / target) * 100);
+            };
+            
+            const getWeekStatus = (weekKey) => {
+                return filledWeeksSet.has(weekKey) ? 'filled' : 'empty';
+            };
+            
+            const getCurrentWeekLabel = (date) => {
+                if (!date) return 'Оберіть тиждень';
+                return formatWeekLabel(date);
+            };
+            
+            // Форматування значення з кольором
+            const formatValue = (value, format, progress) => {
+                if (!value && value !== 0) return null;
+                const numValue = parseFloat(String(value).replace(',', '.').replace(/\s/g, ''));
+                if (isNaN(numValue)) return value;
+                
+                // Форматування числа з роздільниками
+                const formatted = new Intl.NumberFormat('uk-UA').format(numValue);
+                
+                // Колір на основі прогресу або типу
+                let colorClass = 'text-gray-900';
+                if (progress !== null) {
+                    if (progress >= 100) colorClass = 'text-emerald-600 font-semibold';
+                    else if (progress >= 80) colorClass = 'text-emerald-500';
+                    else if (progress >= 50) colorClass = 'text-amber-600';
+                    else colorClass = 'text-red-500';
+                } else if (format === 'uah' || format === 'usd' || format === 'eur') {
+                    colorClass = 'text-emerald-600 font-semibold';
+                }
+                
+                // Символ валюти/формату
+                let prefix = '';
+                let suffix = '';
+                if (format === 'uah') prefix = '₴';
+                if (format === 'usd') prefix = '$';
+                if (format === 'eur') prefix = '€';
+                if (format === 'percent') suffix = '%';
+                
+                return (
+                    <span className={colorClass}>
+                        {prefix}{formatted}{suffix}
+                    </span>
+                );
             };
             
             const getProgressBadge = (progress) => {
@@ -989,7 +1149,7 @@
                         <table className="stats-table">
                             <thead>
                                 <tr>
-                                    <th className="sticky-col" style={{ minWidth: 140 }}>{t.date}</th>
+                                    <th className="sticky-col" style={{ minWidth: 170 }}>ТИЖДЕНЬ</th>
                                     {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
                                         const isDragging = draggedCol === col.id;
@@ -1059,22 +1219,59 @@
                                         {editable && <td></td>}
                                     </tr>
                                 )}
-                                {rows.filter(r => !r.isTarget).map(row => (
+                                {rows.filter(r => !r.isTarget).map(row => {
+                                    const currentRowWeekKey = row.date ? getWeekKey(row.date) : null;
+                                    return (
                                     <tr key={row.id}>
                                         <td className="sticky-col">
-                                            <input type="date" value={row.date || ''} onChange={(e) => onDateChange(row.id, e.target.value)} className="w-full px-2 py-1 text-sm bg-transparent border border-transparent rounded focus:border-primary-400 focus:bg-white" />
+                                            <select 
+                                                value={currentRowWeekKey || ''} 
+                                                onChange={(e) => onDateChange(row.id, e.target.value)}
+                                                className="w-full px-2 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:border-primary-400 focus:ring-1 focus:ring-primary-200 cursor-pointer"
+                                            >
+                                                <option value="">Оберіть тиждень</option>
+                                                {weeks.map(week => {
+                                                    const status = getWeekStatus(week.key);
+                                                    const isCurrentRow = row.date && getWeekKey(row.date) === week.key;
+                                                    return (
+                                                        <option 
+                                                            key={week.key} 
+                                                            value={week.key}
+                                                            className={status === 'filled' && !isCurrentRow ? 'text-gray-400' : ''}
+                                                        >
+                                                            {week.label} {week.isCurrent ? '(поточний)' : ''} {status === 'filled' && !isCurrentRow ? '✓' : ''}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
                                         </td>
                                         {columns.map(col => {
                                             const progress = calculateProgress(row, col.id);
+                                            const value = row.values?.[col.id] || '';
                                             return (
                                                 <td key={col.id}>
                                                     <div>
-                                                        <div className="flex items-center">
-                                                            <input
-                                                                type="text" value={row.values?.[col.id] || ''} onChange={(e) => onValueChange(row.id, col.id, e.target.value)}
-                                                                className="w-20 px-2 py-1 text-sm bg-transparent border border-transparent rounded focus:border-primary-400 focus:bg-white" placeholder="0"
-                                                            />
-                                                            {getProgressBadge(progress)}
+                                                        <div className="flex items-center gap-1">
+                                                            {editable ? (
+                                                                <input
+                                                                    type="text" value={value} onChange={(e) => onValueChange(row.id, col.id, e.target.value)}
+                                                                    className="w-24 px-2 py-1 text-sm bg-transparent border border-transparent rounded focus:border-primary-400 focus:bg-white" placeholder="0"
+                                                                />
+                                                            ) : (
+                                                                <span className="px-2 py-1 text-sm">
+                                                                    {formatValue(value, col.format, progress) || '-'}
+                                                                </span>
+                                                            )}
+                                                            {progress !== null && (
+                                                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                                                    progress >= 100 ? 'bg-emerald-100 text-emerald-700' : 
+                                                                    progress >= 80 ? 'bg-blue-100 text-blue-700' : 
+                                                                    progress >= 50 ? 'bg-amber-100 text-amber-700' : 
+                                                                    'bg-red-100 text-red-700'
+                                                                }`}>
+                                                                    {progress}%
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <input
                                                             type="text" value={row.comments?.[col.id] || ''} onChange={(e) => onCommentChange(row.id, col.id, e.target.value)}
@@ -1088,7 +1285,8 @@
                                             <td><button onClick={() => onDeleteRow(row.id)} className="btn btn-ghost btn-icon"><Icons.Trash className="w-4 h-4 text-gray-400" /></button></td>
                                         )}
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -1122,6 +1320,21 @@
             
             const WORKER_URL = 'https://openai-proxy.management-talco.workers.dev/';
             
+            const getColumnsInfo = () => {
+                const periodLabels = {
+                    'daily': 'щоденно',
+                    'weekly': 'щотижня',
+                    'monthly': 'щомісяця',
+                    'custom': 'довільно'
+                };
+                return columns.map(col => ({
+                    name: col.name,
+                    period: periodLabels[col.period] || col.period,
+                    responsible: col.responsible || 'не вказано',
+                    format: col.format || 'число'
+                }));
+            };
+            
             const getTableData = () => {
                 const weeksAgo = new Date();
                 weeksAgo.setDate(weeksAgo.getDate() - (period * 7));
@@ -1131,7 +1344,7 @@
                     const rowData = { 'Дата': row.date };
                     columns.forEach(col => {
                         const fact = row.values?.[col.id] || '-';
-                        const plan = row.targets?.[col.id] || '-';
+                        const plan = row.targets?.[col.id] || targetRow?.values?.[col.id] || '-';
                         const diff = (parseFloat(fact) && parseFloat(plan)) 
                             ? Math.round((parseFloat(fact) / parseFloat(plan)) * 100) + '%' 
                             : '-';
@@ -1181,6 +1394,7 @@
                 addMessage('system', 'Аналізую ваші дані... Це займе 1-2 хвилини.');
                 
                 const tableData = getTableData();
+                const columnsInfo = getColumnsInfo();
                 setAnalysisData(tableData);
                 
                 const prompt = `Ти — бізнес-консультант з 10+ років досвіду. Проаналізуй дані та визнач ГОЛОВНЕ вузьке місце.
@@ -1190,6 +1404,11 @@ ${aiSettings.businessContext}
 
 ПРІОРИТЕТИ:
 ${aiSettings.priorities || 'Не вказано'}
+
+ПОКАЗНИКИ ТА ЇХ ПЕРІОДИЧНІСТЬ:
+${columnsInfo.map(c => `- ${c.name}: дані вносяться ${c.period}, відповідальний: ${c.responsible}`).join('\n')}
+
+ВАЖЛИВО: Кожен запис в таблиці — це дані за один період (день/тиждень/місяць залежно від показника). Враховуй це при аналізі!
 
 СТАТИСТИКА ЗА ${period} ТИЖНІВ:
 ${JSON.stringify(tableData, null, 2)}
@@ -1201,9 +1420,9 @@ ${additionalFocus ? `ФОКУС: ${additionalFocus}` : ''}
 ## ВУЗЬКЕ МІСЦЕ: [назва проблеми/функції]
 
 ### ФАКТИ З ДАНИХ:
-- [конкретна цифра 1 з таблиці]
-- [конкретна цифра 2 з таблиці]
-- [конкретна цифра 3 з таблиці]
+- [конкретна цифра 1 з таблиці + за який період (день/тиждень/місяць)]
+- [конкретна цифра 2 з таблиці + за який період]
+- [конкретна цифра 3 з таблиці + за який період]
 
 ### ПРИЧИННО-НАСЛІДКОВИЙ ЗВ'ЯЗОК:
 [Поясни ланцюжок: ця проблема → призводить до → що впливає на → кінцевий результат]
@@ -2276,25 +2495,40 @@ ${aiSettings.businessContext}
                     const companyData = companyDoc.data();
                     setCompanyName(companyData.name || '');
                     setColumns(companyData.columns || []);
-                    setRows(companyData.rows || []);
+                    
+                    // Міграція старих дат у формат тижнів
+                    const migratedRows = (companyData.rows || []).map(row => {
+                        if (row.isTarget || !row.date) return row;
+                        // Перевіряємо чи дата вже в форматі weekKey (YYYY-MM-DD понеділка)
+                        const weekKey = getWeekKey(row.date);
+                        if (weekKey && row.date !== weekKey) {
+                            // Міграція: конвертуємо будь-яку дату в початок тижня
+                            console.log('Migrating date:', row.date, '→', weekKey);
+                            return { ...row, date: weekKey };
+                        }
+                        return row;
+                    });
+                    setRows(migratedRows);
+                    
                     setAiSettings(companyData.aiSettings || { businessContext: '', priorities: '', analysisPeriod: 5 });
                     setSavedAnalyses(companyData.savedAnalyses || []);
                     
-                    // 2. Завантажуємо профіль користувача в компанії
-                    const userInCompanyDoc = await db.collection('companies').doc(companyId).collection('users').doc(userId).get();
-                    if (userInCompanyDoc.exists) {
-                        const profile = userInCompanyDoc.data();
-                        console.log('User profile in company:', profile);
-                        setUserProfile(profile);
-                    }
-                    
-                    // 3. Завантажуємо всіх користувачів компанії (для owner)
+                    // 2. Завантажуємо всіх користувачів компанії
                     const usersSnapshot = await db.collection('companies').doc(companyId).collection('users').get();
                     const employeesData = {};
                     usersSnapshot.forEach(doc => {
                         employeesData[doc.id] = doc.data();
                     });
                     setEmployees(employeesData);
+                    
+                    // 3. Встановлюємо профіль поточного користувача з завантажених даних
+                    const currentUserProfile = employeesData[userId];
+                    if (currentUserProfile) {
+                        console.log('User profile in company:', currentUserProfile);
+                        setUserProfile(currentUserProfile);
+                    } else {
+                        console.log('User not found in company users:', userId);
+                    }
                     
                     console.log('Company loaded:', { 
                         name: companyData.name,
@@ -2311,7 +2545,8 @@ ${aiSettings.businessContext}
             const initializeDefaultData = () => {
                 const defaultColumns = [{ id: Date.now().toString(), name: 'Показник 1', responsible: '', period: 'weekly', visibleToEmployees: [] }];
                 const targetRow = { id: 'target', isTarget: true, date: '', values: {}, comments: {} };
-                const defaultRows = [targetRow, { id: Date.now().toString() + '-1', isTarget: false, date: new Date().toISOString().split('T')[0], values: {}, comments: {} }];
+                const currentWeekKey = getWeekKey(new Date()) || new Date().toISOString().split('T')[0];
+                const defaultRows = [targetRow, { id: Date.now().toString() + '-1', isTarget: false, date: currentWeekKey, values: {}, comments: {} }];
                 setColumns(defaultColumns);
                 setRows(defaultRows);
             };
@@ -2563,7 +2798,8 @@ ${aiSettings.businessContext}
             };
             
             const addRow = () => {
-                const newRow = { id: Date.now().toString(), isTarget: false, date: new Date().toISOString().split('T')[0], values: {}, targets: {}, comments: {} };
+                const currentWeekKey = getWeekKey(new Date());
+                const newRow = { id: Date.now().toString(), isTarget: false, date: currentWeekKey, values: {}, targets: {}, comments: {} };
                 setRows([...rows, newRow]);
                 toast.success(t.addRow);
             };
@@ -2759,6 +2995,15 @@ ${aiSettings.businessContext}
                                         {isOwner && (
                                             <>
                                                 <button onClick={() => setShowAIModal(true)} className="btn btn-ai"><Icons.Brain className="w-4 h-4" /><span className="hidden lg:inline">{t.aiAnalysis}</span></button>
+                                                <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="AI розробник статистик">
+                                                    <Icons.Target className="w-4 h-4" /><span className="hidden lg:inline">Статистики</span>
+                                                </a>
+                                                <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="TALKO Task Manager">
+                                                    <Icons.CheckSquare className="w-4 h-4" /><span className="hidden lg:inline">Задачі</span>
+                                                </a>
+                                                <a href="https://alextalko.com/tms" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="Структура компанії">
+                                                    <Icons.GitBranch className="w-4 h-4" /><span className="hidden lg:inline">Структура</span>
+                                                </a>
                                                 <button 
                                                     onClick={() => setActiveTab(activeTab === 'plans' ? 'stats' : 'plans')} 
                                                     className={`btn ${activeTab === 'plans' ? 'btn-primary' : 'btn-secondary'}`}
@@ -2767,7 +3012,6 @@ ${aiSettings.businessContext}
                                                     {savedAnalyses.length > 0 && <span className="ml-1 badge badge-white text-xs">{savedAnalyses.length}</span>}
                                                 </button>
                                                 <button onClick={() => setShowTeamModal(true)} className="btn btn-secondary"><Icons.Users className="w-4 h-4" /></button>
-                                                <button onClick={loadDemoData} className="btn btn-secondary" title="Завантажити демо-дані"><Icons.Sparkles className="w-4 h-4" /></button>
                                             </>
                                         )}
                                         <button onClick={exportToExcel} className="btn btn-secondary"><Icons.Download className="w-4 h-4" /><span className="hidden lg:inline">Excel</span></button>
@@ -2815,6 +3059,7 @@ ${aiSettings.businessContext}
                                         columns={visibleColumns} 
                                         editable
                                         isEven={index % 2 === 1}
+                                        allRows={rows}
                                         onDelete={() => deleteRow(row.id)} 
                                         onDateChange={(date) => updateDate(row.id, date)}
                                         onValueChange={(colId, value) => updateValue(row.id, colId, value)}
@@ -2975,13 +3220,23 @@ ${aiSettings.businessContext}
                                     </button>
                                     
                                     <div className="pt-4 pb-1">
+                                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">TALKO Екосистема</p>
+                                    </div>
+                                    <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start">
+                                        <Icons.Target className="w-5 h-5" />AI Розробник статистик
+                                    </a>
+                                    <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start">
+                                        <Icons.CheckSquare className="w-5 h-5" />TALKO Task Manager
+                                    </a>
+                                    <a href="https://alextalko.com/tms" target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full justify-start">
+                                        <Icons.GitBranch className="w-5 h-5" />Структура компанії
+                                    </a>
+                                    
+                                    <div className="pt-4 pb-1">
                                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">Управління</p>
                                     </div>
                                     <button onClick={() => { setShowTeamModal(true); setShowMenu(false); }} className="btn btn-secondary w-full justify-start">
                                         <Icons.Users className="w-5 h-5" />{t.teamManagement}
-                                    </button>
-                                    <button onClick={() => { loadDemoData(); setShowMenu(false); }} className="btn btn-secondary w-full justify-start">
-                                        <Icons.Sparkles className="w-5 h-5" />Завантажити демо-дані
                                     </button>
                                 </>
                             )}
@@ -3277,7 +3532,7 @@ ${aiSettings.businessContext}
                     </Modal>
                     
                     {/* AI Analysis modal */}
-                    <Modal isOpen={showAIModal} onClose={() => setShowAIModal(false)} title={t.aiAnalysis} size="2xl">
+                    <Modal isOpen={showAIModal} onClose={() => setShowAIModal(false)} title={t.aiAnalysis} size="full">
                         <div className="space-y-4">
                             {/* Контекст бізнесу - одразу видимий */}
                             <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
