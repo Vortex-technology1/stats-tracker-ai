@@ -869,7 +869,7 @@
         };
 
         // ==================== STATS CARD (MOBILE) ====================
-        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows, periodType = 'weekly' }) => {
+        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, canManage = false, isEven, t, allRows, periodType = 'weekly' }) => {
             const [isExpanded, setIsExpanded] = useState(false);
             const [activeComment, setActiveComment] = useState(null);
             const [showTargets, setShowTargets] = useState(false);
@@ -961,7 +961,7 @@
                             >
                                 <Icons.Target className="w-5 h-5" />
                             </button>
-                            {editable && (
+                            {canManage && (
                                 <button onClick={onDelete} className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
                                     <Icons.Trash className="w-5 h-5 text-red-400" />
                                 </button>
@@ -1094,7 +1094,7 @@
         const StatsCard = React.memo(StatsCardComponent);
 
         // ==================== STATS TABLE (DESKTOP) ====================
-        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
+        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, canManage = false, t }) => {
             const [draggedCol, setDraggedCol] = useState(null);
             const [dragOverCol, setDragOverCol] = useState(null);
             
@@ -1230,17 +1230,17 @@
                                             <th 
                                                 key={col.id} 
                                                 style={{ minWidth: 180 }}
-                                                draggable={editable}
+                                                draggable={canManage}
                                                 onDragStart={(e) => handleDragStart(e, col.id)}
                                                 onDragOver={(e) => handleDragOver(e, col.id)}
                                                 onDragLeave={handleDragLeave}
                                                 onDrop={(e) => handleDrop(e, col.id)}
                                                 onDragEnd={handleDragEnd}
-                                                className={`${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                                                className={`${canManage ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
-                                                        {editable && (
+                                                        {canManage && (
                                                             <Icons.GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
                                                         )}
                                                         <div>
@@ -1262,7 +1262,7 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    {editable && (
+                                                    {canManage && (
                                                         <button onClick={() => onEditColumn(col)} className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600">
                                                             <Icons.Settings className="w-4 h-4" />
                                                         </button>
@@ -1271,7 +1271,7 @@
                                             </th>
                                         );
                                     })}
-                                    {editable && <th style={{ width: 60 }}></th>}
+                                    {canManage && <th style={{ width: 60 }}></th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -1288,7 +1288,7 @@
                                                 />
                                             </td>
                                         ))}
-                                        {editable && <td></td>}
+                                        {canManage && <td></td>}
                                     </tr>
                                 )}
                                 {rows.filter(r => !r.isTarget).map(row => {
@@ -1353,7 +1353,7 @@
                                                 </td>
                                             );
                                         })}
-                                        {editable && (
+                                        {canManage && (
                                             <td><button onClick={() => onDeleteRow(row.id)} className="btn btn-ghost btn-icon"><Icons.Trash className="w-4 h-4 text-gray-400" /></button></td>
                                         )}
                                     </tr>
@@ -3548,7 +3548,7 @@ ${aiSettings.businessContext}
             }, [columns, rows, aiSettings, savedAnalyses]);
             
             const saveData = useCallback(async () => {
-                if (!user || !companyId || !isOwner) return;
+                if (!user || !companyId) return;
                 const data = dataRef.current;
                 if (!data.columns || data.columns.length === 0 || !data.rows || data.rows.length === 0) {
                     console.log('Skip save - no data', { cols: data.columns?.length, rows: data.rows?.length });
@@ -3570,7 +3570,7 @@ ${aiSettings.businessContext}
                     setSaveStatus('error');
                     toast.error(t.saveError);
                 }
-            }, [user, companyId, isOwner]);
+            }, [user, companyId]);
             
             const debouncedSave = useCallback(() => {
                 if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -3580,13 +3580,12 @@ ${aiSettings.businessContext}
             useEffect(() => {
                 // Зберігаємо тільки якщо:
                 // - є юзер і companyId
-                // - це власник
                 // - є дані (columns і rows)
                 // - не йде завантаження
-                if (user && companyId && columns.length > 0 && rows.length > 0 && isOwner && !authLoading) {
+                if (user && companyId && columns.length > 0 && rows.length > 0 && !authLoading) {
                     debouncedSave();
                 }
-            }, [columns, rows, aiSettings, savedAnalyses, isOwner, companyId, debouncedSave, authLoading]);
+            }, [columns, rows, aiSettings, savedAnalyses, companyId, debouncedSave, authLoading]);
 
             // ==================== DATA HANDLERS ====================
             const addColumn = () => {
@@ -3978,7 +3977,8 @@ ${aiSettings.businessContext}
                                                 row={row} 
                                                 columns={weeklyColumns} 
                                                 periodType="weekly"
-                                                editable
+                                                editable={true}
+                                                canManage={isOwner}
                                                 isEven={index % 2 === 1}
                                                 allRows={rows}
                                                 onDelete={() => deleteRow(row.id)} 
@@ -4016,7 +4016,8 @@ ${aiSettings.businessContext}
                                                 row={row} 
                                                 columns={monthlyColumns}
                                                 periodType="monthly"
-                                                editable
+                                                editable={true}
+                                                canManage={isOwner}
                                                 isEven={index % 2 === 1}
                                                 allRows={rows}
                                                 onDelete={() => deleteRow(row.id)} 
@@ -4080,7 +4081,8 @@ ${aiSettings.businessContext}
                                         onCommentChange={updateComment}
                                         onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
                                         onMoveColumn={moveColumn}
-                                        editable={isOwner} 
+                                        editable={true}
+                                        canManage={isOwner}
                                         t={t} 
                                     />
                                 </div>
@@ -4112,7 +4114,8 @@ ${aiSettings.businessContext}
                                         onCommentChange={updateComment}
                                         onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
                                         onMoveColumn={moveColumn}
-                                        editable={isOwner} 
+                                        editable={true}
+                                        canManage={isOwner}
                                         t={t} 
                                     />
                                 </div>
