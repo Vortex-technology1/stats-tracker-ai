@@ -3315,6 +3315,14 @@ ${aiSettings.businessContext}
                         }
                         return row;
                     });
+                    
+                    // Перевіряємо чи є targetRow, якщо ні - створюємо
+                    const hasTargetRow = migratedRows.some(r => r.isTarget);
+                    if (!hasTargetRow) {
+                        console.log('Creating missing targetRow');
+                        migratedRows.unshift({ id: 'target', isTarget: true, date: '', values: {}, comments: {} });
+                    }
+                    
                     setRows(migratedRows);
                     
                     setAiSettings(companyData.aiSettings || { businessContext: '', priorities: '', analysisPeriod: 5 });
@@ -3782,14 +3790,55 @@ ${aiSettings.businessContext}
 
             // ==================== EXPORT/IMPORT ====================
             const exportToExcel = () => {
-                const headers = [t.date, ...visibleColumns.map(col => `${col.name}`)];
-                const targetRowData = [t.target, ...visibleColumns.map(col => targetRow?.values[col.id] || '')];
-                const data = dataRows.map(row => [row.date, ...visibleColumns.map(col => row.values?.[col.id] || '')]);
-                
-                const ws = XLSX.utils.aoa_to_sheet([headers, targetRowData, ...data]);
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Statistics');
-                XLSX.writeFile(wb, `statistics_${new Date().toISOString().split('T')[0]}.xlsx`);
+                
+                // === ТИЖНЕВІ ПОКАЗНИКИ ===
+                const weeklyColumns = visibleColumns.filter(c => c.period !== 'monthly');
+                if (weeklyColumns.length > 0) {
+                    const weeklyHeaders = ['Тиждень', ...weeklyColumns.map(col => col.name)];
+                    const responsibleRow = ['Відповідальний', ...weeklyColumns.map(col => col.responsible || '-')];
+                    const targetRowData = ['ПЛАН', ...weeklyColumns.map(col => targetRow?.values?.[col.id] || '')];
+                    const weeklyRows = rows
+                        .filter(r => !r.isTarget && r.periodType !== 'monthly' && r.date)
+                        .sort((a, b) => new Date(b.date) - new Date(a.date));
+                    const weeklyData = weeklyRows.map(row => {
+                        const weekLabel = formatWeekLabel(row.date);
+                        return [weekLabel, ...weeklyColumns.map(col => row.values?.[col.id] || '')];
+                    });
+                    
+                    const wsWeekly = XLSX.utils.aoa_to_sheet([weeklyHeaders, responsibleRow, targetRowData, ...weeklyData]);
+                    // Ширина колонок
+                    wsWeekly['!cols'] = [{ wch: 15 }, ...weeklyColumns.map(() => ({ wch: 12 }))];
+                    XLSX.utils.book_append_sheet(wb, wsWeekly, 'Тижневі');
+                }
+                
+                // === МІСЯЧНІ ПОКАЗНИКИ ===
+                const monthlyColumns = visibleColumns.filter(c => c.period === 'monthly');
+                if (monthlyColumns.length > 0) {
+                    const monthlyHeaders = ['Місяць', ...monthlyColumns.map(col => col.name)];
+                    const responsibleRowM = ['Відповідальний', ...monthlyColumns.map(col => col.responsible || '-')];
+                    const targetRowDataM = ['ПЛАН', ...monthlyColumns.map(col => targetRow?.values?.[col.id] || '')];
+                    const monthlyRows = rows
+                        .filter(r => !r.isTarget && r.periodType === 'monthly' && r.date)
+                        .sort((a, b) => b.date.localeCompare(a.date));
+                    const monthlyData = monthlyRows.map(row => {
+                        const monthLabel = formatMonthLabel(row.date);
+                        return [monthLabel, ...monthlyColumns.map(col => row.values?.[col.id] || '')];
+                    });
+                    
+                    const wsMonthly = XLSX.utils.aoa_to_sheet([monthlyHeaders, responsibleRowM, targetRowDataM, ...monthlyData]);
+                    wsMonthly['!cols'] = [{ wch: 18 }, ...monthlyColumns.map(() => ({ wch: 12 }))];
+                    XLSX.utils.book_append_sheet(wb, wsMonthly, 'Місячні');
+                }
+                
+                // === ВСІ ДАНІ (старий формат для сумісності) ===
+                const allHeaders = [t.date, ...visibleColumns.map(col => `${col.name} (${col.responsible || '-'})`)];
+                const allTargetRow = [t.target, ...visibleColumns.map(col => targetRow?.values?.[col.id] || '')];
+                const allData = dataRows.map(row => [row.date, ...visibleColumns.map(col => row.values?.[col.id] || '')]);
+                const wsAll = XLSX.utils.aoa_to_sheet([allHeaders, allTargetRow, ...allData]);
+                XLSX.utils.book_append_sheet(wb, wsAll, 'Всі дані');
+                
+                XLSX.writeFile(wb, `statistics_${companyName || 'export'}_${new Date().toISOString().split('T')[0]}.xlsx`);
                 toast.success(t.export);
             };
 
