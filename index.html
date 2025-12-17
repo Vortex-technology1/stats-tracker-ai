@@ -1071,14 +1071,14 @@
                             const hasTarget = row.targets?.[col.id];
                             
                             return (
-                                <div key={col.id} className="bg-gray-50 rounded-2xl p-4">
+                                <div key={col.id} className="bg-gray-50 rounded-2xl p-3 sm:p-4">
                                     {/* Metric header */}
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-semibold text-gray-900">{col.name}</span>
+                                    <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">{col.name}</span>
                                                 {col.format && col.format !== 'number' && (
-                                                    <span className="text-xs text-gray-400">
+                                                    <span className="text-xs text-gray-400 flex-shrink-0">
                                                         {col.format === 'percent' && '%'}
                                                         {col.format === 'uah' && '₴'}
                                                         {col.format === 'usd' && '$'}
@@ -1086,14 +1086,14 @@
                                                     </span>
                                                 )}
                                                 {hasComment && (
-                                                    <button onClick={() => setActiveComment(activeComment === col.id ? null : col.id)} className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                                                        <Icons.MessageCircle className="w-3.5 h-3.5 text-blue-600" />
+                                                    <button onClick={() => setActiveComment(activeComment === col.id ? null : col.id)} className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                                        <Icons.MessageCircle className="w-3 h-3 text-blue-600" />
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="period-badge">{getPeriodLabel(col.period, t)}</span>
-                                                {col.responsible && <span className="text-xs text-gray-500">{col.responsible}</span>}
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="period-badge text-xs">{getPeriodLabel(col.period, t)}</span>
+                                                {col.responsible && <span className="text-xs text-gray-400 truncate">{col.responsible}</span>}
                                             </div>
                                         </div>
                                     </div>
@@ -3371,6 +3371,7 @@ ${aiSettings.businessContext}
             const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
             const [showAIModal, setShowAIModal] = useState(false);
             const [showDemoModal, setShowDemoModal] = useState(false);
+            const [showToolsDropdown, setShowToolsDropdown] = useState(false);
             const [confirmDialog, setConfirmDialog] = useState({ isOpen: false });
             const [editingColumn, setEditingColumn] = useState(null);
             const [companyId, setCompanyId] = useState(null);
@@ -3725,27 +3726,31 @@ ${aiSettings.businessContext}
                     columns: [
                         { id: 'col1', name: 'Консультацій', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col2', name: 'Нових лідів', responsible: 'Марія', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col3', name: 'Конверсія в угоду', responsible: 'Олена', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col4', name: 'Закритих угод', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col5', name: 'Дохід тижня', responsible: 'Олександр', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col6', name: 'Маркетинг бюджет', responsible: 'Ігор', period: 'weekly', format: 'usd', importance: 'medium', visibleToEmployees: [] },
-                        { id: 'col7', name: 'Чистий прибуток', responsible: 'Олександр', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col8', name: 'Витрати на маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col9', name: 'ROI маркетингу', responsible: 'Ігор', period: 'monthly', format: 'percent', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col3', name: 'Конверсія', responsible: 'Олена', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col4', name: 'Угод', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col5', name: 'Дохід', responsible: 'Олександр', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col6', name: 'Реклама', responsible: 'Ігор', period: 'weekly', format: 'usd', importance: 'medium', visibleToEmployees: [] },
+                        { id: 'col7', name: 'Прибуток', responsible: 'Олександр', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Витрати маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col9', name: 'ROI', responsible: 'Ігор', period: 'monthly', format: 'percent', importance: 'high', visibleToEmployees: [] },
                     ],
                     weeklyValues: [
+                        { col1: '16', col2: '35', col3: '11', col4: '4', col5: '112000', col6: '780' },
                         { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850' },
                         { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920' },
                         { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200' },
                         { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100' },
                         { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950' },
                         { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880' },
+                        { col1: '14', col2: '39', col3: '9', col4: '4', col5: '118000', col6: '920' },
                     ],
                     weeklyTargets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' },
                     monthlyValues: [
+                        { col7: '420000', col8: '38000', col9: '340' },
                         { col7: '480000', col8: '45000', col9: '320' },
                         { col7: '520000', col8: '52000', col9: '280' },
                         { col7: '410000', col8: '48000', col9: '250' },
+                        { col7: '380000', col8: '44000', col9: '230' },
                     ],
                     monthlyTargets: { col7: '600000', col8: '45000', col9: '380' },
                     context: `Консалтингова компанія "TALKO Consulting"
@@ -3764,29 +3769,33 @@ ${aiSettings.businessContext}
                     name: '🦷 Стоматологія',
                     companyName: 'Клініка "Здорова Посмішка"',
                     columns: [
-                        { id: 'col1', name: 'Первинних пацієнтів', responsible: 'Адміністратор', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col2', name: 'Записів на лікування', responsible: 'Адміністратор', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col3', name: 'Конверсія в лікування', responsible: 'Лікар', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col1', name: 'Первинок', responsible: 'Адмін', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col2', name: 'Записів', responsible: 'Адмін', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col3', name: 'Конверсія', responsible: 'Лікар', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col4', name: 'Імплантацій', responsible: 'Хірург', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col5', name: 'Виручка тижня', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col6', name: 'Середній чек', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col7', name: 'Чистий прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col8', name: 'Витрати на рекламу', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col5', name: 'Виручка', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col6', name: 'Сер. чек', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col7', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Реклама', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                         { id: 'col9', name: 'Вартість ліда', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                     ],
                     weeklyValues: [
+                        { col1: '26', col2: '20', col3: '77', col4: '4', col5: '195000', col6: '4400' },
                         { col1: '24', col2: '18', col3: '75', col4: '3', col5: '185000', col6: '4200' },
                         { col1: '28', col2: '15', col3: '54', col4: '2', col5: '156000', col6: '3800' },
                         { col1: '31', col2: '19', col3: '61', col4: '4', col5: '198000', col6: '4100' },
                         { col1: '22', col2: '12', col3: '55', col4: '2', col5: '142000', col6: '3600' },
                         { col1: '35', col2: '17', col3: '49', col4: '3', col5: '168000', col6: '3900' },
                         { col1: '29', col2: '14', col3: '48', col4: '2', col5: '145000', col6: '3700' },
+                        { col1: '27', col2: '13', col3: '48', col4: '2', col5: '138000', col6: '3650' },
                     ],
                     weeklyTargets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500' },
                     monthlyValues: [
+                        { col7: '340000', col8: '32000', col9: '380' },
                         { col7: '380000', col8: '35000', col9: '420' },
                         { col7: '420000', col8: '42000', col9: '480' },
                         { col7: '350000', col8: '38000', col9: '520' },
+                        { col7: '320000', col8: '40000', col9: '550' },
                     ],
                     monthlyTargets: { col7: '500000', col8: '35000', col9: '350' },
                     context: `Стоматологічна клініка "Здорова Посмішка"
@@ -3806,28 +3815,32 @@ ${aiSettings.businessContext}
                     companyName: 'Меблева фабрика "Комфорт"',
                     columns: [
                         { id: 'col1', name: 'Замовлень', responsible: 'Менеджер', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col2', name: 'Виготовлено одиниць', responsible: 'Виробництво', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col3', name: 'Виконання плану', responsible: 'Виробництво', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col4', name: 'Брак', responsible: 'ОТК', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col5', name: 'Виручка тижня', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col2', name: 'Виготовлено', responsible: 'Виробництво', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col3', name: 'План %', responsible: 'Виробництво', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col4', name: 'Брак %', responsible: 'ОТК', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col5', name: 'Виручка', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col6', name: 'Собівартість', responsible: 'Бухгалтер', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col7', name: 'Чистий прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col8', name: 'Витрати на сировину', responsible: 'Закупівлі', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col9', name: 'Маржинальність', responsible: 'Директор', period: 'monthly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col7', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Сировина', responsible: 'Закупівлі', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col9', name: 'Маржа %', responsible: 'Директор', period: 'monthly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
                     ],
                     weeklyValues: [
+                        { col1: '14', col2: '50', col3: '100', col4: '2', col5: '400000', col6: '300000' },
                         { col1: '12', col2: '45', col3: '90', col4: '3', col5: '380000', col6: '285000' },
                         { col1: '15', col2: '52', col3: '104', col4: '2', col5: '420000', col6: '310000' },
                         { col1: '11', col2: '38', col3: '76', col4: '5', col5: '340000', col6: '270000' },
                         { col1: '14', col2: '48', col3: '96', col4: '4', col5: '395000', col6: '295000' },
                         { col1: '13', col2: '42', col3: '84', col4: '6', col5: '365000', col6: '290000' },
                         { col1: '10', col2: '35', col3: '70', col4: '7', col5: '320000', col6: '260000' },
+                        { col1: '9', col2: '32', col3: '64', col4: '8', col5: '290000', col6: '245000' },
                     ],
                     weeklyTargets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' },
                     monthlyValues: [
+                        { col7: '560000', col8: '650000', col9: '35' },
                         { col7: '520000', col8: '680000', col9: '32' },
                         { col7: '480000', col8: '720000', col9: '28' },
                         { col7: '410000', col8: '750000', col9: '25' },
+                        { col7: '350000', col8: '780000', col9: '22' },
                     ],
                     monthlyTargets: { col7: '650000', col8: '650000', col9: '35' },
                     context: `Меблева фабрика "Комфорт"
@@ -3861,27 +3874,29 @@ ${aiSettings.businessContext}
                 };
                 
                 const demoRows = [];
+                const weekCount = demo.weeklyValues.length;
+                const monthCount = demo.monthlyValues.length;
                 
-                // Тижневі записи
+                // Тижневі записи (від найстаршого до поточного)
                 demo.weeklyValues.forEach((values, i) => {
                     demoRows.push({
                         id: `row${i + 1}`,
                         isTarget: false,
                         periodType: 'weekly',
-                        date: getWeekDateKey(5 - i),
+                        date: getWeekDateKey(weekCount - 1 - i),
                         values,
                         targets: demo.weeklyTargets,
                         comments: {}
                     });
                 });
                 
-                // Місячні записи
+                // Місячні записи (від найстаршого до поточного)
                 demo.monthlyValues.forEach((values, i) => {
                     demoRows.push({
                         id: `month${i + 1}`,
                         isTarget: false,
                         periodType: 'monthly',
-                        date: getMonthKeyLocal(2 - i),
+                        date: getMonthKeyLocal(monthCount - 1 - i),
                         values,
                         targets: demo.monthlyTargets,
                         comments: {}
@@ -3893,7 +3908,7 @@ ${aiSettings.businessContext}
                 setAiSettings({
                     businessContext: demo.context,
                     priorities: demo.priorities,
-                    analysisPeriod: 5
+                    analysisPeriod: weekCount
                 });
                 setEmployees({});
                 setSavedAnalyses([]);
@@ -4307,21 +4322,21 @@ ${aiSettings.businessContext}
                     
                     <div className="w-full px-4 lg:px-8 pb-24 sm:pb-8">
                         {/* Mobile Header */}
-                        <header className="card p-4 mb-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/30">
-                                        <Icons.BarChart className="w-6 h-6 text-white" />
+                        <header className="card p-3 sm:p-4 mb-4">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/30 flex-shrink-0">
+                                        <Icons.BarChart className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                                     </div>
-                                    <div>
-                                        <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate sm:max-w-none" style={{ maxWidth: '180px' }}>{companyName || t.appName}</h1>
+                                    <div className="min-w-0">
+                                        <h1 className="text-base sm:text-lg font-bold text-gray-900 truncate">{companyName || t.appName}</h1>
                                         <div className="flex items-center gap-2">
                                             {isSuperAdmin ? (
-                                                <span className="badge bg-gradient-to-r from-red-500 to-pink-500 text-white">
-                                                    <Icons.Shield className="w-3 h-3 mr-1" />Super Admin
+                                                <span className="badge text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white">
+                                                    <Icons.Shield className="w-3 h-3 mr-1" />Admin
                                                 </span>
                                             ) : (
-                                                <span className={`badge ${isOwner ? 'badge-purple' : 'badge-amber'}`}>
+                                                <span className={`badge text-xs ${isOwner ? 'badge-purple' : 'badge-amber'}`}>
                                                     {isOwner ? <><Icons.Crown className="w-3 h-3 mr-1" />{t.owner}</> : <><Icons.User className="w-3 h-3 mr-1" />{t.employee}</>}
                                                 </span>
                                             )}
@@ -4329,50 +4344,73 @@ ${aiSettings.businessContext}
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-2">
-                                    <select value={language} onChange={(e) => setLanguage(e.target.value)} className="hidden sm:block px-3 py-2 bg-gray-100 rounded-xl text-sm font-medium border-none">
-                                        <option value="uk">🇺🇦 UA</option>
-                                        <option value="ru">🇷🇺 RU</option>
-                                    </select>
-                                    
+                                <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                                     <button onClick={() => setShowMenu(true)} className="btn btn-ghost btn-icon sm:hidden"><Icons.Menu className="w-6 h-6" /></button>
                                     
-                                    <div className="hidden sm:flex items-center gap-2">
-                                        {/* Super Admin Panel Button */}
+                                    <div className="hidden sm:flex items-center gap-1.5">
+                                        {/* Super Admin Panel */}
                                         {isSuperAdmin && (
-                                            <button onClick={() => setShowAdminPanel(true)} className="btn bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600">
-                                                <Icons.Shield className="w-4 h-4" /><span className="hidden lg:inline">Адмін</span>
+                                            <button onClick={() => setShowAdminPanel(true)} className="btn btn-sm bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600">
+                                                <Icons.Shield className="w-4 h-4" />
                                             </button>
                                         )}
+                                        
+                                        {/* Owner buttons */}
                                         {isOwner && (
                                             <>
-                                                <button onClick={() => setShowAIModal(true)} className="btn btn-ai"><Icons.Brain className="w-4 h-4" /><span className="hidden lg:inline">{t.aiAnalysis}</span></button>
-                                                <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="AI розробник статистик">
-                                                    <Icons.Target className="w-4 h-4" /><span className="hidden lg:inline">Статистики</span>
-                                                </a>
-                                                <a href="https://chatgpt.com/g/g-684be37e3bcc81918f64088a2bb094da-instructions-generator" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="Генератор розпоряджень">
-                                                    <Icons.Edit className="w-4 h-4" /><span className="hidden lg:inline">Розпорядження</span>
-                                                </a>
-                                                <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="TALKO Task Manager">
-                                                    <Icons.CheckSquare className="w-4 h-4" /><span className="hidden lg:inline">Задачі</span>
-                                                </a>
-                                                <a href="https://alextalko.com/tms" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="Структура компанії">
-                                                    <Icons.GitBranch className="w-4 h-4" /><span className="hidden lg:inline">Структура</span>
-                                                </a>
+                                                <button onClick={() => setShowAIModal(true)} className="btn btn-sm btn-ai"><Icons.Brain className="w-4 h-4" /></button>
                                                 <button 
                                                     onClick={() => setActiveTab(activeTab === 'plans' ? 'stats' : 'plans')} 
-                                                    className={`btn ${activeTab === 'plans' ? 'btn-primary' : 'btn-secondary'}`}
+                                                    className={`btn btn-sm ${activeTab === 'plans' ? 'btn-primary' : 'btn-secondary'}`}
                                                 >
-                                                    <Icons.FileText className="w-4 h-4" /><span className="hidden lg:inline">Плани</span>
-                                                    {savedAnalyses.length > 0 && <span className="ml-1 badge badge-white text-xs">{savedAnalyses.length}</span>}
+                                                    <Icons.FileText className="w-4 h-4" />
+                                                    {savedAnalyses.length > 0 && <span className="ml-1 text-xs font-bold">{savedAnalyses.length}</span>}
                                                 </button>
-                                                <button onClick={() => setShowTeamModal(true)} className="btn btn-secondary"><Icons.Users className="w-4 h-4" /></button>
+                                                <button onClick={() => setShowTeamModal(true)} className="btn btn-sm btn-secondary"><Icons.Users className="w-4 h-4" /></button>
                                             </>
                                         )}
-                                        <button onClick={exportToExcel} className="btn btn-secondary"><Icons.Download className="w-4 h-4" /><span className="hidden lg:inline">Excel</span></button>
-                                        <button onClick={() => setShowDemoModal(true)} className="btn btn-secondary" title="Демо-дані для тестування"><Icons.Play className="w-4 h-4" /><span className="hidden lg:inline">Демо</span></button>
-                                        <a href={GPT_BOTTLENECK_URL} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" title="AI Аналіз вузьких місць"><Icons.Brain className="w-4 h-4" /><span className="hidden lg:inline">AI GPT</span></a>
-                                        <button onClick={handleLogout} className="btn btn-ghost btn-icon"><Icons.LogOut className="w-5 h-5" /></button>
+                                        
+                                        {/* Common buttons */}
+                                        <button onClick={() => setShowDemoModal(true)} className="btn btn-sm btn-secondary" title="Демо"><Icons.Play className="w-4 h-4" /></button>
+                                        <button onClick={exportToExcel} className="btn btn-sm btn-secondary" title="Excel"><Icons.Download className="w-4 h-4" /></button>
+                                        
+                                        {/* Tools dropdown */}
+                                        {isOwner && (
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={() => setShowToolsDropdown(!showToolsDropdown)} 
+                                                    className="btn btn-sm btn-secondary"
+                                                    title="Інструменти"
+                                                >
+                                                    <Icons.ExternalLink className="w-4 h-4" />
+                                                </button>
+                                                {showToolsDropdown && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-40" onClick={() => setShowToolsDropdown(false)} />
+                                                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                                                            <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                                <Icons.Target className="w-4 h-4 text-gray-500" />AI Статистики
+                                                            </a>
+                                                            <a href="https://chatgpt.com/g/g-684be37e3bcc81918f64088a2bb094da-instructions-generator" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                                <Icons.Edit className="w-4 h-4 text-gray-500" />Розпорядження
+                                                            </a>
+                                                            <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                                <Icons.CheckSquare className="w-4 h-4 text-gray-500" />Задачі
+                                                            </a>
+                                                            <a href="https://alextalko.com/tms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                                <Icons.GitBranch className="w-4 h-4 text-gray-500" />Структура
+                                                            </a>
+                                                            <hr className="my-2" />
+                                                            <a href={GPT_BOTTLENECK_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                                <Icons.Brain className="w-4 h-4 text-purple-500" />AI Вузькі місця
+                                                            </a>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                        
+                                        <button onClick={handleLogout} className="btn btn-sm btn-ghost"><Icons.LogOut className="w-4 h-4" /></button>
                                     </div>
                                 </div>
                             </div>
