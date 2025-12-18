@@ -641,13 +641,6 @@
                 return stored !== null ? parseInt(stored) : 1;
             } catch { return 1; }
         };
-        
-        let WEEKS_CACHE = generateWeeks(52, 52, getInitialWeekStartDay()); // 1 рік назад і вперед для select
-        let MONTHS_CACHE = generateMonths(24, 12); // 2 роки назад, 1 рік вперед для select
-        
-        const updateWeeksCache = (startDay) => {
-            WEEKS_CACHE = generateWeeks(52, 52, startDay);
-        };
 
         // ==================== MONTH HELPERS ====================
         const getMonthKeyFromDate = (date) => {
@@ -694,6 +687,14 @@
                 });
             }
             return months;
+        };
+
+        // Глобальні кеші (ініціалізуються після визначення функцій)
+        let WEEKS_CACHE = generateWeeks(52, 52, getInitialWeekStartDay());
+        let MONTHS_CACHE = generateMonths(24, 12);
+        
+        const updateWeeksCache = (startDay) => {
+            WEEKS_CACHE = generateWeeks(52, 52, startDay);
         };
 
         const isWeekFilled = (weekKey, rows) => {
