@@ -1062,8 +1062,8 @@
                         </div>
                     </div>
                     
-                    {/* Values Grid */}
-                    <div className="space-y-3">
+                    {/* Values Grid - 2 колонки на десктопі */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                         {displayCols.map(col => {
                             const progress = calculateProgress(col.id);
                             const colors = progress !== null ? getProgressColor(progress) : null;
@@ -1071,12 +1071,12 @@
                             const hasTarget = row.targets?.[col.id];
                             
                             return (
-                                <div key={col.id} className="bg-gray-50 rounded-2xl p-3 sm:p-4">
-                                    {/* Metric header */}
-                                    <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                <div key={col.id} className="bg-gray-50 rounded-xl p-2.5 sm:p-3">
+                                    {/* Metric header - компактний */}
+                                    <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5 mb-0.5">
-                                                <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">{col.name}</span>
+                                            <div className="flex items-center gap-1">
+                                                <span className="font-medium text-gray-900 text-xs sm:text-sm truncate">{col.name}</span>
                                                 {col.format && col.format !== 'number' && (
                                                     <span className="text-xs text-gray-400 flex-shrink-0">
                                                         {col.format === 'percent' && '%'}
@@ -1086,71 +1086,66 @@
                                                     </span>
                                                 )}
                                                 {hasComment && (
-                                                    <button onClick={() => setActiveComment(activeComment === col.id ? null : col.id)} className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                                        <Icons.MessageCircle className="w-3 h-3 text-blue-600" />
+                                                    <button onClick={() => setActiveComment(activeComment === col.id ? null : col.id)} className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                                        <Icons.MessageCircle className="w-2.5 h-2.5 text-blue-600" />
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="period-badge text-xs">{getPeriodLabel(col.period, t)}</span>
-                                                {col.responsible && <span className="text-xs text-gray-400 truncate">{col.responsible}</span>}
-                                            </div>
+                                            {col.responsible && <span className="text-xs text-gray-400">{col.responsible}</span>}
                                         </div>
                                     </div>
                                     
-                                    {/* Inputs row: Plan + Fact */}
-                                    <div className="flex items-center gap-2">
+                                    {/* Inputs row: Plan + Fact - компактні */}
+                                    <div className="flex items-center gap-1.5">
                                         {(showTargets || hasTarget) && (
                                             <div className="flex-1">
-                                                <label className="text-xs text-amber-600 font-medium mb-1 block">План</label>
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
                                                     value={row.targets?.[col.id] || ''}
                                                     onChange={(e) => onTargetChange(col.id, e.target.value)}
-                                                    className="w-full px-3 py-2 bg-amber-50 border-2 border-amber-200 rounded-xl text-center font-bold text-lg text-amber-700 focus:border-amber-400 focus:ring-0"
-                                                    placeholder="—"
+                                                    className="w-full px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-center font-semibold text-sm text-amber-700 focus:border-amber-400 focus:ring-0"
+                                                    placeholder="План"
                                                 />
                                             </div>
                                         )}
                                         <div className="flex-1">
-                                            <label className="text-xs text-gray-500 font-medium mb-1 block">{showTargets || hasTarget ? 'Факт' : 'Значення'}</label>
                                             <div className="relative">
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
                                                     value={row.values?.[col.id] || ''}
                                                     onChange={(e) => onValueChange(col.id, e.target.value)}
-                                                    className={`w-full px-3 py-2 bg-white border-2 border-gray-200 rounded-xl text-center font-bold text-lg focus:border-primary-500 focus:ring-0 ${col.format === 'usd' || col.format === 'eur' ? 'pl-7' : ''} ${col.format === 'percent' || col.format === 'uah' ? 'pr-7' : ''}`}
+                                                    className={`w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-center font-semibold text-sm focus:border-primary-500 focus:ring-0 ${col.format === 'usd' || col.format === 'eur' ? 'pl-5' : ''} ${col.format === 'percent' || col.format === 'uah' ? 'pr-5' : ''}`}
                                                     placeholder="0"
                                                 />
-                                                {col.format === 'usd' && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>}
-                                                {col.format === 'eur' && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">€</span>}
-                                                {col.format === 'uah' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₴</span>}
-                                                {col.format === 'percent' && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">%</span>}
+                                                {col.format === 'usd' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>}
+                                                {col.format === 'eur' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">€</span>}
+                                                {col.format === 'uah' && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₴</span>}
+                                                {col.format === 'percent' && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>}
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    {/* Progress bar */}
+                                    {/* Progress bar - компактний */}
                                     {progress !== null && (
-                                        <div className="flex items-center gap-3 mt-3">
-                                            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="flex items-center gap-2 mt-1.5">
+                                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                                                 <div className={`h-full rounded-full ${colors.bg}`} style={{ width: `${Math.min(progress, 100)}%` }} />
                                             </div>
-                                            <span className={`text-sm font-bold ${colors.text} text-right`} style={{ minWidth: '48px' }}>{progress}%</span>
+                                            <span className={`text-xs font-bold ${colors.text}`}>{progress}%</span>
                                         </div>
                                     )}
                                     
                                     {/* Comment input */}
                                     {activeComment === col.id && (
-                                        <div className="mt-3">
+                                        <div className="mt-2">
                                             <input
                                                 type="text"
                                                 value={row.comments?.[col.id] || ''}
                                                 onChange={(e) => onCommentChange(col.id, e.target.value)}
-                                                className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:border-primary-500"
-                                                placeholder="💬 Коментар..."
+                                                className="w-full px-2 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:border-primary-500"
+                                                placeholder="Коментар..."
                                             />
                                         </div>
                                     )}
@@ -3721,38 +3716,38 @@ ${aiSettings.businessContext}
             // Демо-дані для різних типів бізнесу
             const DEMO_DATA = {
                 consulting: {
-                    name: '🎯 Консалтинг',
+                    name: 'Консалтинг',
+                    icon: 'Target',
                     companyName: 'TALKO Consulting',
                     columns: [
                         { id: 'col1', name: 'Консультацій', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col2', name: 'Нових лідів', responsible: 'Марія', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col2', name: 'Лідів', responsible: 'Марія', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
                         { id: 'col3', name: 'Конверсія', responsible: 'Олена', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col4', name: 'Угод', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col5', name: 'Дохід', responsible: 'Олександр', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col6', name: 'Реклама', responsible: 'Ігор', period: 'weekly', format: 'usd', importance: 'medium', visibleToEmployees: [] },
                         { id: 'col7', name: 'Прибуток', responsible: 'Олександр', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col8', name: 'Витрати маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                         { id: 'col9', name: 'ROI', responsible: 'Ігор', period: 'monthly', format: 'percent', importance: 'high', visibleToEmployees: [] },
                     ],
-                    weeklyValues: [
-                        { col1: '16', col2: '35', col3: '11', col4: '4', col5: '112000', col6: '780' },
-                        { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850' },
-                        { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920' },
-                        { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200' },
-                        { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100' },
-                        { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950' },
-                        { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880' },
-                        { col1: '14', col2: '39', col3: '9', col4: '4', col5: '118000', col6: '920' },
+                    // Тепер кожен тиждень має свої targets!
+                    weeklyData: [
+                        { values: { col1: '16', col2: '35', col3: '11', col4: '4', col5: '112000', col6: '780' }, targets: { col1: '18', col2: '40', col3: '12', col4: '5', col5: '130000', col6: '800' } },
+                        { values: { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850' }, targets: { col1: '18', col2: '40', col3: '12', col4: '5', col5: '130000', col6: '800' } },
+                        { values: { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920' }, targets: { col1: '20', col2: '45', col3: '13', col4: '6', col5: '150000', col6: '850' } },
+                        { values: { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200' }, targets: { col1: '20', col2: '45', col3: '13', col4: '6', col5: '150000', col6: '900' } },
+                        { values: { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100' }, targets: { col1: '22', col2: '50', col3: '14', col4: '7', col5: '180000', col6: '950' } },
+                        { values: { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950' }, targets: { col1: '22', col2: '50', col3: '14', col4: '7', col5: '180000', col6: '950' } },
+                        { values: { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880' }, targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' } },
+                        { values: { col1: '14', col2: '39', col3: '9', col4: '4', col5: '118000', col6: '920' }, targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' } },
                     ],
-                    weeklyTargets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' },
-                    monthlyValues: [
-                        { col7: '420000', col8: '38000', col9: '340' },
-                        { col7: '480000', col8: '45000', col9: '320' },
-                        { col7: '520000', col8: '52000', col9: '280' },
-                        { col7: '410000', col8: '48000', col9: '250' },
-                        { col7: '380000', col8: '44000', col9: '230' },
+                    monthlyData: [
+                        { values: { col7: '420000', col8: '38000', col9: '340' }, targets: { col7: '500000', col8: '40000', col9: '350' } },
+                        { values: { col7: '480000', col8: '45000', col9: '320' }, targets: { col7: '550000', col8: '42000', col9: '360' } },
+                        { values: { col7: '520000', col8: '52000', col9: '280' }, targets: { col7: '580000', col8: '45000', col9: '370' } },
+                        { values: { col7: '410000', col8: '48000', col9: '250' }, targets: { col7: '600000', col8: '45000', col9: '380' } },
+                        { values: { col7: '380000', col8: '44000', col9: '230' }, targets: { col7: '600000', col8: '45000', col9: '380' } },
                     ],
-                    monthlyTargets: { col7: '600000', col8: '45000', col9: '380' },
                     context: `Консалтингова компанія "TALKO Consulting"
 - Спеціалізація: бізнес-трансформація для МСБ
 - Команда: 4 консультанти + 2 менеджери з продажів
@@ -3766,7 +3761,8 @@ ${aiSettings.businessContext}
 3. Збільшити середній чек до 30,000 грн`
                 },
                 dental: {
-                    name: '🦷 Стоматологія',
+                    name: 'Стоматологія',
+                    icon: 'Heart',
                     companyName: 'Клініка "Здорова Посмішка"',
                     columns: [
                         { id: 'col1', name: 'Первинок', responsible: 'Адмін', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
@@ -3777,27 +3773,25 @@ ${aiSettings.businessContext}
                         { id: 'col6', name: 'Сер. чек', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                         { id: 'col7', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col8', name: 'Реклама', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col9', name: 'Вартість ліда', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col9', name: 'Ціна ліда', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                     ],
-                    weeklyValues: [
-                        { col1: '26', col2: '20', col3: '77', col4: '4', col5: '195000', col6: '4400' },
-                        { col1: '24', col2: '18', col3: '75', col4: '3', col5: '185000', col6: '4200' },
-                        { col1: '28', col2: '15', col3: '54', col4: '2', col5: '156000', col6: '3800' },
-                        { col1: '31', col2: '19', col3: '61', col4: '4', col5: '198000', col6: '4100' },
-                        { col1: '22', col2: '12', col3: '55', col4: '2', col5: '142000', col6: '3600' },
-                        { col1: '35', col2: '17', col3: '49', col4: '3', col5: '168000', col6: '3900' },
-                        { col1: '29', col2: '14', col3: '48', col4: '2', col5: '145000', col6: '3700' },
-                        { col1: '27', col2: '13', col3: '48', col4: '2', col5: '138000', col6: '3650' },
+                    weeklyData: [
+                        { values: { col1: '26', col2: '20', col3: '77', col4: '4', col5: '195000', col6: '4400' }, targets: { col1: '25', col2: '18', col3: '70', col4: '3', col5: '180000', col6: '4000' } },
+                        { values: { col1: '24', col2: '18', col3: '75', col4: '3', col5: '185000', col6: '4200' }, targets: { col1: '25', col2: '18', col3: '70', col4: '3', col5: '180000', col6: '4000' } },
+                        { values: { col1: '28', col2: '15', col3: '54', col4: '2', col5: '156000', col6: '3800' }, targets: { col1: '28', col2: '20', col3: '70', col4: '4', col5: '200000', col6: '4200' } },
+                        { values: { col1: '31', col2: '19', col3: '61', col4: '4', col5: '198000', col6: '4100' }, targets: { col1: '28', col2: '20', col3: '70', col4: '4', col5: '200000', col6: '4200' } },
+                        { values: { col1: '22', col2: '12', col3: '55', col4: '2', col5: '142000', col6: '3600' }, targets: { col1: '30', col2: '21', col3: '70', col4: '4', col5: '210000', col6: '4300' } },
+                        { values: { col1: '35', col2: '17', col3: '49', col4: '3', col5: '168000', col6: '3900' }, targets: { col1: '30', col2: '21', col3: '70', col4: '4', col5: '210000', col6: '4300' } },
+                        { values: { col1: '29', col2: '14', col3: '48', col4: '2', col5: '145000', col6: '3700' }, targets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500' } },
+                        { values: { col1: '27', col2: '13', col3: '48', col4: '2', col5: '138000', col6: '3650' }, targets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500' } },
                     ],
-                    weeklyTargets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500' },
-                    monthlyValues: [
-                        { col7: '340000', col8: '32000', col9: '380' },
-                        { col7: '380000', col8: '35000', col9: '420' },
-                        { col7: '420000', col8: '42000', col9: '480' },
-                        { col7: '350000', col8: '38000', col9: '520' },
-                        { col7: '320000', col8: '40000', col9: '550' },
+                    monthlyData: [
+                        { values: { col7: '340000', col8: '32000', col9: '380' }, targets: { col7: '400000', col8: '35000', col9: '400' } },
+                        { values: { col7: '380000', col8: '35000', col9: '420' }, targets: { col7: '450000', col8: '35000', col9: '380' } },
+                        { values: { col7: '420000', col8: '42000', col9: '480' }, targets: { col7: '480000', col8: '38000', col9: '360' } },
+                        { values: { col7: '350000', col8: '38000', col9: '520' }, targets: { col7: '500000', col8: '35000', col9: '350' } },
+                        { values: { col7: '320000', col8: '40000', col9: '550' }, targets: { col7: '500000', col8: '35000', col9: '350' } },
                     ],
-                    monthlyTargets: { col7: '500000', col8: '35000', col9: '350' },
                     context: `Стоматологічна клініка "Здорова Посмішка"
 - 3 лікарі-стоматологи + хірург-імплантолог + 2 адміністратори
 - Середній чек: 4,500 грн
@@ -3811,7 +3805,8 @@ ${aiSettings.businessContext}
 3. Знизити вартість ліда (зараз 520 грн, ціль 350 грн)`
                 },
                 manufacturing: {
-                    name: '🏭 Виробництво',
+                    name: 'Виробництво',
+                    icon: 'Settings',
                     companyName: 'Меблева фабрика "Комфорт"',
                     columns: [
                         { id: 'col1', name: 'Замовлень', responsible: 'Менеджер', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
@@ -3824,25 +3819,23 @@ ${aiSettings.businessContext}
                         { id: 'col8', name: 'Сировина', responsible: 'Закупівлі', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                         { id: 'col9', name: 'Маржа %', responsible: 'Директор', period: 'monthly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
                     ],
-                    weeklyValues: [
-                        { col1: '14', col2: '50', col3: '100', col4: '2', col5: '400000', col6: '300000' },
-                        { col1: '12', col2: '45', col3: '90', col4: '3', col5: '380000', col6: '285000' },
-                        { col1: '15', col2: '52', col3: '104', col4: '2', col5: '420000', col6: '310000' },
-                        { col1: '11', col2: '38', col3: '76', col4: '5', col5: '340000', col6: '270000' },
-                        { col1: '14', col2: '48', col3: '96', col4: '4', col5: '395000', col6: '295000' },
-                        { col1: '13', col2: '42', col3: '84', col4: '6', col5: '365000', col6: '290000' },
-                        { col1: '10', col2: '35', col3: '70', col4: '7', col5: '320000', col6: '260000' },
-                        { col1: '9', col2: '32', col3: '64', col4: '8', col5: '290000', col6: '245000' },
+                    weeklyData: [
+                        { values: { col1: '14', col2: '50', col3: '100', col4: '2', col5: '400000', col6: '300000' }, targets: { col1: '12', col2: '45', col3: '100', col4: '3', col5: '380000', col6: '280000' } },
+                        { values: { col1: '12', col2: '45', col3: '90', col4: '3', col5: '380000', col6: '285000' }, targets: { col1: '12', col2: '45', col3: '100', col4: '3', col5: '380000', col6: '280000' } },
+                        { values: { col1: '15', col2: '52', col3: '104', col4: '2', col5: '420000', col6: '310000' }, targets: { col1: '14', col2: '48', col3: '100', col4: '2', col5: '420000', col6: '300000' } },
+                        { values: { col1: '11', col2: '38', col3: '76', col4: '5', col5: '340000', col6: '270000' }, targets: { col1: '14', col2: '48', col3: '100', col4: '2', col5: '420000', col6: '300000' } },
+                        { values: { col1: '14', col2: '48', col3: '96', col4: '4', col5: '395000', col6: '295000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
+                        { values: { col1: '13', col2: '42', col3: '84', col4: '6', col5: '365000', col6: '290000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
+                        { values: { col1: '10', col2: '35', col3: '70', col4: '7', col5: '320000', col6: '260000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
+                        { values: { col1: '9', col2: '32', col3: '64', col4: '8', col5: '290000', col6: '245000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
                     ],
-                    weeklyTargets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' },
-                    monthlyValues: [
-                        { col7: '560000', col8: '650000', col9: '35' },
-                        { col7: '520000', col8: '680000', col9: '32' },
-                        { col7: '480000', col8: '720000', col9: '28' },
-                        { col7: '410000', col8: '750000', col9: '25' },
-                        { col7: '350000', col8: '780000', col9: '22' },
+                    monthlyData: [
+                        { values: { col7: '560000', col8: '650000', col9: '35' }, targets: { col7: '550000', col8: '620000', col9: '35' } },
+                        { values: { col7: '520000', col8: '680000', col9: '32' }, targets: { col7: '580000', col8: '640000', col9: '35' } },
+                        { values: { col7: '480000', col8: '720000', col9: '28' }, targets: { col7: '620000', col8: '650000', col9: '35' } },
+                        { values: { col7: '410000', col8: '750000', col9: '25' }, targets: { col7: '650000', col8: '650000', col9: '35' } },
+                        { values: { col7: '350000', col8: '780000', col9: '22' }, targets: { col7: '650000', col8: '650000', col9: '35' } },
                     ],
-                    monthlyTargets: { col7: '650000', col8: '650000', col9: '35' },
                     context: `Меблева фабрика "Комфорт"
 - Виробництво корпусних меблів на замовлення
 - 15 працівників на виробництві + 3 менеджери + 2 монтажники
@@ -3874,31 +3867,31 @@ ${aiSettings.businessContext}
                 };
                 
                 const demoRows = [];
-                const weekCount = demo.weeklyValues.length;
-                const monthCount = demo.monthlyValues.length;
+                const weekCount = demo.weeklyData.length;
+                const monthCount = demo.monthlyData.length;
                 
-                // Тижневі записи (від найстаршого до поточного)
-                demo.weeklyValues.forEach((values, i) => {
+                // Тижневі записи (від найстаршого до поточного) - кожен зі своїми targets!
+                demo.weeklyData.forEach((data, i) => {
                     demoRows.push({
                         id: `row${i + 1}`,
                         isTarget: false,
                         periodType: 'weekly',
                         date: getWeekDateKey(weekCount - 1 - i),
-                        values,
-                        targets: demo.weeklyTargets,
+                        values: data.values,
+                        targets: data.targets, // Свої targets для кожного тижня!
                         comments: {}
                     });
                 });
                 
                 // Місячні записи (від найстаршого до поточного)
-                demo.monthlyValues.forEach((values, i) => {
+                demo.monthlyData.forEach((data, i) => {
                     demoRows.push({
                         id: `month${i + 1}`,
                         isTarget: false,
                         periodType: 'monthly',
                         date: getMonthKeyLocal(monthCount - 1 - i),
-                        values,
-                        targets: demo.monthlyTargets,
+                        values: data.values,
+                        targets: data.targets, // Свої targets для кожного місяця!
                         comments: {}
                     });
                 });
@@ -3914,7 +3907,7 @@ ${aiSettings.businessContext}
                 setSavedAnalyses([]);
                 setCompanyName(`DEMO: ${demo.companyName}`);
                 
-                toast.success(`${demo.name} — демо завантажено! Спробуйте AI Аналіз 🤖`);
+                toast.success(`${demo.name} — демо завантажено!`);
                 setShowDemoModal(false);
             };
             
@@ -5695,41 +5688,46 @@ ${aiSettings.businessContext}
                     </Modal>
                     
                     {/* Demo Modal */}
-                    <Modal isOpen={showDemoModal} onClose={() => setShowDemoModal(false)} title="🎮 Оберіть тип бізнесу">
+                    <Modal isOpen={showDemoModal} onClose={() => setShowDemoModal(false)} title="Оберіть тип бізнесу">
                         <div className="space-y-3">
                             <p className="text-gray-600 text-sm mb-4">Завантажте демо-дані для тестування системи та AI-аналізу</p>
                             
-                            {Object.entries(DEMO_DATA).map(([key, demo]) => (
-                                <button 
-                                    key={key}
-                                    onClick={() => {
-                                        if (columns.length > 0 && !isSuperAdmin) {
-                                            setConfirmDialog({
-                                                isOpen: true,
-                                                title: 'Завантажити демо-дані?',
-                                                message: 'Поточні дані будуть замінені на демонстраційні. Продовжити?',
-                                                onConfirm: () => loadDemoData(key)
-                                            });
-                                            setShowDemoModal(false);
-                                        } else {
-                                            loadDemoData(key);
-                                        }
-                                    }}
-                                    className="w-full p-4 text-left bg-gray-50 hover:bg-primary-50 border-2 border-gray-200 hover:border-primary-300 rounded-2xl transition-all"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-2xl">{demo.name.split(' ')[0]}</span>
-                                        <div>
-                                            <h3 className="font-bold text-gray-900">{demo.name.split(' ').slice(1).join(' ')}</h3>
-                                            <p className="text-sm text-gray-500">{demo.companyName}</p>
+                            {Object.entries(DEMO_DATA).map(([key, demo]) => {
+                                const IconComponent = Icons[demo.icon] || Icons.BarChart;
+                                return (
+                                    <button 
+                                        key={key}
+                                        onClick={() => {
+                                            if (columns.length > 0 && !isSuperAdmin) {
+                                                setConfirmDialog({
+                                                    isOpen: true,
+                                                    title: 'Завантажити демо-дані?',
+                                                    message: 'Поточні дані будуть замінені на демонстраційні. Продовжити?',
+                                                    onConfirm: () => loadDemoData(key)
+                                                });
+                                                setShowDemoModal(false);
+                                            } else {
+                                                loadDemoData(key);
+                                            }
+                                        }}
+                                        className="w-full p-4 text-left bg-gray-50 hover:bg-primary-50 border-2 border-gray-200 hover:border-primary-300 rounded-2xl transition-all"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                                <IconComponent className="w-5 h-5 text-primary-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-gray-900">{demo.name}</h3>
+                                                <p className="text-sm text-gray-500">{demo.companyName}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </button>
-                            ))}
+                                    </button>
+                                );
+                            })}
                             
                             <div className="pt-3 border-t mt-4">
                                 <p className="text-xs text-gray-400 text-center">
-                                    💡 Після завантаження спробуйте <b>AI Аналіз</b> — контекст бізнесу вже заповнений
+                                    Після завантаження спробуйте <b>AI Аналіз</b> — контекст бізнесу вже заповнений
                                 </p>
                             </div>
                         </div>
