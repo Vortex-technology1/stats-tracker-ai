@@ -3713,40 +3713,51 @@ ${aiSettings.businessContext}
                 }, 100);
             };
             
-            // Демо-дані для різних типів бізнесу
+            // Демо-дані для різних типів бізнесу - 17 статистик кожна
             const DEMO_DATA = {
                 consulting: {
                     name: 'Консалтинг',
                     icon: 'Target',
                     companyName: 'TALKO Consulting',
                     columns: [
+                        // Тижневі - 10 показників
                         { id: 'col1', name: 'Консультацій', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col2', name: 'Лідів', responsible: 'Марія', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
                         { id: 'col3', name: 'Конверсія', responsible: 'Олена', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col4', name: 'Угод', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col5', name: 'Дохід', responsible: 'Олександр', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col6', name: 'Реклама', responsible: 'Ігор', period: 'weekly', format: 'usd', importance: 'medium', visibleToEmployees: [] },
-                        { id: 'col7', name: 'Прибуток', responsible: 'Олександр', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col8', name: 'Маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col9', name: 'ROI', responsible: 'Ігор', period: 'monthly', format: 'percent', importance: 'high', visibleToEmployees: [] },
+                        // Неочевидні тижневі
+                        { id: 'col7', name: 'Дзвінків до угоди', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'medium', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Відмов', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col9', name: 'Рекомендацій', responsible: 'Марія', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col10', name: 'Завантаженість', responsible: 'Олена', period: 'weekly', format: 'percent', importance: 'medium', visibleToEmployees: [] },
+                        // Місячні - 7 показників
+                        { id: 'col11', name: 'Прибуток', responsible: 'Олександр', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col12', name: 'Маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col13', name: 'Окупність', responsible: 'Ігор', period: 'monthly', format: 'percent', importance: 'high', visibleToEmployees: [] },
+                        // Неочевидні місячні
+                        { id: 'col14', name: 'Ціна клієнта', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col15', name: 'Дохід з клієнта', responsible: 'Олександр', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col16', name: 'Повторні', responsible: 'Олена', period: 'monthly', format: 'percent', visibleToEmployees: [] },
+                        { id: 'col17', name: 'Оцінка сервісу', responsible: 'Марія', period: 'monthly', format: 'number', importance: 'high', visibleToEmployees: [] },
                     ],
-                    // Тепер кожен тиждень має свої targets!
                     weeklyData: [
-                        { values: { col1: '16', col2: '35', col3: '11', col4: '4', col5: '112000', col6: '780' }, targets: { col1: '18', col2: '40', col3: '12', col4: '5', col5: '130000', col6: '800' } },
-                        { values: { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850' }, targets: { col1: '18', col2: '40', col3: '12', col4: '5', col5: '130000', col6: '800' } },
-                        { values: { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920' }, targets: { col1: '20', col2: '45', col3: '13', col4: '6', col5: '150000', col6: '850' } },
-                        { values: { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200' }, targets: { col1: '20', col2: '45', col3: '13', col4: '6', col5: '150000', col6: '900' } },
-                        { values: { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100' }, targets: { col1: '22', col2: '50', col3: '14', col4: '7', col5: '180000', col6: '950' } },
-                        { values: { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950' }, targets: { col1: '22', col2: '50', col3: '14', col4: '7', col5: '180000', col6: '950' } },
-                        { values: { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880' }, targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' } },
-                        { values: { col1: '14', col2: '39', col3: '9', col4: '4', col5: '118000', col6: '920' }, targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900' } },
+                        { values: { col1: '16', col2: '35', col3: '11', col4: '4', col5: '112000', col6: '780', col7: '4.2', col8: '3', col9: '2', col10: '72' }, targets: { col1: '18', col2: '40', col3: '12', col4: '5', col5: '130000', col6: '800', col7: '3', col8: '2', col9: '3', col10: '80' } },
+                        { values: { col1: '18', col2: '42', col3: '12', col4: '5', col5: '125000', col6: '850', col7: '3.8', col8: '2', col9: '3', col10: '78' }, targets: { col1: '18', col2: '40', col3: '12', col4: '5', col5: '130000', col6: '800', col7: '3', col8: '2', col9: '3', col10: '80' } },
+                        { values: { col1: '22', col2: '38', col3: '14', col4: '5', col5: '140000', col6: '920', col7: '3.5', col8: '2', col9: '4', col10: '85' }, targets: { col1: '20', col2: '45', col3: '13', col4: '6', col5: '150000', col6: '850', col7: '3', col8: '2', col9: '4', col10: '82' } },
+                        { values: { col1: '15', col2: '51', col3: '10', col4: '5', col5: '145000', col6: '1200', col7: '5.1', col8: '4', col9: '2', col10: '68' }, targets: { col1: '20', col2: '45', col3: '13', col4: '6', col5: '150000', col6: '900', col7: '3', col8: '2', col9: '4', col10: '82' } },
+                        { values: { col1: '19', col2: '67', col3: '9', col4: '6', col5: '168000', col6: '1100', col7: '4.8', col8: '5', col9: '3', col10: '75' }, targets: { col1: '22', col2: '50', col3: '14', col4: '7', col5: '180000', col6: '950', col7: '3', col8: '2', col9: '5', col10: '85' } },
+                        { values: { col1: '21', col2: '58', col3: '10', col4: '6', col5: '174000', col6: '950', col7: '4.2', col8: '3', col9: '4', col10: '82' }, targets: { col1: '22', col2: '50', col3: '14', col4: '7', col5: '180000', col6: '950', col7: '3', col8: '2', col9: '5', col10: '85' } },
+                        { values: { col1: '17', col2: '44', col3: '11', col4: '5', col5: '135000', col6: '880', col7: '4.5', col8: '4', col9: '2', col10: '70' }, targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '3', col8: '2', col9: '5', col10: '85' } },
+                        { values: { col1: '14', col2: '39', col3: '9', col4: '4', col5: '118000', col6: '920', col7: '5.2', col8: '5', col9: '1', col10: '65' }, targets: { col1: '20', col2: '50', col3: '15', col4: '8', col5: '200000', col6: '900', col7: '3', col8: '2', col9: '5', col10: '85' } },
                     ],
                     monthlyData: [
-                        { values: { col7: '420000', col8: '38000', col9: '340' }, targets: { col7: '500000', col8: '40000', col9: '350' } },
-                        { values: { col7: '480000', col8: '45000', col9: '320' }, targets: { col7: '550000', col8: '42000', col9: '360' } },
-                        { values: { col7: '520000', col8: '52000', col9: '280' }, targets: { col7: '580000', col8: '45000', col9: '370' } },
-                        { values: { col7: '410000', col8: '48000', col9: '250' }, targets: { col7: '600000', col8: '45000', col9: '380' } },
-                        { values: { col7: '380000', col8: '44000', col9: '230' }, targets: { col7: '600000', col8: '45000', col9: '380' } },
+                        { values: { col11: '420000', col12: '38000', col13: '340', col14: '8500', col15: '42000', col16: '18', col17: '72' }, targets: { col11: '500000', col12: '40000', col13: '350', col14: '7000', col15: '50000', col16: '25', col17: '80' } },
+                        { values: { col11: '480000', col12: '45000', col13: '320', col14: '9200', col15: '45000', col16: '21', col17: '75' }, targets: { col11: '550000', col12: '42000', col13: '360', col14: '7500', col15: '52000', col16: '25', col17: '80' } },
+                        { values: { col11: '520000', col12: '52000', col13: '280', col14: '10500', col15: '48000', col16: '19', col17: '68' }, targets: { col11: '580000', col12: '45000', col13: '370', col14: '8000', col15: '55000', col16: '28', col17: '82' } },
+                        { values: { col11: '410000', col12: '48000', col13: '250', col14: '11200', col15: '44000', col16: '15', col17: '65' }, targets: { col11: '600000', col12: '45000', col13: '380', col14: '8000', col15: '58000', col16: '30', col17: '85' } },
+                        { values: { col11: '380000', col12: '44000', col13: '230', col14: '12000', col15: '41000', col16: '12', col17: '62' }, targets: { col11: '600000', col12: '45000', col13: '380', col14: '8000', col15: '60000', col16: '30', col17: '85' } },
                     ],
                     context: `Консалтингова компанія "TALKO Consulting"
 - Спеціалізація: бізнес-трансформація для МСБ
@@ -3755,98 +3766,133 @@ ${aiSettings.businessContext}
 - Цикл угоди: 2-3 тижні від ліда до контракту
 - Основні канали: рекомендації (60%), реклама Facebook/Google (30%), вебінари (10%)
 - Маркетинг бюджет: $800-1200/тиждень
-- Поточна проблема: багато лідів, але низька конверсія в угоди (10% замість 15%)`,
-                    priorities: `1. Підвищити конверсію лідів в угоди (зараз 10%, ціль 15%)
-2. Оптимізувати витрати на маркетинг (ROI впав)
-3. Збільшити середній чек до 30,000 грн`
+- Ціна залучення клієнта зростає - треба оптимізувати
+- Дохід з клієнта падає - мало повторних звернень
+- Оцінка сервісу знижується - проблема з якістю`,
+                    priorities: `1. Знизити ціну клієнта з 12,000 до 8,000 грн (оптимізація воронки)
+2. Підвищити повторні продажі (зараз 12%, ціль 30%)
+3. Покращити оцінку сервісу з 62 до 85 балів
+4. Зменшити кількість дзвінків до угоди з 5 до 3`
                 },
                 dental: {
                     name: 'Стоматологія',
                     icon: 'Heart',
                     companyName: 'Клініка "Здорова Посмішка"',
                     columns: [
+                        // Тижневі - 10 показників
                         { id: 'col1', name: 'Первинок', responsible: 'Адмін', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col2', name: 'Записів', responsible: 'Адмін', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col3', name: 'Конверсія', responsible: 'Лікар', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col4', name: 'Імплантацій', responsible: 'Хірург', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
                         { id: 'col5', name: 'Виручка', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col6', name: 'Сер. чек', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col7', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col8', name: 'Реклама', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col9', name: 'Ціна ліда', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        // Неочевидні тижневі
+                        { id: 'col7', name: 'Неявки', responsible: 'Адмін', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Послуг на візит', responsible: 'Лікар', period: 'weekly', format: 'number', importance: 'medium', visibleToEmployees: [] },
+                        { id: 'col9', name: 'Дохід на крісло', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col10', name: 'Завантаженість', responsible: 'Адмін', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
+                        // Місячні - 7 показників
+                        { id: 'col11', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col12', name: 'Реклама', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col13', name: 'Ціна ліда', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        // Неочевидні місячні
+                        { id: 'col14', name: 'Повторні', responsible: 'Адмін', period: 'monthly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col15', name: 'Рекомендації', responsible: 'Адмін', period: 'monthly', format: 'number', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col16', name: 'Відгуки', responsible: 'Маркетолог', period: 'monthly', format: 'number', importance: 'medium', visibleToEmployees: [] },
+                        { id: 'col17', name: 'Дохід з пацієнта', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                     ],
                     weeklyData: [
-                        { values: { col1: '26', col2: '20', col3: '77', col4: '4', col5: '195000', col6: '4400' }, targets: { col1: '25', col2: '18', col3: '70', col4: '3', col5: '180000', col6: '4000' } },
-                        { values: { col1: '24', col2: '18', col3: '75', col4: '3', col5: '185000', col6: '4200' }, targets: { col1: '25', col2: '18', col3: '70', col4: '3', col5: '180000', col6: '4000' } },
-                        { values: { col1: '28', col2: '15', col3: '54', col4: '2', col5: '156000', col6: '3800' }, targets: { col1: '28', col2: '20', col3: '70', col4: '4', col5: '200000', col6: '4200' } },
-                        { values: { col1: '31', col2: '19', col3: '61', col4: '4', col5: '198000', col6: '4100' }, targets: { col1: '28', col2: '20', col3: '70', col4: '4', col5: '200000', col6: '4200' } },
-                        { values: { col1: '22', col2: '12', col3: '55', col4: '2', col5: '142000', col6: '3600' }, targets: { col1: '30', col2: '21', col3: '70', col4: '4', col5: '210000', col6: '4300' } },
-                        { values: { col1: '35', col2: '17', col3: '49', col4: '3', col5: '168000', col6: '3900' }, targets: { col1: '30', col2: '21', col3: '70', col4: '4', col5: '210000', col6: '4300' } },
-                        { values: { col1: '29', col2: '14', col3: '48', col4: '2', col5: '145000', col6: '3700' }, targets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500' } },
-                        { values: { col1: '27', col2: '13', col3: '48', col4: '2', col5: '138000', col6: '3650' }, targets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500' } },
+                        { values: { col1: '26', col2: '20', col3: '77', col4: '4', col5: '195000', col6: '4400', col7: '8', col8: '2.1', col9: '48750', col10: '82' }, targets: { col1: '25', col2: '18', col3: '70', col4: '3', col5: '180000', col6: '4000', col7: '5', col8: '2.5', col9: '45000', col10: '85' } },
+                        { values: { col1: '24', col2: '18', col3: '75', col4: '3', col5: '185000', col6: '4200', col7: '6', col8: '2.3', col9: '46250', col10: '78' }, targets: { col1: '25', col2: '18', col3: '70', col4: '3', col5: '180000', col6: '4000', col7: '5', col8: '2.5', col9: '45000', col10: '85' } },
+                        { values: { col1: '28', col2: '15', col3: '54', col4: '2', col5: '156000', col6: '3800', col7: '12', col8: '1.8', col9: '39000', col10: '68' }, targets: { col1: '28', col2: '20', col3: '70', col4: '4', col5: '200000', col6: '4200', col7: '5', col8: '2.5', col9: '50000', col10: '85' } },
+                        { values: { col1: '31', col2: '19', col3: '61', col4: '4', col5: '198000', col6: '4100', col7: '9', col8: '2.0', col9: '49500', col10: '75' }, targets: { col1: '28', col2: '20', col3: '70', col4: '4', col5: '200000', col6: '4200', col7: '5', col8: '2.5', col9: '50000', col10: '85' } },
+                        { values: { col1: '22', col2: '12', col3: '55', col4: '2', col5: '142000', col6: '3600', col7: '15', col8: '1.7', col9: '35500', col10: '62' }, targets: { col1: '30', col2: '21', col3: '70', col4: '4', col5: '210000', col6: '4300', col7: '5', col8: '2.5', col9: '52500', col10: '88' } },
+                        { values: { col1: '35', col2: '17', col3: '49', col4: '3', col5: '168000', col6: '3900', col7: '11', col8: '1.9', col9: '42000', col10: '72' }, targets: { col1: '30', col2: '21', col3: '70', col4: '4', col5: '210000', col6: '4300', col7: '5', col8: '2.5', col9: '52500', col10: '88' } },
+                        { values: { col1: '29', col2: '14', col3: '48', col4: '2', col5: '145000', col6: '3700', col7: '14', col8: '1.6', col9: '36250', col10: '65' }, targets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500', col7: '5', col8: '2.5', col9: '55000', col10: '90' } },
+                        { values: { col1: '27', col2: '13', col3: '48', col4: '2', col5: '138000', col6: '3650', col7: '16', col8: '1.5', col9: '34500', col10: '60' }, targets: { col1: '30', col2: '22', col3: '70', col4: '4', col5: '220000', col6: '4500', col7: '5', col8: '2.5', col9: '55000', col10: '90' } },
                     ],
                     monthlyData: [
-                        { values: { col7: '340000', col8: '32000', col9: '380' }, targets: { col7: '400000', col8: '35000', col9: '400' } },
-                        { values: { col7: '380000', col8: '35000', col9: '420' }, targets: { col7: '450000', col8: '35000', col9: '380' } },
-                        { values: { col7: '420000', col8: '42000', col9: '480' }, targets: { col7: '480000', col8: '38000', col9: '360' } },
-                        { values: { col7: '350000', col8: '38000', col9: '520' }, targets: { col7: '500000', col8: '35000', col9: '350' } },
-                        { values: { col7: '320000', col8: '40000', col9: '550' }, targets: { col7: '500000', col8: '35000', col9: '350' } },
+                        { values: { col11: '340000', col12: '32000', col13: '380', col14: '42', col15: '8', col16: '12', col17: '8500' }, targets: { col11: '400000', col12: '35000', col13: '400', col14: '55', col15: '15', col16: '20', col17: '12000' } },
+                        { values: { col11: '380000', col12: '35000', col13: '420', col14: '45', col15: '11', col16: '15', col17: '9200' }, targets: { col11: '450000', col12: '35000', col13: '380', col14: '55', col15: '15', col16: '20', col17: '12000' } },
+                        { values: { col11: '420000', col12: '42000', col13: '480', col14: '38', col15: '7', col16: '9', col17: '7800' }, targets: { col11: '480000', col12: '38000', col13: '360', col14: '58', col15: '18', col16: '22', col17: '13000' } },
+                        { values: { col11: '350000', col12: '38000', col13: '520', col14: '35', col15: '5', col16: '6', col17: '7200' }, targets: { col11: '500000', col12: '35000', col13: '350', col14: '60', col15: '20', col16: '25', col17: '14000' } },
+                        { values: { col11: '320000', col12: '40000', col13: '550', col14: '32', col15: '4', col16: '5', col17: '6800' }, targets: { col11: '500000', col12: '35000', col13: '350', col14: '60', col15: '20', col16: '25', col17: '15000' } },
                     ],
                     context: `Стоматологічна клініка "Здорова Посмішка"
 - 3 лікарі-стоматологи + хірург-імплантолог + 2 адміністратори
+- 4 стоматологічних крісла
 - Середній чек: 4,500 грн
 - Імплантація: від 18,000 грн за одиницю
 - Основні канали: Google Ads (50%), Instagram (30%), рекомендації (20%)
-- Рекламний бюджет: 35,000-45,000 грн/місяць
-- Поточна проблема: багато первинних консультацій, але низька конверсія в лікування (48% замість 70%)
-- Пацієнти йдуть "подумати" і не повертаються`,
-                    priorities: `1. Підвищити конверсію первинка → лікування (зараз 48%, ціль 70%)
-2. Збільшити кількість імплантацій (високомаржинальна послуга)
-3. Знизити вартість ліда (зараз 520 грн, ціль 350 грн)`
+- Неявки (не прийшли на прийом) зростають до 16% - втрата часу та грошей
+- Мало послуг на візит (1.5 замість 2.5) - недопродаж
+- Низький дохід на крісло - неефективне завантаження
+- Дохід з пацієнта падає - не повертаються на профілактику`,
+                    priorities: `1. Знизити неявки з 16% до 5% (SMS нагадування, депозити)
+2. Підвищити послуг на візит з 1.5 до 2.5 (допродаж, плани лікування)
+3. Збільшити дохід на крісло на 50% через оптимізацію розкладу
+4. Підняти дохід з пацієнта з 6,800 до 15,000 грн (програма лояльності)`
                 },
                 manufacturing: {
                     name: 'Виробництво',
                     icon: 'Settings',
                     companyName: 'Меблева фабрика "Комфорт"',
                     columns: [
+                        // Тижневі - 10 показників
                         { id: 'col1', name: 'Замовлень', responsible: 'Менеджер', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col2', name: 'Виготовлено', responsible: 'Виробництво', period: 'weekly', format: 'number', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col3', name: 'План %', responsible: 'Виробництво', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col4', name: 'Брак %', responsible: 'ОТК', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col3', name: 'План', responsible: 'Виробництво', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col4', name: 'Брак', responsible: 'ОТК', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
                         { id: 'col5', name: 'Виручка', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col6', name: 'Собівартість', responsible: 'Бухгалтер', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col7', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
-                        { id: 'col8', name: 'Сировина', responsible: 'Закупівлі', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col9', name: 'Маржа %', responsible: 'Директор', period: 'monthly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        // Неочевидні тижневі
+                        { id: 'col7', name: 'Простій год', responsible: 'Виробництво', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Ефективність', responsible: 'Виробництво', period: 'weekly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col9', name: 'Переробка грн', responsible: 'ОТК', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col10', name: 'Виробіток', responsible: 'HR', period: 'weekly', format: 'number', importance: 'medium', visibleToEmployees: [] },
+                        // Місячні - 7 показників
+                        { id: 'col11', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
+                        { id: 'col12', name: 'Сировина', responsible: 'Закупівлі', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col13', name: 'Маржа', responsible: 'Директор', period: 'monthly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
+                        // Неочевидні місячні
+                        { id: 'col14', name: 'Рекламації', responsible: 'ОТК', period: 'monthly', format: 'number', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col15', name: 'Запас днів', responsible: 'Закупівлі', period: 'monthly', format: 'number', importance: 'medium', visibleToEmployees: [] },
+                        { id: 'col16', name: 'Борг днів', responsible: 'Бухгалтер', period: 'monthly', format: 'number', importance: 'high', visibleToEmployees: [] },
+                        { id: 'col17', name: 'Термін днів', responsible: 'Виробництво', period: 'monthly', format: 'number', importance: 'critical', visibleToEmployees: [] },
                     ],
                     weeklyData: [
-                        { values: { col1: '14', col2: '50', col3: '100', col4: '2', col5: '400000', col6: '300000' }, targets: { col1: '12', col2: '45', col3: '100', col4: '3', col5: '380000', col6: '280000' } },
-                        { values: { col1: '12', col2: '45', col3: '90', col4: '3', col5: '380000', col6: '285000' }, targets: { col1: '12', col2: '45', col3: '100', col4: '3', col5: '380000', col6: '280000' } },
-                        { values: { col1: '15', col2: '52', col3: '104', col4: '2', col5: '420000', col6: '310000' }, targets: { col1: '14', col2: '48', col3: '100', col4: '2', col5: '420000', col6: '300000' } },
-                        { values: { col1: '11', col2: '38', col3: '76', col4: '5', col5: '340000', col6: '270000' }, targets: { col1: '14', col2: '48', col3: '100', col4: '2', col5: '420000', col6: '300000' } },
-                        { values: { col1: '14', col2: '48', col3: '96', col4: '4', col5: '395000', col6: '295000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
-                        { values: { col1: '13', col2: '42', col3: '84', col4: '6', col5: '365000', col6: '290000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
-                        { values: { col1: '10', col2: '35', col3: '70', col4: '7', col5: '320000', col6: '260000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
-                        { values: { col1: '9', col2: '32', col3: '64', col4: '8', col5: '290000', col6: '245000' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000' } },
+                        { values: { col1: '14', col2: '50', col3: '100', col4: '2', col5: '400000', col6: '300000', col7: '4', col8: '78', col9: '8000', col10: '3.3' }, targets: { col1: '12', col2: '45', col3: '100', col4: '3', col5: '380000', col6: '280000', col7: '8', col8: '75', col9: '12000', col10: '3.0' } },
+                        { values: { col1: '12', col2: '45', col3: '90', col4: '3', col5: '380000', col6: '285000', col7: '6', col8: '72', col9: '11000', col10: '3.0' }, targets: { col1: '12', col2: '45', col3: '100', col4: '3', col5: '380000', col6: '280000', col7: '8', col8: '75', col9: '12000', col10: '3.0' } },
+                        { values: { col1: '15', col2: '52', col3: '104', col4: '2', col5: '420000', col6: '310000', col7: '5', col8: '76', col9: '9000', col10: '3.5' }, targets: { col1: '14', col2: '48', col3: '100', col4: '2', col5: '420000', col6: '300000', col7: '6', col8: '78', col9: '10000', col10: '3.2' } },
+                        { values: { col1: '11', col2: '38', col3: '76', col4: '5', col5: '340000', col6: '270000', col7: '12', col8: '62', col9: '18000', col10: '2.5' }, targets: { col1: '14', col2: '48', col3: '100', col4: '2', col5: '420000', col6: '300000', col7: '6', col8: '78', col9: '10000', col10: '3.2' } },
+                        { values: { col1: '14', col2: '48', col3: '96', col4: '4', col5: '395000', col6: '295000', col7: '8', col8: '68', col9: '14000', col10: '3.2' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000', col7: '5', col8: '80', col9: '8000', col10: '3.5' } },
+                        { values: { col1: '13', col2: '42', col3: '84', col4: '6', col5: '365000', col6: '290000', col7: '14', col8: '58', col9: '22000', col10: '2.8' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000', col7: '5', col8: '80', col9: '8000', col10: '3.5' } },
+                        { values: { col1: '10', col2: '35', col3: '70', col4: '7', col5: '320000', col6: '260000', col7: '18', col8: '52', col9: '28000', col10: '2.3' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000', col7: '5', col8: '80', col9: '8000', col10: '3.5' } },
+                        { values: { col1: '9', col2: '32', col3: '64', col4: '8', col5: '290000', col6: '245000', col7: '22', col8: '48', col9: '35000', col10: '2.1' }, targets: { col1: '15', col2: '50', col3: '100', col4: '2', col5: '450000', col6: '300000', col7: '5', col8: '80', col9: '8000', col10: '3.5' } },
                     ],
                     monthlyData: [
-                        { values: { col7: '560000', col8: '650000', col9: '35' }, targets: { col7: '550000', col8: '620000', col9: '35' } },
-                        { values: { col7: '520000', col8: '680000', col9: '32' }, targets: { col7: '580000', col8: '640000', col9: '35' } },
-                        { values: { col7: '480000', col8: '720000', col9: '28' }, targets: { col7: '620000', col8: '650000', col9: '35' } },
-                        { values: { col7: '410000', col8: '750000', col9: '25' }, targets: { col7: '650000', col8: '650000', col9: '35' } },
-                        { values: { col7: '350000', col8: '780000', col9: '22' }, targets: { col7: '650000', col8: '650000', col9: '35' } },
+                        { values: { col11: '560000', col12: '650000', col13: '35', col14: '2', col15: '12', col16: '28', col17: '14' }, targets: { col11: '550000', col12: '620000', col13: '35', col14: '3', col15: '14', col16: '30', col17: '14' } },
+                        { values: { col11: '520000', col12: '680000', col13: '32', col14: '3', col15: '10', col16: '32', col17: '15' }, targets: { col11: '580000', col12: '640000', col13: '35', col14: '2', col15: '14', col16: '25', col17: '14' } },
+                        { values: { col11: '480000', col12: '720000', col13: '28', col14: '5', col15: '8', col16: '38', col17: '18' }, targets: { col11: '620000', col12: '650000', col13: '35', col14: '2', col15: '14', col16: '21', col17: '14' } },
+                        { values: { col11: '410000', col12: '750000', col13: '25', col14: '7', col15: '6', col16: '45', col17: '21' }, targets: { col11: '650000', col12: '650000', col13: '35', col14: '2', col15: '14', col16: '21', col17: '14' } },
+                        { values: { col11: '350000', col12: '780000', col13: '22', col14: '9', col15: '5', col16: '52', col17: '24' }, targets: { col11: '650000', col12: '650000', col13: '35', col14: '2', col15: '14', col16: '21', col17: '14' } },
                     ],
                     context: `Меблева фабрика "Комфорт"
 - Виробництво корпусних меблів на замовлення
 - 15 працівників на виробництві + 3 менеджери + 2 монтажники
 - Середнє замовлення: 28,000 грн
 - Цикл виробництва: 2-3 тижні
-- Основні клієнти: приватні замовники (70%), дизайнери (30%)
-- Поточна проблема: зростає брак (7% замість 2%), падає маржинальність
-- Затримки через брак сировини та переробки`,
-                    priorities: `1. Знизити відсоток браку (зараз 7%, ціль 2%)
-2. Підвищити маржинальність (зараз 25%, ціль 35%)
-3. Виконувати план виробництва на 100%`
+- Ефективність обладнання падає з 78% до 48%
+- Простої обладнання зростають - з 4 до 22 годин/тиждень
+- Витрати на переробку браку виросли в 4 рази
+- Виробіток на працівника впав з 3.3 до 2.1 одиниць
+- Борг клієнтів виріс з 28 до 52 днів - не платять вчасно
+- Термін виконання виріс з 14 до 24 днів`,
+                    priorities: `1. Підняти ефективність з 48% до 80% (ТО обладнання, навчання)
+2. Скоротити простої з 22 до 5 годин/тиждень
+3. Знизити брак з 8% до 2% та витрати на переробку
+4. Скоротити борг клієнтів з 52 до 21 дня (передоплата, контроль)
+5. Повернути термін виконання до 14 днів`
                 }
             };
             
