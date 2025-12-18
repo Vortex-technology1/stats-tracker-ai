@@ -632,6 +632,21 @@
             return weeks;
         };
 
+        // Глобальні кеші (ініціалізуються з localStorage)
+        const getInitialWeekStartDay = () => {
+            try {
+                const stored = localStorage.getItem('weekStartDay');
+                return stored !== null ? parseInt(stored) : 1;
+            } catch { return 1; }
+        };
+        
+        let WEEKS_CACHE = generateWeeks(52, 4, getInitialWeekStartDay());
+        let MONTHS_CACHE = generateMonths(24, 3);
+        
+        const updateWeeksCache = (startDay) => {
+            WEEKS_CACHE = generateWeeks(52, 4, startDay);
+        };
+
         // ==================== MONTH HELPERS ====================
         const getMonthKeyFromDate = (date) => {
             const d = new Date(date);
@@ -1010,7 +1025,7 @@
         };
 
         // ==================== STATS CARD (MOBILE) ====================
-        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows, periodType = 'weekly', WEEKS_CACHE, MONTHS_CACHE }) => {
+        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows, periodType = 'weekly' }) => {
             const [isExpanded, setIsExpanded] = useState(false);
             const [activeComment, setActiveComment] = useState(null);
             const [showTargets, setShowTargets] = useState(false);
@@ -1249,7 +1264,7 @@
         const StatsCard = React.memo(StatsCardComponent);
 
         // ==================== STATS TABLE (DESKTOP) ====================
-        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t, WEEKS_CACHE, MONTHS_CACHE }) => {
+        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
             const [draggedCol, setDraggedCol] = useState(null);
             const [dragOverCol, setDragOverCol] = useState(null);
             
@@ -3441,11 +3456,14 @@ ${aiSettings.businessContext}
                     return stored !== null ? parseInt(stored) : 1;
                 } catch { return 1; }
             });
+            const [, forceUpdate] = useState(0); // Для форсування ререндеру
             
-            // Зберігаємо weekStartDay в localStorage при зміні
+            // Зберігаємо weekStartDay в localStorage і оновлюємо глобальний кеш
             const setWeekStartDay = (day) => {
                 setWeekStartDayState(day);
                 try { localStorage.setItem('weekStartDay', day.toString()); } catch {}
+                updateWeeksCache(day); // Оновлюємо глобальний кеш
+                forceUpdate(n => n + 1); // Форсуємо ререндер
             };
             const [savedAnalyses, setSavedAnalyses] = useState([]);
             
@@ -3494,10 +3512,6 @@ ${aiSettings.businessContext}
             const [adminLoading, setAdminLoading] = useState(false);
             
             const t = useMemo(() => translations[language] || translations.uk, [language]);
-            
-            // Динамічні кеші тижнів та місяців
-            const WEEKS_CACHE = useMemo(() => generateWeeks(52, 4, weekStartDay), [weekStartDay]);
-            const MONTHS_CACHE = useMemo(() => generateMonths(24, 3), []);
             
             const isOwner = userProfile?.role === 'owner';
             const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
@@ -4966,8 +4980,6 @@ ${aiSettings.businessContext}
                                                 onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
                                                 onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
                                                 t={t}
-                                                WEEKS_CACHE={WEEKS_CACHE}
-                                                MONTHS_CACHE={MONTHS_CACHE}
                                             />
                                         ))
                                     ) : (
@@ -5006,8 +5018,6 @@ ${aiSettings.businessContext}
                                                 onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
                                                 onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
                                                 t={t}
-                                                WEEKS_CACHE={WEEKS_CACHE}
-                                                MONTHS_CACHE={MONTHS_CACHE}
                                             />
                                         ))
                                     ) : (
@@ -5065,8 +5075,6 @@ ${aiSettings.businessContext}
                                         onMoveColumn={moveColumn}
                                         editable={isOwner} 
                                         t={t}
-                                        WEEKS_CACHE={WEEKS_CACHE}
-                                        MONTHS_CACHE={MONTHS_CACHE}
                                     />
                                 </div>
                             )}
@@ -5099,8 +5107,6 @@ ${aiSettings.businessContext}
                                         onMoveColumn={moveColumn}
                                         editable={isOwner} 
                                         t={t}
-                                        WEEKS_CACHE={WEEKS_CACHE}
-                                        MONTHS_CACHE={MONTHS_CACHE}
                                     />
                                 </div>
                             )}
