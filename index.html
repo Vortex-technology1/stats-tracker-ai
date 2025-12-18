@@ -442,6 +442,8 @@
             Sparkles: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>,
             Globe: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>,
             ChevronDown: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m6 9 6 6 6-6"/></svg>,
+            ChevronLeft: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m15 18-6-6 6-6"/></svg>,
+            ChevronRight: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m9 18 6-6-6-6"/></svg>,
             Building: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>,
             Brain: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>,
             Clock: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
@@ -640,11 +642,11 @@
             } catch { return 1; }
         };
         
-        let WEEKS_CACHE = generateWeeks(52, 4, getInitialWeekStartDay());
-        let MONTHS_CACHE = generateMonths(24, 3);
+        let WEEKS_CACHE = generateWeeks(52, 52, getInitialWeekStartDay()); // 1 рік назад і вперед для select
+        let MONTHS_CACHE = generateMonths(24, 12); // 2 роки назад, 1 рік вперед для select
         
         const updateWeeksCache = (startDay) => {
-            WEEKS_CACHE = generateWeeks(52, 4, startDay);
+            WEEKS_CACHE = generateWeeks(52, 52, startDay);
         };
 
         // ==================== MONTH HELPERS ====================
@@ -790,6 +792,146 @@
                         </div>
                     </div>
                 </>
+            );
+        };
+
+        // ==================== PROGRESS BAR ====================
+        const ProgressBar = ({ value }) => {
+
+        // ==================== DATE PICKER CALENDAR ====================
+        const DatePickerCalendar = ({ selectedDate, onSelect, weekStartDay = 1, periodType = 'weekly' }) => {
+            const [viewDate, setViewDate] = useState(() => selectedDate ? new Date(selectedDate) : new Date());
+            
+            const MONTH_NAMES = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 
+                                'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
+            
+            const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+            const getFirstDayOfMonth = (year, month) => {
+                const day = new Date(year, month, 1).getDay();
+                // Зсув відносно дня початку тижня
+                return (day - weekStartDay + 7) % 7;
+            };
+            
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            const daysInMonth = getDaysInMonth(year, month);
+            const firstDay = getFirstDayOfMonth(year, month);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Генеруємо дні для відображення
+            const days = [];
+            // Порожні клітинки до першого дня
+            for (let i = 0; i < firstDay; i++) {
+                days.push(null);
+            }
+            // Дні місяця
+            for (let d = 1; d <= daysInMonth; d++) {
+                days.push(new Date(year, month, d));
+            }
+            
+            // Заголовки днів тижня з урахуванням weekStartDay
+            const dayHeaders = [];
+            for (let i = 0; i < 7; i++) {
+                dayHeaders.push(DAYS_SHORT[(weekStartDay + i) % 7]);
+            }
+            
+            // Визначаємо який тиждень обраний
+            const getWeekRangeForDate = (date) => {
+                if (!date) return null;
+                return getWeekRange(date, weekStartDay);
+            };
+            
+            // Перевіряємо чи дата в тому ж тижні що й обрана
+            const isSameWeek = (date) => {
+                if (!selectedDate || !date) return false;
+                const selectedRange = getWeekRangeForDate(new Date(selectedDate));
+                const dateRange = getWeekRangeForDate(date);
+                if (!selectedRange || !dateRange) return false;
+                return selectedRange.start.getTime() === dateRange.start.getTime();
+            };
+            
+            // Для місячного режиму - перевіряємо чи той самий місяць
+            const isSameMonth = (date) => {
+                if (!selectedDate || !date) return false;
+                const sel = new Date(selectedDate);
+                return sel.getFullYear() === date.getFullYear() && sel.getMonth() === date.getMonth();
+            };
+            
+            const handleDateClick = (date) => {
+                if (!date) return;
+                if (periodType === 'monthly') {
+                    // Для місяців - повертаємо ключ місяця
+                    const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    onSelect(monthKey, date);
+                } else {
+                    // Для тижнів - повертаємо ключ тижня
+                    const weekKey = getWeekKey(date, weekStartDay);
+                    onSelect(weekKey, date);
+                }
+            };
+            
+            const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+            const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+            const goToToday = () => setViewDate(new Date());
+            
+            return (
+                <div className="bg-white rounded-xl border border-gray-200 p-3">
+                    {/* Навігація */}
+                    <div className="flex items-center justify-between mb-3">
+                        <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-lg">
+                            <Icons.ChevronLeft className="w-5 h-5 text-gray-600" />
+                        </button>
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900">{MONTH_NAMES[month]} {year}</span>
+                            <button onClick={goToToday} className="text-xs text-primary-600 hover:underline">Сьогодні</button>
+                        </div>
+                        <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-lg">
+                            <Icons.ChevronRight className="w-5 h-5 text-gray-600" />
+                        </button>
+                    </div>
+                    
+                    {/* Заголовки днів */}
+                    <div className="grid grid-cols-7 gap-1 mb-1">
+                        {dayHeaders.map((day, i) => (
+                            <div key={i} className="text-center text-xs font-medium text-gray-500 py-1">{day}</div>
+                        ))}
+                    </div>
+                    
+                    {/* Дні */}
+                    <div className="grid grid-cols-7 gap-1">
+                        {days.map((date, i) => {
+                            if (!date) return <div key={i} className="p-2" />;
+                            
+                            const isToday = date.getTime() === today.getTime();
+                            const isSelected = periodType === 'monthly' ? isSameMonth(date) : isSameWeek(date);
+                            const isWeekStart = date.getDay() === weekStartDay;
+                            
+                            return (
+                                <button
+                                    key={i}
+                                    onClick={() => handleDateClick(date)}
+                                    className={`
+                                        p-2 text-sm rounded-lg transition-all relative
+                                        ${isSelected ? 'bg-primary-500 text-white font-bold' : 'hover:bg-gray-100'}
+                                        ${isToday && !isSelected ? 'ring-2 ring-primary-500 font-bold' : ''}
+                                        ${isWeekStart && !isSelected ? 'bg-gray-50' : ''}
+                                    `}
+                                >
+                                    {date.getDate()}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    
+                    {/* Підказка про звітний тиждень */}
+                    {periodType === 'weekly' && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                            <span className="inline-block w-3 h-3 bg-gray-50 rounded mr-1"></span>
+                            Початок тижня: <b>{DAYS_FULL[weekStartDay]}</b>
+                        </div>
+                    )}
+                </div>
             );
         };
 
@@ -4919,22 +5061,22 @@ ${aiSettings.businessContext}
                             </div>
                         </header>
                         
-                        {/* Stats summary - покращені картки */}
+                        {/* Stats summary - компактні картки */}
                         {activeTab === 'stats' && (
                         <>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-4">
                             {[
-                                { label: t.columns, value: visibleColumns.length, icon: Icons.BarChart, gradient: 'from-blue-500 to-indigo-500', shadow: 'shadow-blue-500/20' },
-                                { label: t.periods, value: dataRows.length, icon: Icons.Calendar, gradient: 'from-green-500 to-emerald-500', shadow: 'shadow-green-500/20' },
-                                { label: t.employees, value: Object.keys(employees).length, icon: Icons.Users, gradient: 'from-purple-500 to-pink-500', shadow: 'shadow-purple-500/20' },
-                                { label: t.values, value: visibleColumns.length * dataRows.length, icon: Icons.Target, gradient: 'from-amber-500 to-orange-500', shadow: 'shadow-amber-500/20' },
+                                { label: t.columns, value: visibleColumns.length, icon: Icons.BarChart, color: 'text-blue-600 bg-blue-100' },
+                                { label: t.periods, value: dataRows.length, icon: Icons.Calendar, color: 'text-green-600 bg-green-100' },
+                                { label: t.employees, value: Object.keys(employees).length, icon: Icons.Users, color: 'text-purple-600 bg-purple-100' },
+                                { label: t.values, value: visibleColumns.length * dataRows.length, icon: Icons.Target, color: 'text-amber-600 bg-amber-100' },
                             ].map((stat, i) => (
-                                <div key={i} className="card p-4 animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
-                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.gradient} ${stat.shadow} shadow-lg flex items-center justify-center mb-3`}>
-                                        <stat.icon className="w-5 h-5 text-white" />
+                                <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-sm">
+                                    <div className={`w-6 h-6 rounded-md ${stat.color} flex items-center justify-center`}>
+                                        <stat.icon className="w-3.5 h-3.5" />
                                     </div>
-                                    <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-                                    <div className="text-xs text-gray-500 font-medium">{stat.label}</div>
+                                    <span className="font-bold text-gray-900">{stat.value}</span>
+                                    <span className="text-gray-500 text-xs">{stat.label}</span>
                                 </div>
                             ))}
                         </div>
@@ -5981,62 +6123,28 @@ ${aiSettings.businessContext}
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    {addPeriodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}
+                                    {addPeriodType === 'monthly' ? 'Оберіть будь-який день місяця' : 'Оберіть будь-який день тижня'}
                                 </label>
-                                <select 
-                                    value={selectedAddPeriod}
-                                    onChange={(e) => setSelectedAddPeriod(e.target.value)}
-                                    className="select-field w-full text-base"
-                                >
-                                    <option value="">-- Оберіть --</option>
-                                    {addPeriodType === 'monthly' ? (
-                                        <>
-                                            {MONTHS_CACHE.filter(p => p.isFuture).length > 0 && (
-                                                <optgroup label="→ Майбутні">
-                                                    {MONTHS_CACHE.filter(p => p.isFuture).map(period => (
-                                                        <option key={period.key} value={period.key}>{period.label}</option>
-                                                    ))}
-                                                </optgroup>
-                                            )}
-                                            {MONTHS_CACHE.filter(p => p.isCurrent).map(period => (
-                                                <option key={period.key} value={period.key}>● {period.label} (зараз)</option>
-                                            ))}
-                                            <optgroup label="← Минулі">
-                                                {MONTHS_CACHE.filter(p => !p.isCurrent && !p.isFuture).map(period => (
-                                                    <option key={period.key} value={period.key}>{period.label}</option>
-                                                ))}
-                                            </optgroup>
-                                        </>
-                                    ) : (
-                                        <>
-                                            {WEEKS_CACHE.filter(p => p.isFuture).length > 0 && (
-                                                <optgroup label="→ Майбутні">
-                                                    {WEEKS_CACHE.filter(p => p.isFuture).map(period => (
-                                                        <option key={period.key} value={period.key}>{period.label}</option>
-                                                    ))}
-                                                </optgroup>
-                                            )}
-                                            {WEEKS_CACHE.filter(p => p.isCurrent).map(period => (
-                                                <option key={period.key} value={period.key}>● {period.label} (зараз)</option>
-                                            ))}
-                                            <optgroup label="← Минулі (рік)">
-                                                {WEEKS_CACHE.filter(p => !p.isCurrent && !p.isFuture).map(period => (
-                                                    <option key={period.key} value={period.key}>{period.label}</option>
-                                                ))}
-                                            </optgroup>
-                                        </>
-                                    )}
-                                </select>
+                                <DatePickerCalendar
+                                    selectedDate={selectedAddPeriod ? (addPeriodType === 'monthly' ? `${selectedAddPeriod}-01` : selectedAddPeriod) : null}
+                                    onSelect={(key, date) => setSelectedAddPeriod(key)}
+                                    weekStartDay={weekStartDay}
+                                    periodType={addPeriodType}
+                                />
                             </div>
                             
-                            <div className="p-3 bg-gray-50 rounded-xl text-sm text-gray-600">
-                                <p className="flex items-center gap-2">
-                                    <Icons.Info className="w-4 h-4" />
-                                    {addPeriodType === 'monthly' 
-                                        ? 'Доступно 24 місяці назад та 3 вперед' 
-                                        : 'Доступно 52 тижні назад та 4 вперед'}
-                                </p>
-                            </div>
+                            {/* Показуємо який період обраний */}
+                            {selectedAddPeriod && (
+                                <div className="p-3 bg-primary-50 border border-primary-200 rounded-xl">
+                                    <p className="text-sm font-medium text-primary-900 flex items-center gap-2">
+                                        <Icons.Check className="w-4 h-4" />
+                                        {addPeriodType === 'monthly' 
+                                            ? `Обрано: ${formatMonthLabel(selectedAddPeriod)}`
+                                            : `Обрано тиждень: ${formatWeekLabel(new Date(selectedAddPeriod), weekStartDay)}`
+                                        }
+                                    </p>
+                                </div>
+                            )}
                             
                             <div className="flex gap-3">
                                 <button onClick={() => setShowAddPeriodModal(false)} className="btn btn-secondary flex-1">
