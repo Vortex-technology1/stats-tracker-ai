@@ -1010,7 +1010,7 @@
         };
 
         // ==================== STATS CARD (MOBILE) ====================
-        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows, periodType = 'weekly' }) => {
+        const StatsCardComponent = ({ row, columns, onDelete, onDateChange, onValueChange, onTargetChange, onCommentChange, editable, isEven, t, allRows, periodType = 'weekly', WEEKS_CACHE, MONTHS_CACHE }) => {
             const [isExpanded, setIsExpanded] = useState(false);
             const [activeComment, setActiveComment] = useState(null);
             const [showTargets, setShowTargets] = useState(false);
@@ -1249,7 +1249,7 @@
         const StatsCard = React.memo(StatsCardComponent);
 
         // ==================== STATS TABLE (DESKTOP) ====================
-        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
+        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t, WEEKS_CACHE, MONTHS_CACHE }) => {
             const [draggedCol, setDraggedCol] = useState(null);
             const [dragOverCol, setDragOverCol] = useState(null);
             
@@ -4965,7 +4965,9 @@ ${aiSettings.businessContext}
                                                 onValueChange={(colId, value) => updateValue(row.id, colId, value)}
                                                 onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
                                                 onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
-                                                t={t} 
+                                                t={t}
+                                                WEEKS_CACHE={WEEKS_CACHE}
+                                                MONTHS_CACHE={MONTHS_CACHE}
                                             />
                                         ))
                                     ) : (
@@ -5003,7 +5005,9 @@ ${aiSettings.businessContext}
                                                 onValueChange={(colId, value) => updateValue(row.id, colId, value)}
                                                 onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
                                                 onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
-                                                t={t} 
+                                                t={t}
+                                                WEEKS_CACHE={WEEKS_CACHE}
+                                                MONTHS_CACHE={MONTHS_CACHE}
                                             />
                                         ))
                                     ) : (
@@ -5060,7 +5064,9 @@ ${aiSettings.businessContext}
                                         onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
                                         onMoveColumn={moveColumn}
                                         editable={isOwner} 
-                                        t={t} 
+                                        t={t}
+                                        WEEKS_CACHE={WEEKS_CACHE}
+                                        MONTHS_CACHE={MONTHS_CACHE}
                                     />
                                 </div>
                             )}
@@ -5092,7 +5098,9 @@ ${aiSettings.businessContext}
                                         onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
                                         onMoveColumn={moveColumn}
                                         editable={isOwner} 
-                                        t={t} 
+                                        t={t}
+                                        WEEKS_CACHE={WEEKS_CACHE}
+                                        MONTHS_CACHE={MONTHS_CACHE}
                                     />
                                 </div>
                             )}
