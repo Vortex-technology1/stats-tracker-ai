@@ -572,11 +572,29 @@
             return range.start.toISOString().split('T')[0];
         };
 
-        const generateWeeks = (count = 12) => {
+        const generateWeeks = (countBack = 52, countForward = 4) => {
             const weeks = [];
             const today = new Date();
             
-            for (let i = 0; i < count; i++) {
+            // Майбутні тижні
+            for (let i = countForward; i > 0; i--) {
+                const d = new Date(today);
+                d.setDate(today.getDate() + (i * 7));
+                const range = getWeekRange(d);
+                if (!range) continue;
+                const { start, end } = range;
+                weeks.push({
+                    key: start.toISOString().split('T')[0],
+                    label: formatWeekLabel(d),
+                    start: start,
+                    end: end,
+                    isCurrent: false,
+                    isFuture: true
+                });
+            }
+            
+            // Поточний та минулі тижні
+            for (let i = 0; i < countBack; i++) {
                 const d = new Date(today);
                 d.setDate(today.getDate() - (i * 7));
                 const range = getWeekRange(d);
@@ -587,14 +605,15 @@
                     label: formatWeekLabel(d),
                     start: start,
                     end: end,
-                    isCurrent: i === 0
+                    isCurrent: i === 0,
+                    isFuture: false
                 });
             }
             return weeks;
         };
 
-        // Глобальний кеш тижнів (не змінюється протягом сесії)
-        const WEEKS_CACHE = generateWeeks(16);
+        // Глобальний кеш тижнів - 52 назад + 4 вперед
+        const WEEKS_CACHE = generateWeeks(52, 4);
 
         // ==================== MONTH HELPERS ====================
         const getMonthKeyFromDate = (date) => {
@@ -613,23 +632,37 @@
             return `${monthNames[parseInt(month) - 1]} ${year}`;
         };
 
-        const generateMonths = (count = 12) => {
+        const generateMonths = (countBack = 24, countForward = 3) => {
             const months = [];
             const today = new Date();
             
-            for (let i = 0; i < count; i++) {
+            // Майбутні місяці
+            for (let i = countForward; i > 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+                const key = getMonthKeyFromDate(d);
+                months.push({
+                    key: key,
+                    label: formatMonthLabel(key),
+                    isCurrent: false,
+                    isFuture: true
+                });
+            }
+            
+            // Поточний та минулі місяці
+            for (let i = 0; i < countBack; i++) {
                 const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
                 const key = getMonthKeyFromDate(d);
                 months.push({
                     key: key,
                     label: formatMonthLabel(key),
-                    isCurrent: i === 0
+                    isCurrent: i === 0,
+                    isFuture: false
                 });
             }
             return months;
         };
 
-        const MONTHS_CACHE = generateMonths(12);
+        const MONTHS_CACHE = generateMonths(24, 3);
 
         const isWeekFilled = (weekKey, rows) => {
             return rows.some(row => {
@@ -1031,17 +1064,36 @@
                                     onChange={(e) => onDateChange(e.target.value)}
                                     disabled={!editable}
                                     className="font-bold text-base text-gray-900 bg-white border border-gray-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-primary-200 w-full"
-                                    style={{ maxWidth: '160px' }}
+                                    style={{ maxWidth: '180px' }}
                                 >
                                     <option value="">{periodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}</option>
-                                    {periods.map(period => {
+                                    {periods.filter(p => p.isFuture).length > 0 && (
+                                        <optgroup label="→ Майбутні">
+                                            {periods.filter(p => p.isFuture).map(period => (
+                                                <option key={period.key} value={period.key}>
+                                                    {period.label}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    {periods.filter(p => p.isCurrent).map(period => {
                                         const status = getPeriodStatus(period.key);
                                         return (
                                             <option key={period.key} value={period.key}>
-                                                {period.label} {period.isCurrent ? '(зараз)' : ''} {status === 'filled' ? 'ok' : ''}
+                                                ● {period.label} (зараз) {status === 'filled' ? '✓' : ''}
                                             </option>
                                         );
                                     })}
+                                    <optgroup label="← Минулі">
+                                        {periods.filter(p => !p.isCurrent && !p.isFuture).map(period => {
+                                            const status = getPeriodStatus(period.key);
+                                            return (
+                                                <option key={period.key} value={period.key}>
+                                                    {period.label} {status === 'filled' ? '✓' : ''}
+                                                </option>
+                                            );
+                                        })}
+                                    </optgroup>
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">{columns.length} показників</p>
                             </div>
@@ -1390,19 +1442,35 @@
                                                 className="w-full px-2 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:border-primary-400 focus:ring-1 focus:ring-primary-200 cursor-pointer"
                                             >
                                                 <option value="">{periodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}</option>
-                                                {periods.map(period => {
+                                                {periods.filter(p => p.isFuture).length > 0 && (
+                                                    <optgroup label="→ Майбутні">
+                                                        {periods.filter(p => p.isFuture).map(period => (
+                                                            <option key={period.key} value={period.key}>
+                                                                {period.label}
+                                                            </option>
+                                                        ))}
+                                                    </optgroup>
+                                                )}
+                                                {periods.filter(p => p.isCurrent).map(period => {
                                                     const status = getPeriodStatus(period.key);
                                                     const isCurrentRow = currentPeriodKey === period.key;
                                                     return (
-                                                        <option 
-                                                            key={period.key} 
-                                                            value={period.key}
-                                                            className={status === 'filled' && !isCurrentRow ? 'text-gray-400' : ''}
-                                                        >
-                                                            {period.label} {period.isCurrent ? '(поточний)' : ''} {status === 'filled' && !isCurrentRow ? 'ok' : ''}
+                                                        <option key={period.key} value={period.key}>
+                                                            ● {period.label} (зараз) {status === 'filled' && !isCurrentRow ? '✓' : ''}
                                                         </option>
                                                     );
                                                 })}
+                                                <optgroup label="← Минулі (рік)">
+                                                    {periods.filter(p => !p.isCurrent && !p.isFuture).map(period => {
+                                                        const status = getPeriodStatus(period.key);
+                                                        const isCurrentRow = currentPeriodKey === period.key;
+                                                        return (
+                                                            <option key={period.key} value={period.key}>
+                                                                {period.label} {status === 'filled' && !isCurrentRow ? '✓' : ''}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </optgroup>
                                             </select>
                                         </td>
                                         {columns.map(col => {
@@ -3361,6 +3429,9 @@ ${aiSettings.businessContext}
             const [activeTab, setActiveTab] = useState('stats');
             const [showQuickActions, setShowQuickActions] = useState(false);
             const [showAddStatsModal, setShowAddStatsModal] = useState(false);
+            const [showAddPeriodModal, setShowAddPeriodModal] = useState(false);
+            const [addPeriodType, setAddPeriodType] = useState('weekly');
+            const [selectedAddPeriod, setSelectedAddPeriod] = useState('');
             const [showEditColumnModal, setShowEditColumnModal] = useState(false);
             const [showTeamModal, setShowTeamModal] = useState(false);
             const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
@@ -4134,33 +4205,34 @@ ${aiSettings.businessContext}
             };
             
             const addRow = (periodType = 'weekly') => {
+                // Відкриваємо модал для вибору періоду
+                setAddPeriodType(periodType);
                 if (periodType === 'monthly') {
-                    const currentMonthKey = getMonthKeyFromDate(new Date());
-                    const newRow = { 
-                        id: Date.now().toString(), 
-                        isTarget: false, 
-                        periodType: 'monthly',
-                        date: currentMonthKey, 
-                        values: {}, 
-                        targets: {}, 
-                        comments: {} 
-                    };
-                    setRows([...rows, newRow]);
-                    toast.success('Додано місячний запис');
+                    setSelectedAddPeriod(getMonthKeyFromDate(new Date()));
                 } else {
-                    const currentWeekKey = getWeekKey(new Date());
-                    const newRow = { 
-                        id: Date.now().toString(), 
-                        isTarget: false, 
-                        periodType: 'weekly',
-                        date: currentWeekKey, 
-                        values: {}, 
-                        targets: {}, 
-                        comments: {} 
-                    };
-                    setRows([...rows, newRow]);
-                    toast.success('Додано тижневий запис');
+                    setSelectedAddPeriod(getWeekKey(new Date()));
                 }
+                setShowAddPeriodModal(true);
+            };
+            
+            const confirmAddPeriod = () => {
+                if (!selectedAddPeriod) {
+                    toast.error('Оберіть період');
+                    return;
+                }
+                
+                const newRow = { 
+                    id: Date.now().toString(), 
+                    isTarget: false, 
+                    periodType: addPeriodType,
+                    date: selectedAddPeriod, 
+                    values: {}, 
+                    targets: {}, 
+                    comments: {} 
+                };
+                setRows([...rows, newRow]);
+                setShowAddPeriodModal(false);
+                toast.success(addPeriodType === 'monthly' ? 'Додано місяць' : 'Додано тиждень');
             };
             
             const deleteRow = (id) => {
@@ -5729,6 +5801,79 @@ ${aiSettings.businessContext}
                                     💡 Підтримувані формати: .xlsx, .xls, .csv<br/>
                                     Для найкращого результату використовуйте файл, експортований з цієї системи
                                 </p>
+                            </div>
+                        </div>
+                    </Modal>
+                    
+                    {/* Add Period Modal */}
+                    <Modal isOpen={showAddPeriodModal} onClose={() => setShowAddPeriodModal(false)} title={addPeriodType === 'monthly' ? 'Додати місяць' : 'Додати тиждень'}>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    {addPeriodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}
+                                </label>
+                                <select 
+                                    value={selectedAddPeriod}
+                                    onChange={(e) => setSelectedAddPeriod(e.target.value)}
+                                    className="select-field w-full text-base"
+                                >
+                                    <option value="">-- Оберіть --</option>
+                                    {addPeriodType === 'monthly' ? (
+                                        <>
+                                            {MONTHS_CACHE.filter(p => p.isFuture).length > 0 && (
+                                                <optgroup label="→ Майбутні">
+                                                    {MONTHS_CACHE.filter(p => p.isFuture).map(period => (
+                                                        <option key={period.key} value={period.key}>{period.label}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {MONTHS_CACHE.filter(p => p.isCurrent).map(period => (
+                                                <option key={period.key} value={period.key}>● {period.label} (зараз)</option>
+                                            ))}
+                                            <optgroup label="← Минулі">
+                                                {MONTHS_CACHE.filter(p => !p.isCurrent && !p.isFuture).map(period => (
+                                                    <option key={period.key} value={period.key}>{period.label}</option>
+                                                ))}
+                                            </optgroup>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {WEEKS_CACHE.filter(p => p.isFuture).length > 0 && (
+                                                <optgroup label="→ Майбутні">
+                                                    {WEEKS_CACHE.filter(p => p.isFuture).map(period => (
+                                                        <option key={period.key} value={period.key}>{period.label}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {WEEKS_CACHE.filter(p => p.isCurrent).map(period => (
+                                                <option key={period.key} value={period.key}>● {period.label} (зараз)</option>
+                                            ))}
+                                            <optgroup label="← Минулі (рік)">
+                                                {WEEKS_CACHE.filter(p => !p.isCurrent && !p.isFuture).map(period => (
+                                                    <option key={period.key} value={period.key}>{period.label}</option>
+                                                ))}
+                                            </optgroup>
+                                        </>
+                                    )}
+                                </select>
+                            </div>
+                            
+                            <div className="p-3 bg-gray-50 rounded-xl text-sm text-gray-600">
+                                <p className="flex items-center gap-2">
+                                    <Icons.Info className="w-4 h-4" />
+                                    {addPeriodType === 'monthly' 
+                                        ? 'Доступно 24 місяці назад та 3 вперед' 
+                                        : 'Доступно 52 тижні назад та 4 вперед'}
+                                </p>
+                            </div>
+                            
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowAddPeriodModal(false)} className="btn btn-secondary flex-1">
+                                    Скасувати
+                                </button>
+                                <button onClick={confirmAddPeriod} disabled={!selectedAddPeriod} className="btn btn-primary flex-1">
+                                    <Icons.Plus className="w-4 h-4" />Додати
+                                </button>
                             </div>
                         </div>
                     </Modal>
