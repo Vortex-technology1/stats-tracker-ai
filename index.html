@@ -4295,6 +4295,243 @@ ${aiSettings.businessContext}
                 XLSX.writeFile(wb, `statistics_${companyName || 'export'}_${new Date().toISOString().split('T')[0]}.xlsx`);
                 toast.success(t.export);
             };
+            
+            // Імпорт з Excel
+            const [showImportModal, setShowImportModal] = useState(false);
+            const [importPreview, setImportPreview] = useState(null);
+            const fileInputRef = React.useRef(null);
+            
+            const handleFileSelect = async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                
+                try {
+                    const data = await file.arrayBuffer();
+                    const wb = XLSX.read(data);
+                    
+                    // Парсимо дані
+                    const preview = { columns: [], rows: [], weeklyCount: 0, monthlyCount: 0 };
+                    
+                    // Читаємо лист "Тижневі" або перший лист
+                    const weeklySheet = wb.Sheets['Тижневі'] || wb.Sheets[wb.SheetNames[0]];
+                    if (weeklySheet) {
+                        const weeklyData = XLSX.utils.sheet_to_json(weeklySheet, { header: 1 });
+                        if (weeklyData.length >= 2) {
+                            const headers = weeklyData[0];
+                            const responsibles = weeklyData[1];
+                            const targets = weeklyData[2];
+                            
+                            // Створюємо колонки (пропускаємо перший стовпець - дата)
+                            for (let i = 1; i < headers.length; i++) {
+                                if (headers[i]) {
+                                    preview.columns.push({
+                                        id: `col${i}`,
+                                        name: String(headers[i]),
+                                        responsible: responsibles?.[i] !== 'Відповідальний' ? String(responsibles?.[i] || '') : '',
+                                        period: 'weekly',
+                                        format: detectFormat(String(headers[i])),
+                                        importance: 'medium',
+                                        visibleToEmployees: []
+                                    });
+                                }
+                            }
+                            
+                            // Зчитуємо рядки даних (починаємо з 3-го рядка, пропускаючи ПЛАН)
+                            const startRow = responsibles?.[0] === 'Відповідальний' ? (targets?.[0] === 'ПЛАН' ? 3 : 2) : 1;
+                            for (let r = startRow; r < weeklyData.length; r++) {
+                                const rowData = weeklyData[r];
+                                if (!rowData || !rowData[0]) continue;
+                                
+                                const values = {};
+                                for (let c = 1; c < rowData.length && c <= preview.columns.length; c++) {
+                                    values[`col${c}`] = String(rowData[c] || '');
+                                }
+                                
+                                // Парсимо дату з першого стовпця
+                                const dateStr = String(rowData[0]);
+                                const weekKey = parseWeekFromLabel(dateStr);
+                                
+                                preview.rows.push({
+                                    id: `row${preview.rows.length + 1}`,
+                                    isTarget: false,
+                                    periodType: 'weekly',
+                                    date: weekKey || getWeekKey(new Date()),
+                                    values,
+                                    targets: {},
+                                    comments: {}
+                                });
+                                preview.weeklyCount++;
+                            }
+                            
+                            // Зчитуємо плани
+                            if (targets?.[0] === 'ПЛАН') {
+                                const targetValues = {};
+                                for (let c = 1; c < targets.length && c <= preview.columns.length; c++) {
+                                    if (targets[c]) targetValues[`col${c}`] = String(targets[c]);
+                                }
+                                preview.rows.forEach(row => {
+                                    if (row.periodType === 'weekly') row.targets = { ...targetValues };
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Читаємо лист "Місячні"
+                    const monthlySheet = wb.Sheets['Місячні'];
+                    if (monthlySheet) {
+                        const monthlyData = XLSX.utils.sheet_to_json(monthlySheet, { header: 1 });
+                        if (monthlyData.length >= 2) {
+                            const headers = monthlyData[0];
+                            const responsibles = monthlyData[1];
+                            const targets = monthlyData[2];
+                            const colOffset = preview.columns.length;
+                            
+                            // Додаємо місячні колонки
+                            for (let i = 1; i < headers.length; i++) {
+                                if (headers[i]) {
+                                    preview.columns.push({
+                                        id: `col${colOffset + i}`,
+                                        name: String(headers[i]),
+                                        responsible: responsibles?.[i] !== 'Відповідальний' ? String(responsibles?.[i] || '') : '',
+                                        period: 'monthly',
+                                        format: detectFormat(String(headers[i])),
+                                        importance: 'medium',
+                                        visibleToEmployees: []
+                                    });
+                                }
+                            }
+                            
+                            // Зчитуємо місячні дані
+                            const startRow = responsibles?.[0] === 'Відповідальний' ? (targets?.[0] === 'ПЛАН' ? 3 : 2) : 1;
+                            for (let r = startRow; r < monthlyData.length; r++) {
+                                const rowData = monthlyData[r];
+                                if (!rowData || !rowData[0]) continue;
+                                
+                                const values = {};
+                                for (let c = 1; c < rowData.length; c++) {
+                                    values[`col${colOffset + c}`] = String(rowData[c] || '');
+                                }
+                                
+                                const dateStr = String(rowData[0]);
+                                const monthKey = parseMonthFromLabel(dateStr);
+                                
+                                preview.rows.push({
+                                    id: `month${preview.monthlyCount + 1}`,
+                                    isTarget: false,
+                                    periodType: 'monthly',
+                                    date: monthKey || getMonthKeyFromDate(new Date()),
+                                    values,
+                                    targets: {},
+                                    comments: {}
+                                });
+                                preview.monthlyCount++;
+                            }
+                            
+                            // Плани для місячних
+                            if (targets?.[0] === 'ПЛАН') {
+                                const targetValues = {};
+                                for (let c = 1; c < targets.length; c++) {
+                                    if (targets[c]) targetValues[`col${colOffset + c}`] = String(targets[c]);
+                                }
+                                preview.rows.forEach(row => {
+                                    if (row.periodType === 'monthly') row.targets = { ...targetValues };
+                                });
+                            }
+                        }
+                    }
+                    
+                    setImportPreview(preview);
+                    setShowImportModal(true);
+                } catch (err) {
+                    console.error('Import error:', err);
+                    toast.error('Помилка читання файлу: ' + err.message);
+                }
+                
+                // Reset input
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            };
+            
+            const detectFormat = (name) => {
+                const lower = name.toLowerCase();
+                if (lower.includes('%') || lower.includes('конверсія') || lower.includes('roi') || lower.includes('маржа')) return 'percent';
+                if (lower.includes('$') || lower.includes('usd') || lower.includes('долар')) return 'usd';
+                if (lower.includes('€') || lower.includes('eur') || lower.includes('євро')) return 'eur';
+                if (lower.includes('грн') || lower.includes('₴') || lower.includes('дохід') || lower.includes('виручка') || lower.includes('прибуток') || lower.includes('витрат') || lower.includes('бюджет') || lower.includes('чек') || lower.includes('вартість') || lower.includes('собівартість') || lower.includes('сировин')) return 'uah';
+                return 'number';
+            };
+            
+            const parseWeekFromLabel = (label) => {
+                // Формат: "09.12 - 15.12" або "Тиждень 50" або "2024-W50"
+                const match = label.match(/(\d{2})\.(\d{2})\s*-\s*(\d{2})\.(\d{2})/);
+                if (match) {
+                    const year = new Date().getFullYear();
+                    const startDate = new Date(year, parseInt(match[2]) - 1, parseInt(match[1]));
+                    return getWeekKey(startDate);
+                }
+                const weekMatch = label.match(/W?(\d{1,2})/i);
+                if (weekMatch) {
+                    const weekNum = parseInt(weekMatch[1]);
+                    const year = new Date().getFullYear();
+                    return `${year}-W${String(weekNum).padStart(2, '0')}`;
+                }
+                return null;
+            };
+            
+            const parseMonthFromLabel = (label) => {
+                // Формат: "Грудень 2024" або "12.2024" або "2024-12"
+                const months = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
+                const lower = label.toLowerCase();
+                for (let i = 0; i < months.length; i++) {
+                    if (lower.includes(months[i])) {
+                        const yearMatch = label.match(/(\d{4})/);
+                        const year = yearMatch ? parseInt(yearMatch[1]) : new Date().getFullYear();
+                        return `${year}-${String(i + 1).padStart(2, '0')}`;
+                    }
+                }
+                const numMatch = label.match(/(\d{1,2})[\.\/](\d{4})/);
+                if (numMatch) {
+                    return `${numMatch[2]}-${String(numMatch[1]).padStart(2, '0')}`;
+                }
+                const isoMatch = label.match(/(\d{4})-(\d{2})/);
+                if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}`;
+                return null;
+            };
+            
+            const confirmImport = (mode) => {
+                if (!importPreview) return;
+                
+                if (mode === 'replace') {
+                    setColumns(importPreview.columns);
+                    setRows(importPreview.rows);
+                } else {
+                    // Merge - додаємо нові колонки та рядки
+                    const existingColNames = columns.map(c => c.name.toLowerCase());
+                    const newColumns = importPreview.columns.filter(c => !existingColNames.includes(c.name.toLowerCase()));
+                    
+                    // Оновлюємо ID нових колонок
+                    const maxColId = Math.max(...columns.map(c => parseInt(c.id.replace('col', '')) || 0), 0);
+                    newColumns.forEach((col, i) => {
+                        col.id = `col${maxColId + i + 1}`;
+                    });
+                    
+                    setColumns([...columns, ...newColumns]);
+                    
+                    // Додаємо рядки з унікальними датами
+                    const existingDates = new Set(rows.map(r => `${r.periodType}-${r.date}`));
+                    const newRows = importPreview.rows.filter(r => !existingDates.has(`${r.periodType}-${r.date}`));
+                    
+                    const maxRowId = Math.max(...rows.map(r => parseInt(r.id.replace('row', '').replace('month', '')) || 0), 0);
+                    newRows.forEach((row, i) => {
+                        row.id = row.periodType === 'monthly' ? `month${maxRowId + i + 1}` : `row${maxRowId + i + 1}`;
+                    });
+                    
+                    setRows([...rows, ...newRows]);
+                }
+                
+                setShowImportModal(false);
+                setImportPreview(null);
+                toast.success(`Імпортовано: ${importPreview.columns.length} показників, ${importPreview.weeklyCount} тижнів, ${importPreview.monthlyCount} місяців`);
+            };
 
             // ==================== RENDER ====================
             if (authLoading) return (
@@ -4307,6 +4544,15 @@ ${aiSettings.businessContext}
 
             return (
                 <div className="min-h-screen bg-gray-50">
+                    {/* Hidden file input for import */}
+                    <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                    />
+                    
                     {/* Save indicator */}
                     {saveStatus && (
                         <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-xl text-sm font-semibold shadow-lg animate-slide-down
@@ -4372,7 +4618,8 @@ ${aiSettings.businessContext}
                                         
                                         {/* Common buttons */}
                                         <button onClick={() => setShowDemoModal(true)} className="btn btn-sm btn-secondary" title="Демо"><Icons.Play className="w-4 h-4" /></button>
-                                        <button onClick={exportToExcel} className="btn btn-sm btn-secondary" title="Excel"><Icons.Download className="w-4 h-4" /></button>
+                                        <button onClick={() => fileInputRef.current?.click()} className="btn btn-sm btn-secondary" title="Імпорт з Excel"><Icons.Upload className="w-4 h-4" /></button>
+                                        <button onClick={exportToExcel} className="btn btn-sm btn-secondary" title="Експорт в Excel"><Icons.Download className="w-4 h-4" /></button>
                                         
                                         {/* Tools dropdown */}
                                         {isOwner && (
@@ -4788,6 +5035,9 @@ ${aiSettings.businessContext}
                             <div className="pt-4 pb-1">
                                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">Інше</p>
                             </div>
+                            <button onClick={() => { fileInputRef.current?.click(); setShowMenu(false); }} className="btn btn-secondary w-full justify-start">
+                                <Icons.Upload className="w-5 h-5" />Імпорт з Excel
+                            </button>
                             <button onClick={() => { exportToExcel(); setShowMenu(false); }} className="btn btn-primary w-full justify-start">
                                 <Icons.Download className="w-5 h-5" />Експорт в Excel
                             </button>
@@ -5356,6 +5606,94 @@ ${aiSettings.businessContext}
                         </Modal>
                     )}
                     
+                    {/* Import Modal */}
+                    <Modal isOpen={showImportModal} onClose={() => { setShowImportModal(false); setImportPreview(null); }} title="📥 Імпорт з Excel">
+                        <div className="space-y-4">
+                            {importPreview ? (
+                                <>
+                                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                                        <h4 className="font-bold text-green-800 mb-2">✅ Файл розпізнано</h4>
+                                        <div className="grid grid-cols-3 gap-4 text-sm">
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-green-600">{importPreview.columns.length}</div>
+                                                <div className="text-green-700">показників</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-blue-600">{importPreview.weeklyCount}</div>
+                                                <div className="text-blue-700">тижнів</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-2xl font-bold text-purple-600">{importPreview.monthlyCount}</div>
+                                                <div className="text-purple-700">місяців</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {importPreview.columns.length > 0 && (
+                                        <div className="p-3 bg-gray-50 rounded-xl">
+                                            <p className="text-xs font-medium text-gray-500 mb-2">Знайдені показники:</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {importPreview.columns.slice(0, 10).map((col, i) => (
+                                                    <span key={i} className="px-2 py-1 bg-white rounded-lg text-xs border">{col.name}</span>
+                                                ))}
+                                                {importPreview.columns.length > 10 && (
+                                                    <span className="px-2 py-1 text-xs text-gray-400">+{importPreview.columns.length - 10} ще</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {columns.length > 0 && (
+                                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                                            <p className="text-sm text-amber-700 flex items-center gap-2">
+                                                <Icons.AlertTriangle className="w-4 h-4" />
+                                                У вас вже є {columns.length} показників та {rows.filter(r => !r.isTarget).length} записів
+                                            </p>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button 
+                                            onClick={() => confirmImport('replace')}
+                                            className="btn btn-primary"
+                                        >
+                                            <Icons.RefreshCw className="w-4 h-4" />
+                                            Замінити все
+                                        </button>
+                                        {columns.length > 0 && (
+                                            <button 
+                                                onClick={() => confirmImport('merge')}
+                                                className="btn btn-secondary"
+                                            >
+                                                <Icons.Plus className="w-4 h-4" />
+                                                Додати до існуючих
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <Icons.Upload className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                    <p className="text-gray-500 mb-4">Виберіть файл Excel для імпорту</p>
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="btn btn-primary"
+                                    >
+                                        <Icons.Upload className="w-4 h-4" />
+                                        Вибрати файл
+                                    </button>
+                                </div>
+                            )}
+                            
+                            <div className="pt-3 border-t">
+                                <p className="text-xs text-gray-400">
+                                    💡 Підтримувані формати: .xlsx, .xls, .csv<br/>
+                                    Для найкращого результату використовуйте файл, експортований з цієї системи
+                                </p>
+                            </div>
+                        </div>
+                    </Modal>
+                    
                     {/* Demo Modal */}
                     <Modal isOpen={showDemoModal} onClose={() => setShowDemoModal(false)} title="🎮 Оберіть тип бізнесу">
                         <div className="space-y-3">
@@ -5398,45 +5736,6 @@ ${aiSettings.businessContext}
                     </Modal>
                     
                     {/* Confirm dialog */}
-                    {/* Demo selection modal */}
-                    <Modal isOpen={showDemoModal} onClose={() => setShowDemoModal(false)} title="🎮 Виберіть тип бізнесу для демо">
-                        <div className="space-y-3">
-                            <p className="text-sm text-gray-600 mb-4">
-                                Завантажте реалістичні демо-дані для тестування AI-аналізу та функціоналу системи
-                            </p>
-                            
-                            {columns.length > 0 && (
-                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 mb-4">
-                                    <Icons.AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                                    <p className="text-sm text-amber-700">Поточні дані будуть замінені на демонстраційні</p>
-                                </div>
-                            )}
-                            
-                            {Object.entries(DEMO_DATA).map(([key, demo]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => loadDemoData(key)}
-                                    className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl hover:border-primary-500 hover:bg-primary-50 transition-all text-left group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-2xl">{demo.name.split(' ')[0]}</div>
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-gray-900 group-hover:text-primary-700">{demo.name.split(' ').slice(1).join(' ')}</h3>
-                                            <p className="text-sm text-gray-500">{demo.companyName}</p>
-                                        </div>
-                                        <Icons.ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-transform" />
-                                    </div>
-                                </button>
-                            ))}
-                            
-                            <div className="pt-3 border-t border-gray-100 mt-4">
-                                <p className="text-xs text-gray-400 text-center">
-                                    9 показників • 6 тижнів даних • Заповнений контекст для AI
-                                </p>
-                            </div>
-                        </div>
-                    </Modal>
-                    
                     <ConfirmDialog isOpen={confirmDialog.isOpen} onClose={() => setConfirmDialog({ isOpen: false })} onConfirm={confirmDialog.onConfirm} title={confirmDialog.title} message={confirmDialog.message} />
                 </div>
             );
