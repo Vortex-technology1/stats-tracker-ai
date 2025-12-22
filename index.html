@@ -165,22 +165,15 @@
             text-align: center;
             min-width: 45px;
         }
-        .mobile-excel-table th.vertical-header {
-            height: 70px;
+        .mobile-excel-table th.wrap-header {
             min-width: 40px;
-            max-width: 50px;
-            white-space: nowrap;
+            max-width: 55px;
             vertical-align: bottom;
-            padding-bottom: 6px;
-        }
-        .mobile-excel-table th.vertical-header span {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            transform: rotate(180deg);
-            display: inline-block;
-            max-height: 60px;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            padding: 4px 2px;
+            font-size: 8px;
+            line-height: 1.15;
+            word-wrap: break-word;
+            white-space: normal;
         }
         .mobile-excel-table th.sticky-col { 
             position: sticky; 
@@ -225,63 +218,63 @@
         
         /* Stats Table - десктоп */
         .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-        .stats-table th { background: #f9fafb; padding: 4px 6px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.2px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
-        .stats-table td { padding: 3px 6px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 12px; }
+        .stats-table th { background: #f9fafb; padding: 4px 6px; text-align: center; font-weight: 600; font-size: 9px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+        .stats-table td { padding: 3px 4px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 12px; text-align: center; }
         
-        /* Vertical headers for stats table */
-        .stats-table th.vertical-header {
+        /* Wrap headers for stats table */
+        .stats-table th.wrap-header {
             vertical-align: bottom;
-            padding: 6px 4px;
+            padding: 4px 3px;
             text-align: center;
             position: relative;
+            text-transform: none;
+            letter-spacing: 0;
+            line-height: 1.2;
         }
-        .stats-table .vertical-header-content {
+        .stats-table .header-content {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-end;
             height: 100%;
-        }
-        .stats-table .vertical-text {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            transform: rotate(180deg);
-            display: flex;
-            align-items: center;
             gap: 2px;
-            max-height: 90px;
-            overflow: hidden;
-            font-size: 9px;
-            line-height: 1.2;
-            text-transform: none;
-            letter-spacing: 0;
         }
-        .stats-table .vertical-name {
+        .stats-table .header-name {
+            font-size: 9px;
+            font-weight: 600;
+            color: #374151;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            text-align: center;
+            line-height: 1.15;
+        }
+        .stats-table .header-responsible {
+            font-size: 8px;
+            color: #22c55e;
+            font-weight: 500;
+            background: #f0fdf4;
+            padding: 1px 4px;
+            border-radius: 3px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-height: 80px;
+            max-width: 100%;
         }
-        .stats-table .vertical-responsible {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            transform: rotate(180deg);
-            font-size: 8px;
-            color: #9ca3af;
-            font-weight: 400;
-            margin-top: 2px;
-            max-height: 50px;
-            overflow: hidden;
-        }
-        .stats-table .vertical-edit-btn {
+        .stats-table .header-edit-btn {
             position: absolute;
             top: 2px;
             right: 2px;
             padding: 2px;
             color: #9ca3af;
             border-radius: 3px;
+            opacity: 0;
+            transition: opacity 0.15s;
         }
-        .stats-table .vertical-edit-btn:hover {
+        .stats-table th:hover .header-edit-btn {
+            opacity: 1;
+        }
+        .stats-table .header-edit-btn:hover {
             background: #e5e7eb;
             color: #4b5563;
         }
@@ -1590,7 +1583,7 @@
                         <table className="stats-table">
                             <thead>
                                 <tr>
-                                    <th className="sticky-col" style={{ minWidth: 80, height: 120, verticalAlign: 'bottom' }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖД.'}</th>
+                                    <th className="sticky-col" style={{ minWidth: 75, verticalAlign: 'bottom' }}>{periodType === 'monthly' ? 'Місяць' : 'Тиждень'}</th>
                                     {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
                                         const isDragging = draggedCol === col.id;
@@ -1598,32 +1591,27 @@
                                         return (
                                             <th 
                                                 key={col.id} 
-                                                style={{ minWidth: 45, maxWidth: 60, height: 120 }}
+                                                style={{ minWidth: 50, maxWidth: 70 }}
                                                 draggable={editable}
                                                 onDragStart={(e) => handleDragStart(e, col.id)}
                                                 onDragOver={(e) => handleDragOver(e, col.id)}
                                                 onDragLeave={handleDragLeave}
                                                 onDrop={(e) => handleDrop(e, col.id)}
                                                 onDragEnd={handleDragEnd}
-                                                className={`vertical-header ${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                                                className={`wrap-header ${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
                                             >
-                                                <div className="vertical-header-content">
-                                                    <div className="vertical-text">
-                                                        {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
-                                                        <span className="vertical-name">{col.name}</span>
+                                                <div className="header-content">
+                                                    {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
+                                                    <span className="header-name">
+                                                        {col.name}
                                                         {col.format && col.format !== 'number' && (
-                                                            <span className="text-gray-400 ml-0.5">
-                                                                {col.format === 'percent' && '%'}
-                                                                {col.format === 'uah' && '₴'}
-                                                                {col.format === 'usd' && '$'}
-                                                                {col.format === 'eur' && '€'}
-                                                            </span>
+                                                            <span className="text-gray-400"> {col.format === 'percent' ? '%' : col.format === 'uah' ? '₴' : col.format === 'usd' ? '$' : '€'}</span>
                                                         )}
-                                                    </div>
-                                                    {col.responsible && <div className="vertical-responsible">{col.responsible}</div>}
+                                                    </span>
+                                                    {col.responsible && <span className="header-responsible">{col.responsible}</span>}
                                                 </div>
                                                 {editable && (
-                                                    <button onClick={() => onEditColumn(col)} className="vertical-edit-btn">
+                                                    <button onClick={() => onEditColumn(col)} className="header-edit-btn">
                                                         <Icons.Settings className="w-3 h-3" />
                                                     </button>
                                                 )}
@@ -5137,9 +5125,7 @@ ${aiSettings.businessContext}
                                                 <tr>
                                                     <th className="sticky-col">Тижд.</th>
                                                     {weeklyColumns.map(col => (
-                                                        <th key={col.id} className="vertical-header">
-                                                            <span>{col.name}</span>
-                                                        </th>
+                                                        <th key={col.id} className="wrap-header">{col.name}</th>
                                                     ))}
                                                     {isOwner && <th></th>}
                                                 </tr>
@@ -5201,9 +5187,7 @@ ${aiSettings.businessContext}
                                                 <tr>
                                                     <th className="sticky-col">Місяць</th>
                                                     {monthlyColumns.map(col => (
-                                                        <th key={col.id} className="vertical-header">
-                                                            <span>{col.name}</span>
-                                                        </th>
+                                                        <th key={col.id} className="wrap-header">{col.name}</th>
                                                     ))}
                                                     {isOwner && <th></th>}
                                                 </tr>
