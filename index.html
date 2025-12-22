@@ -137,21 +137,96 @@
         }
         .sheet-handle { width: 40px; height: 5px; background: #d1d5db; border-radius: 10px; margin: 10px auto 20px; }
         
-        /* Stats Card - мобільна картка */
+        /* Stats Card - мобільна картка (компактна як Excel) */
         .stats-card { 
             background: white; 
-            border-radius: 20px; 
-            padding: 18px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
-            border: 1px solid #f3f4f6;
-            transition: all 0.2s;
+            border-radius: 12px; 
+            padding: 10px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+            border: 1px solid #e5e7eb;
+            margin-bottom: 8px;
         }
-        .stats-card:active { transform: scale(0.99); background: #fafafa; }
+        .stats-card:active { transform: scale(0.995); background: #fafafa; }
+        
+        /* Mobile Excel Table */
+        .mobile-excel-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 11px;
+            min-width: max-content;
+        }
+        .mobile-excel-table th { 
+            background: #f3f4f6; 
+            padding: 4px 2px; 
+            font-weight: 600; 
+            font-size: 9px;
+            color: #6b7280; 
+            border: 1px solid #e5e7eb;
+            text-align: center;
+            min-width: 45px;
+        }
+        .mobile-excel-table th.vertical-header {
+            height: 70px;
+            min-width: 40px;
+            max-width: 50px;
+            white-space: nowrap;
+            vertical-align: bottom;
+            padding-bottom: 6px;
+        }
+        .mobile-excel-table th.vertical-header span {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            display: inline-block;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .mobile-excel-table th.sticky-col { 
+            position: sticky; 
+            left: 0; 
+            z-index: 2; 
+            background: #f3f4f6;
+            min-width: 70px;
+        }
+        .mobile-excel-table td { 
+            padding: 2px; 
+            border: 1px solid #e5e7eb; 
+            text-align: center;
+        }
+        .mobile-excel-table td.sticky-col { 
+            position: sticky; 
+            left: 0; 
+            z-index: 1; 
+            background: inherit;
+        }
+        .mobile-date-select {
+            width: 100%;
+            font-size: 9px;
+            padding: 2px;
+            border: none;
+            background: transparent;
+            text-align: center;
+        }
+        .mobile-cell-input {
+            width: 100%;
+            min-width: 35px;
+            font-size: 11px;
+            padding: 3px 2px;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-weight: 500;
+        }
+        .mobile-cell-input:focus {
+            outline: 2px solid #22c55e;
+            border-radius: 2px;
+        }
         
         /* Stats Table - десктоп */
-        .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .stats-table th { background: #f9fafb; padding: 14px 18px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
-        .stats-table td { padding: 14px 18px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+        .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+        .stats-table th { background: #f9fafb; padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+        .stats-table td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
         .stats-table tbody tr:nth-child(odd) td { background: #ffffff; }
         .stats-table tbody tr:nth-child(even) td { background: #f9fafb; }
         .stats-table tr:hover td { background: #f0fdf4 !important; }
@@ -1217,75 +1292,53 @@
             const hasAnyTarget = columns.some(col => row.targets?.[col.id]);
             
             return (
-                <div className={`stats-card animate-fade-in ${isEven ? 'bg-gray-50/50' : ''}`} style={isEven ? {borderLeft: '4px solid #e5e7eb'} : {borderLeft: periodType === 'monthly' ? '4px solid #3b82f6' : '4px solid #22c55e'}}>
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${periodType === 'monthly' ? 'from-blue-100 to-blue-200' : 'from-gray-100 to-gray-200'} flex items-center justify-center`}>
-                                {periodType === 'monthly' ? (
-                                    <Icons.BarChart className="w-6 h-6 text-blue-600" />
-                                ) : (
-                                    <Icons.Calendar className="w-6 h-6 text-gray-600" />
-                                )}
-                            </div>
-                            <div className="flex-1">
-                                <select 
-                                    value={getCurrentPeriodKey()} 
-                                    onChange={(e) => onDateChange(e.target.value)}
-                                    disabled={!editable}
-                                    className="font-bold text-base text-gray-900 bg-white border border-gray-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-primary-200 w-full"
-                                    style={{ maxWidth: '180px' }}
-                                >
-                                    <option value="">{periodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}</option>
-                                    {periods.filter(p => p.isFuture).length > 0 && (
-                                        <optgroup label="→ Майбутні">
-                                            {periods.filter(p => p.isFuture).map(period => (
-                                                <option key={period.key} value={period.key}>
-                                                    {period.label}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    )}
-                                    {periods.filter(p => p.isCurrent).map(period => {
-                                        const status = getPeriodStatus(period.key);
-                                        return (
-                                            <option key={period.key} value={period.key}>
-                                                ● {period.label} (зараз) {status === 'filled' ? '✓' : ''}
-                                            </option>
-                                        );
-                                    })}
-                                    <optgroup label="← Минулі">
-                                        {periods.filter(p => !p.isCurrent && !p.isFuture).map(period => {
-                                            const status = getPeriodStatus(period.key);
-                                            return (
-                                                <option key={period.key} value={period.key}>
-                                                    {period.label} {status === 'filled' ? '✓' : ''}
-                                                </option>
-                                            );
-                                        })}
+                <div className={`stats-card ${isEven ? 'bg-gray-50/50' : ''}`} style={{borderLeft: periodType === 'monthly' ? '3px solid #3b82f6' : '3px solid #22c55e'}}>
+                    {/* Compact Header */}
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <select 
+                                value={getCurrentPeriodKey()} 
+                                onChange={(e) => onDateChange(e.target.value)}
+                                disabled={!editable}
+                                className="font-semibold text-sm text-gray-900 bg-white border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-primary-200 max-w-[150px]"
+                            >
+                                <option value="">{periodType === 'monthly' ? 'Місяць' : 'Тиждень'}</option>
+                                {periods.filter(p => p.isFuture).length > 0 && (
+                                    <optgroup label="→ Майбутні">
+                                        {periods.filter(p => p.isFuture).map(period => (
+                                            <option key={period.key} value={period.key}>{period.label}</option>
+                                        ))}
                                     </optgroup>
-                                </select>
-                                <p className="text-xs text-gray-500 mt-1">{columns.length} показників</p>
-                            </div>
+                                )}
+                                {periods.filter(p => p.isCurrent).map(period => (
+                                    <option key={period.key} value={period.key}>● {period.label}</option>
+                                ))}
+                                <optgroup label="← Минулі">
+                                    {periods.filter(p => !p.isCurrent && !p.isFuture).map(period => (
+                                        <option key={period.key} value={period.key}>{period.label}</option>
+                                    ))}
+                                </optgroup>
+                            </select>
+                            <span className="text-xs text-gray-400">{columns.length} показ.</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => setShowTargets(!showTargets)} 
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${showTargets || hasAnyTarget ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}
-                                title="Показати/сховати план"
+                                className={`w-7 h-7 rounded flex items-center justify-center ${showTargets || hasAnyTarget ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}
+                                title="План"
                             >
-                                <Icons.Target className="w-5 h-5" />
+                                <Icons.Target className="w-3.5 h-3.5" />
                             </button>
                             {editable && (
-                                <button onClick={onDelete} className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                                    <Icons.Trash className="w-5 h-5 text-red-400" />
+                                <button onClick={onDelete} className="w-7 h-7 rounded bg-red-50 flex items-center justify-center">
+                                    <Icons.Trash className="w-3.5 h-3.5 text-red-400" />
                                 </button>
                             )}
                         </div>
                     </div>
                     
-                    {/* Values Grid - 2 колонки на десктопі */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                    {/* Compact Values Grid - як Excel */}
+                    <div className="space-y-1">
                         {displayCols.map(col => {
                             const progress = calculateProgress(col.id);
                             const colors = progress !== null ? getProgressColor(progress) : null;
@@ -1293,93 +1346,41 @@
                             const hasTarget = row.targets?.[col.id];
                             
                             return (
-                                <div key={col.id} className="bg-gray-50 rounded-xl p-2.5 sm:p-3">
-                                    {/* Metric header - компактний */}
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1">
-                                                <span className="font-medium text-gray-900 text-xs sm:text-sm truncate">{col.name}</span>
-                                                {col.format && col.format !== 'number' && (
-                                                    <span className="text-xs text-gray-400 flex-shrink-0">
-                                                        {col.format === 'percent' && '%'}
-                                                        {col.format === 'uah' && '₴'}
-                                                        {col.format === 'usd' && '$'}
-                                                        {col.format === 'eur' && '€'}
-                                                    </span>
-                                                )}
-                                                {hasComment && (
-                                                    <button onClick={() => setActiveComment(activeComment === col.id ? null : col.id)} className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                                        <Icons.MessageCircle className="w-2.5 h-2.5 text-blue-600" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            {col.responsible && <span className="text-xs text-gray-400">{col.responsible}</span>}
-                                        </div>
+                                <div key={col.id} className="flex items-center gap-2 py-1 border-b border-gray-100 last:border-0">
+                                    {/* Назва показника */}
+                                    <div className="flex-1 min-w-0">
+                                        <span className="text-xs text-gray-700 truncate block">{col.name}</span>
                                     </div>
                                     
-                                    {/* Inputs row: Plan + Fact - компактні */}
-                                    <div className="flex items-center gap-1.5">
-                                        {(showTargets || hasTarget) && (
-                                            <div className="flex-1">
-                                                <input
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={row.targets?.[col.id] || ''}
-                                                    onChange={(e) => onTargetChange(col.id, e.target.value)}
-                                                    className="w-full px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-center font-semibold text-sm text-amber-700 focus:border-amber-400 focus:ring-0"
-                                                    placeholder="План"
-                                                />
-                                            </div>
-                                        )}
-                                        <div className="flex-1">
-                                            <div className="relative">
-                                                <input
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={row.values?.[col.id] || ''}
-                                                    onChange={(e) => onValueChange(col.id, e.target.value)}
-                                                    className={`w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-center font-semibold text-sm focus:border-primary-500 focus:ring-0 ${col.format === 'usd' || col.format === 'eur' ? 'pl-5' : ''} ${col.format === 'percent' || col.format === 'uah' ? 'pr-5' : ''}`}
-                                                    placeholder="0"
-                                                />
-                                                {col.format === 'usd' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>}
-                                                {col.format === 'eur' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">€</span>}
-                                                {col.format === 'uah' && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₴</span>}
-                                                {col.format === 'percent' && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>}
-                                            </div>
-                                        </div>
+                                    {/* План (якщо є) */}
+                                    {(showTargets || hasTarget) && (
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={row.targets?.[col.id] || ''}
+                                            onChange={(e) => onTargetChange(col.id, e.target.value)}
+                                            className="w-16 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-center text-xs font-medium text-amber-700"
+                                            placeholder="План"
+                                        />
+                                    )}
+                                    
+                                    {/* Факт */}
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={row.values?.[col.id] || ''}
+                                            onChange={(e) => onValueChange(col.id, e.target.value)}
+                                            className={`w-20 px-1.5 py-0.5 bg-white border rounded text-center text-xs font-semibold ${progress !== null ? (progress >= 100 ? 'border-green-300 text-green-700' : progress >= 50 ? 'border-amber-300 text-amber-700' : 'border-red-300 text-red-700') : 'border-gray-200 text-gray-900'}`}
+                                            placeholder="0"
+                                        />
+                                        {col.format === 'percent' && <span className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">%</span>}
+                                        {col.format === 'uah' && <span className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">₴</span>}
                                     </div>
                                     
-                                    {/* Progress bar - компактний */}
+                                    {/* Прогрес */}
                                     {progress !== null && (
-                                        <div className="flex items-center gap-2 mt-1.5">
-                                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                <div className={`h-full rounded-full ${colors.bg}`} style={{ width: `${Math.min(progress, 100)}%` }} />
-                                            </div>
-                                            <span className={`text-xs font-bold ${colors.text}`}>{progress}%</span>
-                                        </div>
-                                    )}
-                                    
-                                    {/* Comment input */}
-                                    {activeComment === col.id && (
-                                        <div className="mt-2">
-                                            <input
-                                                type="text"
-                                                value={row.comments?.[col.id] || ''}
-                                                onChange={(e) => onCommentChange(col.id, e.target.value)}
-                                                className="w-full px-2 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:border-primary-500"
-                                                placeholder="Коментар..."
-                                            />
-                                        </div>
-                                    )}
-                                    
-                                    {/* Add comment button */}
-                                    {!hasComment && activeComment !== col.id && (
-                                        <button 
-                                            onClick={() => setActiveComment(col.id)} 
-                                            className="mt-2 text-xs text-gray-400 hover:text-gray-600"
-                                        >
-                                            + Коментар
-                                        </button>
+                                        <span className={`text-[10px] font-bold w-8 text-right ${colors.text}`}>{progress}%</span>
                                     )}
                                 </div>
                             );
@@ -1390,10 +1391,10 @@
                     {columns.length > 3 && (
                         <button 
                             onClick={() => setIsExpanded(!isExpanded)} 
-                            className="w-full mt-4 py-3 text-sm font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-xl flex items-center justify-center gap-2 transition-all"
+                            className="w-full mt-2 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded flex items-center justify-center gap-1"
                         >
-                            <Icons.ChevronDown className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                            {isExpanded ? 'Згорнути' : `Показати ще ${columns.length - 3}`}
+                            <Icons.ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            {isExpanded ? 'Згорнути' : `+${columns.length - 3}`}
                         </button>
                     )}
                 </div>
@@ -1531,7 +1532,7 @@
                         <table className="stats-table">
                             <thead>
                                 <tr>
-                                    <th className="sticky-col" style={{ minWidth: 170 }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖДЕНЬ'}</th>
+                                    <th className="sticky-col" style={{ minWidth: 120 }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖДЕНЬ'}</th>
                                     {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
                                         const isDragging = draggedCol === col.id;
@@ -1539,7 +1540,7 @@
                                         return (
                                             <th 
                                                 key={col.id} 
-                                                style={{ minWidth: 180 }}
+                                                style={{ minWidth: 100 }}
                                                 draggable={editable}
                                                 onDragStart={(e) => handleDragStart(e, col.id)}
                                                 onDragOver={(e) => handleDragOver(e, col.id)}
@@ -5059,112 +5060,147 @@ ${aiSettings.businessContext}
                             </div>
                         </header>
                         
-                        {/* Stats summary - компактні картки */}
+                        {/* Stats content */}
                         {activeTab === 'stats' && (
                         <>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            {[
-                                { label: t.columns, value: visibleColumns.length, icon: Icons.BarChart, color: 'text-blue-600 bg-blue-100' },
-                                { label: t.periods, value: dataRows.length, icon: Icons.Calendar, color: 'text-green-600 bg-green-100' },
-                                { label: t.employees, value: Object.keys(employees).length, icon: Icons.Users, color: 'text-purple-600 bg-purple-100' },
-                                { label: t.values, value: visibleColumns.length * dataRows.length, icon: Icons.Target, color: 'text-amber-600 bg-amber-100' },
-                            ].map((stat, i) => (
-                                <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-sm">
-                                    <div className={`w-6 h-6 rounded-md ${stat.color} flex items-center justify-center`}>
-                                        <stat.icon className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="font-bold text-gray-900">{stat.value}</span>
-                                    <span className="text-gray-500 text-xs">{stat.label}</span>
-                                </div>
-                            ))}
-                        </div>
-                        
                         {/* Action buttons (desktop) */}
                         {isOwner && (
-                            <div className="hidden sm:flex gap-3 mb-4">
-                                <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary"><Icons.Plus className="w-5 h-5" />{t.addStats}</button>
-                                <button onClick={() => addRow('weekly')} className="btn btn-secondary"><Icons.Calendar className="w-5 h-5" />+ Тижневий запис</button>
+                            <div className="hidden sm:flex gap-3 mb-3">
+                                <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary btn-sm"><Icons.Plus className="w-4 h-4" />{t.addStats}</button>
+                                <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm"><Icons.Calendar className="w-4 h-4" />+ Тиждень</button>
                                 {monthlyColumns.length > 0 && (
-                                    <button onClick={() => addRow('monthly')} className="btn btn-secondary"><Icons.BarChart className="w-5 h-5" />+ Місячний запис</button>
+                                    <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm"><Icons.BarChart className="w-4 h-4" />+ Місяць</button>
                                 )}
                             </div>
                         )}
                         
-                        {/* Mobile: Cards view */}
-                        <div className="sm:hidden space-y-6">
-                            {/* Тижневі показники (mobile) */}
+                        {/* Mobile: Table view (як Excel) */}
+                        <div className="sm:hidden">
+                            {/* Тижневі показники */}
                             {weeklyColumns.length > 0 && (
-                                <div>
-                                    <div className="flex items-center justify-between mb-3 px-1">
-                                        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                                            <Icons.Calendar className="w-4 h-4 text-primary-500" />
-                                            Тижневі
-                                        </h2>
+                                <div className="mb-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-gray-700">Тижневі</span>
                                         {isOwner && (
-                                            <button onClick={() => addRow('weekly')} className="text-sm text-primary-600 font-medium">+ Тиждень</button>
+                                            <button onClick={() => addRow('weekly')} className="text-xs text-primary-600">+ Тиждень</button>
                                         )}
                                     </div>
-                                    {weeklyRows.length > 0 ? (
-                                        weeklyRows.map((row, index) => (
-                                            <StatsCard 
-                                                key={row.id} 
-                                                row={row} 
-                                                columns={weeklyColumns} 
-                                                periodType="weekly"
-                                                editable
-                                                isEven={index % 2 === 1}
-                                                allRows={rows}
-                                                onDelete={() => deleteRow(row.id)} 
-                                                onDateChange={(date) => updateDate(row.id, date)}
-                                                onValueChange={(colId, value) => updateValue(row.id, colId, value)}
-                                                onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
-                                                onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
-                                                t={t}
-                                            />
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-6 text-gray-500">
-                                            Немає тижневих записів
-                                        </div>
-                                    )}
+                                    <div className="overflow-x-auto -mx-4 px-4">
+                                        <table className="mobile-excel-table">
+                                            <thead>
+                                                <tr>
+                                                    <th className="sticky-col">Тижд.</th>
+                                                    {weeklyColumns.map(col => (
+                                                        <th key={col.id} className="vertical-header">
+                                                            <span>{col.name}</span>
+                                                        </th>
+                                                    ))}
+                                                    {isOwner && <th></th>}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {weeklyRows.map((row, idx) => (
+                                                    <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                                        <td className="sticky-col">
+                                                            <select 
+                                                                value={getWeekKey(row.date) || ''} 
+                                                                onChange={(e) => updateDate(row.id, e.target.value)}
+                                                                className="mobile-date-select"
+                                                            >
+                                                                <option value="">--</option>
+                                                                {WEEKS_CACHE.slice(0, 20).map(p => (
+                                                                    <option key={p.key} value={p.key}>{p.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </td>
+                                                        {weeklyColumns.map(col => (
+                                                            <td key={col.id}>
+                                                                <input
+                                                                    type="text"
+                                                                    inputMode="decimal"
+                                                                    value={row.values?.[col.id] || ''}
+                                                                    onChange={(e) => updateValue(row.id, col.id, e.target.value)}
+                                                                    className="mobile-cell-input"
+                                                                    placeholder="0"
+                                                                />
+                                                            </td>
+                                                        ))}
+                                                        {isOwner && (
+                                                            <td>
+                                                                <button onClick={() => deleteRow(row.id)} className="text-red-400 p-1">
+                                                                    <Icons.Trash className="w-3 h-3" />
+                                                                </button>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
                             
-                            {/* Місячні показники (mobile) */}
+                            {/* Місячні показники */}
                             {monthlyColumns.length > 0 && (
-                                <div>
-                                    <div className="flex items-center justify-between mb-3 px-1">
-                                        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                                            <Icons.BarChart className="w-4 h-4 text-blue-500" />
-                                            Місячні
-                                        </h2>
+                                <div className="mb-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-gray-700">Місячні</span>
                                         {isOwner && (
-                                            <button onClick={() => addRow('monthly')} className="text-sm text-blue-600 font-medium">+ Місяць</button>
+                                            <button onClick={() => addRow('monthly')} className="text-xs text-blue-600">+ Місяць</button>
                                         )}
                                     </div>
-                                    {monthlyRows.length > 0 ? (
-                                        monthlyRows.map((row, index) => (
-                                            <StatsCard 
-                                                key={row.id} 
-                                                row={row} 
-                                                columns={monthlyColumns}
-                                                periodType="monthly"
-                                                editable
-                                                isEven={index % 2 === 1}
-                                                allRows={rows}
-                                                onDelete={() => deleteRow(row.id)} 
-                                                onDateChange={(date) => updateDate(row.id, date)}
-                                                onValueChange={(colId, value) => updateValue(row.id, colId, value)}
-                                                onTargetChange={(colId, value) => updateTarget(row.id, colId, value)}
-                                                onCommentChange={(colId, comment) => updateComment(row.id, colId, comment)} 
-                                                t={t}
-                                            />
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-6 text-gray-500">
-                                            Немає місячних записів
-                                        </div>
-                                    )}
+                                    <div className="overflow-x-auto -mx-4 px-4">
+                                        <table className="mobile-excel-table">
+                                            <thead>
+                                                <tr>
+                                                    <th className="sticky-col">Місяць</th>
+                                                    {monthlyColumns.map(col => (
+                                                        <th key={col.id} className="vertical-header">
+                                                            <span>{col.name}</span>
+                                                        </th>
+                                                    ))}
+                                                    {isOwner && <th></th>}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {monthlyRows.map((row, idx) => (
+                                                    <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                                        <td className="sticky-col">
+                                                            <select 
+                                                                value={row.date || ''} 
+                                                                onChange={(e) => updateDate(row.id, e.target.value)}
+                                                                className="mobile-date-select"
+                                                            >
+                                                                <option value="">--</option>
+                                                                {MONTHS_CACHE.slice(0, 12).map(p => (
+                                                                    <option key={p.key} value={p.key}>{p.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </td>
+                                                        {monthlyColumns.map(col => (
+                                                            <td key={col.id}>
+                                                                <input
+                                                                    type="text"
+                                                                    inputMode="decimal"
+                                                                    value={row.values?.[col.id] || ''}
+                                                                    onChange={(e) => updateValue(row.id, col.id, e.target.value)}
+                                                                    className="mobile-cell-input"
+                                                                    placeholder="0"
+                                                                />
+                                                            </td>
+                                                        ))}
+                                                        {isOwner && (
+                                                            <td>
+                                                                <button onClick={() => deleteRow(row.id)} className="text-red-400 p-1">
+                                                                    <Icons.Trash className="w-3 h-3" />
+                                                                </button>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
                             
