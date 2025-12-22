@@ -225,8 +225,8 @@
         
         /* Stats Table - десктоп */
         .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-        .stats-table th { background: #f9fafb; padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
-        .stats-table td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+        .stats-table th { background: #f9fafb; padding: 4px 6px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.2px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+        .stats-table td { padding: 3px 6px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 12px; }
         .stats-table tbody tr:nth-child(odd) td { background: #ffffff; }
         .stats-table tbody tr:nth-child(even) td { background: #f9fafb; }
         .stats-table tr:hover td { background: #f0fdf4 !important; }
@@ -322,9 +322,9 @@
         .period-badge { font-size: 11px; padding: 4px 8px; border-radius: 8px; background: #e0e7ff; color: #3730a3; font-weight: 600; }
         
         /* Status dots */
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .status-filled { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
-        .status-pending { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2); }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .status-filled { background: #22c55e; }
+        .status-pending { background: #f59e0b; }
         .status-overdue { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); }
         
         /* AI Result */
@@ -1532,7 +1532,7 @@
                         <table className="stats-table">
                             <thead>
                                 <tr>
-                                    <th className="sticky-col" style={{ minWidth: 120 }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖДЕНЬ'}</th>
+                                    <th className="sticky-col" style={{ minWidth: 90 }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖДЕНЬ'}</th>
                                     {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
                                         const isDragging = draggedCol === col.id;
@@ -1540,7 +1540,7 @@
                                         return (
                                             <th 
                                                 key={col.id} 
-                                                style={{ minWidth: 100 }}
+                                                style={{ minWidth: 55, maxWidth: 80 }}
                                                 draggable={editable}
                                                 onDragStart={(e) => handleDragStart(e, col.id)}
                                                 onDragOver={(e) => handleDragOver(e, col.id)}
@@ -1549,53 +1549,41 @@
                                                 onDragEnd={handleDragEnd}
                                                 className={`${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
                                             >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        {editable && (
-                                                            <Icons.GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                                                        )}
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
-                                                                <span>{col.name}</span>
-                                                                {col.format && col.format !== 'number' && (
-                                                                    <span className="text-xs font-normal text-gray-400">
-                                                                        {col.format === 'percent' && '%'}
-                                                                        {col.format === 'uah' && '₴'}
-                                                                        {col.format === 'usd' && '$'}
-                                                                        {col.format === 'eur' && '€'}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className="period-badge">{t.periodMonthly || 'Щомісяця'}</span>
-                                                                {col.responsible && <span className="text-xs font-normal text-gray-400">{col.responsible}</span>}
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                <div className="flex items-center gap-1">
+                                                    {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
+                                                    <span className="truncate text-[9px] leading-tight" title={col.name}>{col.name}</span>
+                                                    {col.format && col.format !== 'number' && (
+                                                        <span className="text-[8px] text-gray-400">
+                                                            {col.format === 'percent' && '%'}
+                                                            {col.format === 'uah' && '₴'}
+                                                            {col.format === 'usd' && '$'}
+                                                            {col.format === 'eur' && '€'}
+                                                        </span>
+                                                    )}
                                                     {editable && (
-                                                        <button onClick={() => onEditColumn(col)} className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600">
-                                                            <Icons.Settings className="w-4 h-4" />
+                                                        <button onClick={() => onEditColumn(col)} className="p-0.5 hover:bg-gray-200 rounded text-gray-400 ml-auto">
+                                                            <Icons.Settings className="w-3 h-3" />
                                                         </button>
                                                     )}
                                                 </div>
+                                                {col.responsible && <div className="text-[8px] text-gray-400 truncate">{col.responsible}</div>}
                                             </th>
                                         );
                                     })}
-                                    {editable && <th style={{ width: 60 }}></th>}
+                                    {editable && <th style={{ width: 30 }}></th>}
                                 </tr>
                             </thead>
                             <tbody>
                                 {targetRow && (
                                     <tr className="target-row">
-                                        <td className="sticky-col font-bold text-amber-700">
-                                            <div className="flex items-center gap-2"><Icons.Target className="w-4 h-4" />{t.target}</div>
+                                        <td className="sticky-col text-amber-700">
+                                            <div className="flex items-center gap-1 text-xs font-bold"><Icons.Target className="w-3 h-3" />Ціль</div>
                                         </td>
                                         {columns.map(col => (
                                             <td key={col.id}>
                                                 <input
                                                     type="text" value={targetRow.values?.[col.id] || ''} onChange={(e) => onValueChange(targetRow.id, col.id, e.target.value)}
-                                                    disabled={!editable} className="w-full px-2 py-1 text-sm font-bold bg-transparent border border-transparent rounded focus:border-amber-400 focus:bg-white" placeholder={t.target}
+                                                    disabled={!editable} className="w-14 px-1 py-0.5 text-xs font-bold bg-transparent border border-transparent rounded focus:border-amber-400 focus:bg-white text-center" placeholder="—"
                                                 />
                                             </td>
                                         ))}
@@ -1610,9 +1598,9 @@
                                             <select 
                                                 value={currentPeriodKey || ''} 
                                                 onChange={(e) => onDateChange(row.id, e.target.value)}
-                                                className="w-full px-2 py-1.5 text-sm bg-white border border-gray-200 rounded-lg focus:border-primary-400 focus:ring-1 focus:ring-primary-200 cursor-pointer"
+                                                className="w-full px-1 py-0.5 text-xs bg-white border border-gray-200 rounded focus:border-primary-400 cursor-pointer"
                                             >
-                                                <option value="">{periodType === 'monthly' ? 'Оберіть місяць' : 'Оберіть тиждень'}</option>
+                                                <option value="">—</option>
                                                 {periods.filter(p => p.isFuture).length > 0 && (
                                                     <optgroup label="→ Майбутні">
                                                         {periods.filter(p => p.isFuture).map(period => (
@@ -1647,41 +1635,39 @@
                                         {columns.map(col => {
                                             const progress = calculateProgress(row, col.id);
                                             const value = row.values?.[col.id] || '';
+                                            const hasComment = row.comments?.[col.id];
                                             return (
                                                 <td key={col.id}>
-                                                    <div>
-                                                        <div className="flex items-center gap-1">
-                                                            {editable ? (
-                                                                <input
-                                                                    type="text" value={value} onChange={(e) => onValueChange(row.id, col.id, e.target.value)}
-                                                                    className="w-24 px-2 py-1 text-sm bg-transparent border border-transparent rounded focus:border-primary-400 focus:bg-white" placeholder="0"
-                                                                />
-                                                            ) : (
-                                                                <span className="px-2 py-1 text-sm">
-                                                                    {formatValue(value, col.format, progress) || '-'}
-                                                                </span>
-                                                            )}
-                                                            {progress !== null && (
-                                                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                                                    progress >= 100 ? 'bg-emerald-100 text-emerald-700' : 
-                                                                    progress >= 80 ? 'bg-blue-100 text-blue-700' : 
-                                                                    progress >= 50 ? 'bg-amber-100 text-amber-700' : 
-                                                                    'bg-red-100 text-red-700'
-                                                                }`}>
-                                                                    {progress}%
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <input
-                                                            type="text" value={row.comments?.[col.id] || ''} onChange={(e) => onCommentChange(row.id, col.id, e.target.value)}
-                                                            className="w-full px-2 py-0.5 mt-1 text-xs text-gray-500 bg-transparent border-none focus:ring-0" placeholder={t.comment}
-                                                        />
+                                                    <div className="flex items-center gap-1">
+                                                        {editable ? (
+                                                            <input
+                                                                type="text" value={value} onChange={(e) => onValueChange(row.id, col.id, e.target.value)}
+                                                                className="w-14 px-1 py-0.5 text-xs bg-transparent border border-transparent rounded focus:border-primary-400 focus:bg-white text-center" placeholder="0"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-xs">
+                                                                {formatValue(value, col.format, progress) || '-'}
+                                                            </span>
+                                                        )}
+                                                        {progress !== null && (
+                                                            <span className={`text-[10px] px-1 rounded ${
+                                                                progress >= 100 ? 'bg-emerald-100 text-emerald-700' : 
+                                                                progress >= 80 ? 'bg-blue-100 text-blue-700' : 
+                                                                progress >= 50 ? 'bg-amber-100 text-amber-700' : 
+                                                                'bg-red-100 text-red-700'
+                                                            }`}>
+                                                                {progress}%
+                                                            </span>
+                                                        )}
+                                                        {hasComment && (
+                                                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" title={hasComment}></span>
+                                                        )}
                                                     </div>
                                                 </td>
                                             );
                                         })}
                                         {editable && (
-                                            <td><button onClick={() => onDeleteRow(row.id)} className="btn btn-ghost btn-icon"><Icons.Trash className="w-4 h-4 text-gray-400" /></button></td>
+                                            <td><button onClick={() => onDeleteRow(row.id)} className="p-1 text-gray-400 hover:text-red-500"><Icons.Trash className="w-3 h-3" /></button></td>
                                         )}
                                     </tr>
                                     );
