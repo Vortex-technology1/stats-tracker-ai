@@ -227,6 +227,64 @@
         .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
         .stats-table th { background: #f9fafb; padding: 4px 6px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.2px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
         .stats-table td { padding: 3px 6px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 12px; }
+        
+        /* Vertical headers for stats table */
+        .stats-table th.vertical-header {
+            vertical-align: bottom;
+            padding: 6px 4px;
+            text-align: center;
+            position: relative;
+        }
+        .stats-table .vertical-header-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100%;
+        }
+        .stats-table .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            max-height: 90px;
+            overflow: hidden;
+            font-size: 9px;
+            line-height: 1.2;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .stats-table .vertical-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-height: 80px;
+        }
+        .stats-table .vertical-responsible {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            font-size: 8px;
+            color: #9ca3af;
+            font-weight: 400;
+            margin-top: 2px;
+            max-height: 50px;
+            overflow: hidden;
+        }
+        .stats-table .vertical-edit-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            padding: 2px;
+            color: #9ca3af;
+            border-radius: 3px;
+        }
+        .stats-table .vertical-edit-btn:hover {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
         .stats-table tbody tr:nth-child(odd) td { background: #ffffff; }
         .stats-table tbody tr:nth-child(even) td { background: #f9fafb; }
         .stats-table tr:hover td { background: #f0fdf4 !important; }
@@ -1532,7 +1590,7 @@
                         <table className="stats-table">
                             <thead>
                                 <tr>
-                                    <th className="sticky-col" style={{ minWidth: 90 }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖДЕНЬ'}</th>
+                                    <th className="sticky-col" style={{ minWidth: 80, height: 120, verticalAlign: 'bottom' }}>{periodType === 'monthly' ? 'МІСЯЦЬ' : 'ТИЖД.'}</th>
                                     {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
                                         const isDragging = draggedCol === col.id;
@@ -1540,33 +1598,35 @@
                                         return (
                                             <th 
                                                 key={col.id} 
-                                                style={{ minWidth: 55, maxWidth: 80 }}
+                                                style={{ minWidth: 45, maxWidth: 60, height: 120 }}
                                                 draggable={editable}
                                                 onDragStart={(e) => handleDragStart(e, col.id)}
                                                 onDragOver={(e) => handleDragOver(e, col.id)}
                                                 onDragLeave={handleDragLeave}
                                                 onDrop={(e) => handleDrop(e, col.id)}
                                                 onDragEnd={handleDragEnd}
-                                                className={`${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                                                className={`vertical-header ${editable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'drag-over' : ''}`}
                                             >
-                                                <div className="flex items-center gap-1">
-                                                    {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
-                                                    <span className="truncate text-[9px] leading-tight" title={col.name}>{col.name}</span>
-                                                    {col.format && col.format !== 'number' && (
-                                                        <span className="text-[8px] text-gray-400">
-                                                            {col.format === 'percent' && '%'}
-                                                            {col.format === 'uah' && '₴'}
-                                                            {col.format === 'usd' && '$'}
-                                                            {col.format === 'eur' && '€'}
-                                                        </span>
-                                                    )}
-                                                    {editable && (
-                                                        <button onClick={() => onEditColumn(col)} className="p-0.5 hover:bg-gray-200 rounded text-gray-400 ml-auto">
-                                                            <Icons.Settings className="w-3 h-3" />
-                                                        </button>
-                                                    )}
+                                                <div className="vertical-header-content">
+                                                    <div className="vertical-text">
+                                                        {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
+                                                        <span className="vertical-name">{col.name}</span>
+                                                        {col.format && col.format !== 'number' && (
+                                                            <span className="text-gray-400 ml-0.5">
+                                                                {col.format === 'percent' && '%'}
+                                                                {col.format === 'uah' && '₴'}
+                                                                {col.format === 'usd' && '$'}
+                                                                {col.format === 'eur' && '€'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {col.responsible && <div className="vertical-responsible">{col.responsible}</div>}
                                                 </div>
-                                                {col.responsible && <div className="text-[8px] text-gray-400 truncate">{col.responsible}</div>}
+                                                {editable && (
+                                                    <button onClick={() => onEditColumn(col)} className="vertical-edit-btn">
+                                                        <Icons.Settings className="w-3 h-3" />
+                                                    </button>
+                                                )}
                                             </th>
                                         );
                                     })}
