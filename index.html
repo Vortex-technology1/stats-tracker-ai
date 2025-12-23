@@ -164,11 +164,12 @@
             border: 1px solid #e5e7eb;
             text-align: center;
             min-width: 45px;
+            vertical-align: middle;
         }
         .mobile-excel-table th.wrap-header {
             min-width: 40px;
             max-width: 55px;
-            vertical-align: bottom;
+            vertical-align: middle;
             padding: 4px 2px;
             font-size: 8px;
             line-height: 1.15;
@@ -181,6 +182,7 @@
             z-index: 2; 
             background: #f3f4f6;
             min-width: 70px;
+            vertical-align: middle;
         }
         .mobile-excel-table td { 
             padding: 2px; 
@@ -218,12 +220,12 @@
         
         /* Stats Table - десктоп */
         .stats-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-        .stats-table th { background: #f9fafb; padding: 4px 6px; text-align: center; font-weight: 600; font-size: 9px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+        .stats-table th { background: #f9fafb; padding: 4px 6px; text-align: center; font-weight: 600; font-size: 9px; color: #6b7280; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10; vertical-align: middle; }
         .stats-table td { padding: 3px 4px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 12px; text-align: center; }
         
         /* Wrap headers for stats table */
         .stats-table th.wrap-header {
-            vertical-align: bottom;
+            vertical-align: middle;
             padding: 4px 3px;
             text-align: center;
             position: relative;
@@ -235,7 +237,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: center;
             height: 100%;
             gap: 2px;
         }
@@ -1583,7 +1585,7 @@
                         <table className="stats-table">
                             <thead>
                                 <tr>
-                                    <th className="sticky-col" style={{ minWidth: 75, verticalAlign: 'bottom' }}>{periodType === 'monthly' ? 'Місяць' : 'Тиждень'}</th>
+                                    <th className="sticky-col" style={{ minWidth: 75, verticalAlign: 'middle' }}>{periodType === 'monthly' ? 'Місяць' : 'Тиждень'}</th>
                                     {columns.map((col, idx) => {
                                         const status = getColumnStatus(col);
                                         const isDragging = draggedCol === col.id;
