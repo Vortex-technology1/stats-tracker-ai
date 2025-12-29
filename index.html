@@ -4729,6 +4729,116 @@ ${aiSettings.businessContext}
                 toast.success(t.export);
             };
             
+            // ==================== BACKUP SYSTEM ====================
+            const [showBackupModal, setShowBackupModal] = useState(false);
+            const [backups, setBackups] = useState([]);
+            const [backupLoading, setBackupLoading] = useState(false);
+            
+            const BACKUP_STORAGE_KEY = `stats_backups_${companyId}`;
+            const MAX_BACKUPS = 10;
+            
+            // Завантажити список бекапів
+            const loadBackups = useCallback(() => {
+                if (!companyId) return;
+                try {
+                    const stored = localStorage.getItem(BACKUP_STORAGE_KEY);
+                    if (stored) {
+                        setBackups(JSON.parse(stored));
+                    }
+                } catch (e) {
+                    console.error('Error loading backups:', e);
+                }
+            }, [companyId, BACKUP_STORAGE_KEY]);
+            
+            // Створити бекап
+            const createBackup = useCallback((name = '') => {
+                if (!companyId || columns.length === 0) {
+                    toast.error('Немає даних для бекапу');
+                    return;
+                }
+                
+                const backup = {
+                    id: Date.now().toString(),
+                    name: name || `Бекап ${new Date().toLocaleString('uk-UA')}`,
+                    createdAt: new Date().toISOString(),
+                    data: {
+                        columns: columns,
+                        rows: rows,
+                        aiSettings: aiSettings,
+                        savedAnalyses: savedAnalyses
+                    },
+                    stats: {
+                        columnsCount: columns.length,
+                        rowsCount: rows.filter(r => !r.isTarget).length
+                    }
+                };
+                
+                try {
+                    const stored = localStorage.getItem(BACKUP_STORAGE_KEY);
+                    let allBackups = stored ? JSON.parse(stored) : [];
+                    
+                    // Додаємо новий бекап на початок
+                    allBackups.unshift(backup);
+                    
+                    // Обмежуємо кількість бекапів
+                    if (allBackups.length > MAX_BACKUPS) {
+                        allBackups = allBackups.slice(0, MAX_BACKUPS);
+                    }
+                    
+                    localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(allBackups));
+                    setBackups(allBackups);
+                    toast.success('✅ Бекап створено');
+                } catch (e) {
+                    console.error('Error creating backup:', e);
+                    toast.error('Помилка створення бекапу');
+                }
+            }, [companyId, columns, rows, aiSettings, savedAnalyses, BACKUP_STORAGE_KEY]);
+            
+            // Відновити з бекапу
+            const restoreBackup = useCallback((backupId) => {
+                const backup = backups.find(b => b.id === backupId);
+                if (!backup) {
+                    toast.error('Бекап не знайдено');
+                    return;
+                }
+                
+                if (!confirm(`Відновити дані з "${backup.name}"?\n\nПоточні дані будуть замінені!`)) {
+                    return;
+                }
+                
+                try {
+                    setColumns(backup.data.columns || []);
+                    setRows(backup.data.rows || []);
+                    setAiSettings(backup.data.aiSettings || { businessContext: '', priorities: '', analysisPeriod: 5 });
+                    setSavedAnalyses(backup.data.savedAnalyses || []);
+                    
+                    setShowBackupModal(false);
+                    toast.success('✅ Дані відновлено з бекапу');
+                } catch (e) {
+                    console.error('Error restoring backup:', e);
+                    toast.error('Помилка відновлення');
+                }
+            }, [backups]);
+            
+            // Видалити бекап
+            const deleteBackup = useCallback((backupId) => {
+                if (!confirm('Видалити цей бекап?')) return;
+                
+                try {
+                    const newBackups = backups.filter(b => b.id !== backupId);
+                    localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(newBackups));
+                    setBackups(newBackups);
+                    toast.success('Бекап видалено');
+                } catch (e) {
+                    console.error('Error deleting backup:', e);
+                }
+            }, [backups, BACKUP_STORAGE_KEY]);
+            
+            // Завантажуємо бекапи при зміні компанії
+            useEffect(() => {
+                if (companyId) loadBackups();
+            }, [companyId, loadBackups]);
+            
             // Імпорт з Excel
             const [showImportModal, setShowImportModal] = useState(false);
             const [importPreview, setImportPreview] = useState(null);
@@ -5053,6 +5163,7 @@ ${aiSettings.businessContext}
                                         <button onClick={() => setShowDemoModal(true)} className="btn btn-sm btn-secondary" title="Демо"><Icons.Play className="w-4 h-4" /></button>
                                         <button onClick={() => fileInputRef.current?.click()} className="btn btn-sm btn-secondary" title="Імпорт з Excel"><Icons.Upload className="w-4 h-4" /></button>
                                         <button onClick={exportToExcel} className="btn btn-sm btn-secondary" title="Експорт в Excel"><Icons.Download className="w-4 h-4" /></button>
+                                        <button onClick={() => { loadBackups(); setShowBackupModal(true); }} className="btn btn-sm btn-secondary" title="Бекапи"><Icons.Database className="w-4 h-4" /></button>
                                         
                                         {/* Tools dropdown */}
                                         {isOwner && (
@@ -5383,6 +5494,9 @@ ${aiSettings.businessContext}
                                     </button>
                                     <button onClick={() => { exportToExcel(); setShowQuickActions(false); }} className="quick-action-btn bg-purple-500 text-white" title="Експорт">
                                         <Icons.Download className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={() => { loadBackups(); setShowBackupModal(true); setShowQuickActions(false); }} className="quick-action-btn bg-emerald-500 text-white" title="Бекапи">
+                                        <Icons.Database className="w-5 h-5" />
                                     </button>
                                     <button onClick={() => { setShowDemoModal(true); setShowQuickActions(false); }} className="quick-action-btn bg-amber-500 text-white" title="Демо дані">
                                         <Icons.Sparkles className="w-5 h-5" />
@@ -6264,6 +6378,81 @@ ${aiSettings.businessContext}
                             <div className="pt-3 border-t mt-4">
                                 <p className="text-xs text-gray-400 text-center">
                                     Після завантаження спробуйте <b>AI Аналіз</b> — контекст бізнесу вже заповнений
+                                </p>
+                            </div>
+                        </div>
+                    </Modal>
+                    
+                    {/* Backup Modal */}
+                    <Modal isOpen={showBackupModal} onClose={() => setShowBackupModal(false)} title="💾 Бекапи даних" size="lg">
+                        <div className="space-y-4">
+                            {/* Створити бекап */}
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => createBackup()} 
+                                    className="btn btn-primary flex-1"
+                                >
+                                    <Icons.Plus className="w-4 h-4" />
+                                    Створити бекап
+                                </button>
+                            </div>
+                            
+                            <p className="text-xs text-gray-500">
+                                Бекапи зберігаються локально в браузері. Максимум {MAX_BACKUPS} бекапів.
+                            </p>
+                            
+                            {/* Список бекапів */}
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {backups.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <Icons.Database className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                                        <p>Немає збережених бекапів</p>
+                                        <p className="text-xs mt-1">Створіть перший бекап для захисту даних</p>
+                                    </div>
+                                ) : (
+                                    backups.map((backup, idx) => (
+                                        <div key={backup.id} className={`p-3 rounded-xl border ${idx === 0 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-gray-900 truncate">{backup.name}</span>
+                                                        {idx === 0 && <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">Останній</span>}
+                                                    </div>
+                                                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                                        <span>{new Date(backup.createdAt).toLocaleString('uk-UA')}</span>
+                                                        <span>•</span>
+                                                        <span>{backup.stats?.columnsCount || 0} показників</span>
+                                                        <span>•</span>
+                                                        <span>{backup.stats?.rowsCount || 0} записів</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <button 
+                                                        onClick={() => restoreBackup(backup.id)} 
+                                                        className="btn btn-sm btn-primary"
+                                                        title="Відновити"
+                                                    >
+                                                        <Icons.Undo className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => deleteBackup(backup.id)} 
+                                                        className="btn btn-sm btn-ghost text-red-500"
+                                                        title="Видалити"
+                                                    >
+                                                        <Icons.Trash className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            
+                            {/* Підказка */}
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                                <p className="text-xs text-amber-800">
+                                    <b>💡 Порада:</b> Створюйте бекап перед важливими змінами. 
+                                    При відновленні поточні дані будуть замінені даними з бекапу.
                                 </p>
                             </div>
                         </div>
