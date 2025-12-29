@@ -4729,73 +4729,91 @@ ${aiSettings.businessContext}
                 toast.success(t.export);
             };
             
-            // ==================== BACKUP SYSTEM ====================
+            // ==================== BACKUP SYSTEM (FIRESTORE) ====================
             const [showBackupModal, setShowBackupModal] = useState(false);
             const [backups, setBackups] = useState([]);
             const [backupLoading, setBackupLoading] = useState(false);
             
-            const BACKUP_STORAGE_KEY = `stats_backups_${companyId}`;
             const MAX_BACKUPS = 10;
             
-            // Завантажити список бекапів
-            const loadBackups = useCallback(() => {
+            // Завантажити список бекапів з Firestore
+            const loadBackups = useCallback(async () => {
                 if (!companyId) return;
+                setBackupLoading(true);
                 try {
-                    const stored = localStorage.getItem(BACKUP_STORAGE_KEY);
-                    if (stored) {
-                        setBackups(JSON.parse(stored));
-                    }
+                    const snapshot = await db.collection('companies').doc(companyId)
+                        .collection('backups')
+                        .orderBy('createdAt', 'desc')
+                        .limit(MAX_BACKUPS)
+                        .get();
+                    
+                    const loadedBackups = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setBackups(loadedBackups);
                 } catch (e) {
                     console.error('Error loading backups:', e);
+                    toast.error('Помилка завантаження бекапів');
+                } finally {
+                    setBackupLoading(false);
                 }
-            }, [companyId, BACKUP_STORAGE_KEY]);
+            }, [companyId]);
             
-            // Створити бекап
-            const createBackup = useCallback((name = '') => {
-                if (!companyId || columns.length === 0) {
+            // Створити бекап в Firestore
+            const createBackup = useCallback(async (name = '') => {
+                if (!companyId || !user || columns.length === 0) {
                     toast.error('Немає даних для бекапу');
                     return;
                 }
                 
-                const backup = {
-                    id: Date.now().toString(),
-                    name: name || `Бекап ${new Date().toLocaleString('uk-UA')}`,
-                    createdAt: new Date().toISOString(),
-                    data: {
-                        columns: columns,
-                        rows: rows,
-                        aiSettings: aiSettings,
-                        savedAnalyses: savedAnalyses
-                    },
-                    stats: {
-                        columnsCount: columns.length,
-                        rowsCount: rows.filter(r => !r.isTarget).length
-                    }
-                };
-                
+                setBackupLoading(true);
                 try {
-                    const stored = localStorage.getItem(BACKUP_STORAGE_KEY);
-                    let allBackups = stored ? JSON.parse(stored) : [];
+                    const backupData = {
+                        name: name || `Бекап ${new Date().toLocaleString('uk-UA')}`,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdBy: user.uid,
+                        data: {
+                            columns: columns,
+                            rows: rows,
+                            aiSettings: aiSettings,
+                            savedAnalyses: savedAnalyses
+                        },
+                        stats: {
+                            columnsCount: columns.length,
+                            rowsCount: rows.filter(r => !r.isTarget).length
+                        }
+                    };
                     
-                    // Додаємо новий бекап на початок
-                    allBackups.unshift(backup);
+                    await db.collection('companies').doc(companyId)
+                        .collection('backups')
+                        .add(backupData);
                     
-                    // Обмежуємо кількість бекапів
-                    if (allBackups.length > MAX_BACKUPS) {
-                        allBackups = allBackups.slice(0, MAX_BACKUPS);
+                    // Видаляємо старі бекапи якщо їх більше MAX_BACKUPS
+                    const snapshot = await db.collection('companies').doc(companyId)
+                        .collection('backups')
+                        .orderBy('createdAt', 'desc')
+                        .get();
+                    
+                    if (snapshot.docs.length > MAX_BACKUPS) {
+                        const toDelete = snapshot.docs.slice(MAX_BACKUPS);
+                        for (const doc of toDelete) {
+                            await doc.ref.delete();
+                        }
                     }
                     
-                    localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(allBackups));
-                    setBackups(allBackups);
+                    await loadBackups();
                     toast.success('✅ Бекап створено');
                 } catch (e) {
                     console.error('Error creating backup:', e);
                     toast.error('Помилка створення бекапу');
+                } finally {
+                    setBackupLoading(false);
                 }
-            }, [companyId, columns, rows, aiSettings, savedAnalyses, BACKUP_STORAGE_KEY]);
+            }, [companyId, user, columns, rows, aiSettings, savedAnalyses, loadBackups]);
             
             // Відновити з бекапу
-            const restoreBackup = useCallback((backupId) => {
+            const restoreBackup = useCallback(async (backupId) => {
                 const backup = backups.find(b => b.id === backupId);
                 if (!backup) {
                     toast.error('Бекап не знайдено');
@@ -4806,7 +4824,18 @@ ${aiSettings.businessContext}
                     return;
                 }
                 
+                setBackupLoading(true);
                 try {
+                    // Оновлюємо дані в компанії
+                    await db.collection('companies').doc(companyId).update({
+                        columns: backup.data.columns || [],
+                        rows: backup.data.rows || [],
+                        aiSettings: backup.data.aiSettings || {},
+                        savedAnalyses: backup.data.savedAnalyses || [],
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    // Оновлюємо локальний стан
                     setColumns(backup.data.columns || []);
                     setRows(backup.data.rows || []);
                     setAiSettings(backup.data.aiSettings || { businessContext: '', priorities: '', analysisPeriod: 5 });
@@ -4817,22 +4846,31 @@ ${aiSettings.businessContext}
                 } catch (e) {
                     console.error('Error restoring backup:', e);
                     toast.error('Помилка відновлення');
+                } finally {
+                    setBackupLoading(false);
                 }
-            }, [backups]);
+            }, [backups, companyId]);
             
             // Видалити бекап
-            const deleteBackup = useCallback((backupId) => {
+            const deleteBackup = useCallback(async (backupId) => {
                 if (!confirm('Видалити цей бекап?')) return;
                 
+                setBackupLoading(true);
                 try {
-                    const newBackups = backups.filter(b => b.id !== backupId);
-                    localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(newBackups));
-                    setBackups(newBackups);
+                    await db.collection('companies').doc(companyId)
+                        .collection('backups')
+                        .doc(backupId)
+                        .delete();
+                    
+                    setBackups(backups.filter(b => b.id !== backupId));
                     toast.success('Бекап видалено');
                 } catch (e) {
                     console.error('Error deleting backup:', e);
+                    toast.error('Помилка видалення');
+                } finally {
+                    setBackupLoading(false);
                 }
-            }, [backups, BACKUP_STORAGE_KEY]);
+            }, [backups, companyId]);
             
             // Завантажуємо бекапи при зміні компанії
             useEffect(() => {
@@ -6391,26 +6429,39 @@ ${aiSettings.businessContext}
                                 <button 
                                     onClick={() => createBackup()} 
                                     className="btn btn-primary flex-1"
+                                    disabled={backupLoading}
                                 >
-                                    <Icons.Plus className="w-4 h-4" />
+                                    {backupLoading ? (
+                                        <Icons.Loader className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Icons.Plus className="w-4 h-4" />
+                                    )}
                                     Створити бекап
                                 </button>
                             </div>
                             
                             <p className="text-xs text-gray-500">
-                                Бекапи зберігаються локально в браузері. Максимум {MAX_BACKUPS} бекапів.
+                                ☁️ Бекапи зберігаються в хмарі (Firestore). Максимум {MAX_BACKUPS} бекапів.
                             </p>
                             
                             {/* Список бекапів */}
                             <div className="space-y-2 max-h-96 overflow-y-auto">
-                                {backups.length === 0 ? (
+                                {backupLoading && backups.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <Icons.Loader className="w-8 h-8 mx-auto mb-3 text-gray-300 animate-spin" />
+                                        <p>Завантаження бекапів...</p>
+                                    </div>
+                                ) : backups.length === 0 ? (
                                     <div className="text-center py-8 text-gray-500">
                                         <Icons.Database className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                                         <p>Немає збережених бекапів</p>
                                         <p className="text-xs mt-1">Створіть перший бекап для захисту даних</p>
                                     </div>
                                 ) : (
-                                    backups.map((backup, idx) => (
+                                    backups.map((backup, idx) => {
+                                        // Обробка Firestore Timestamp
+                                        const createdAt = backup.createdAt?.toDate ? backup.createdAt.toDate() : new Date(backup.createdAt);
+                                        return (
                                         <div key={backup.id} className={`p-3 rounded-xl border ${idx === 0 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1 min-w-0">
@@ -6419,7 +6470,7 @@ ${aiSettings.businessContext}
                                                         {idx === 0 && <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">Останній</span>}
                                                     </div>
                                                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                                        <span>{new Date(backup.createdAt).toLocaleString('uk-UA')}</span>
+                                                        <span>{createdAt.toLocaleString('uk-UA')}</span>
                                                         <span>•</span>
                                                         <span>{backup.stats?.columnsCount || 0} показників</span>
                                                         <span>•</span>
@@ -6430,6 +6481,7 @@ ${aiSettings.businessContext}
                                                     <button 
                                                         onClick={() => restoreBackup(backup.id)} 
                                                         className="btn btn-sm btn-primary"
+                                                        disabled={backupLoading}
                                                         title="Відновити"
                                                     >
                                                         <Icons.Undo className="w-3.5 h-3.5" />
@@ -6438,13 +6490,14 @@ ${aiSettings.businessContext}
                                                         onClick={() => deleteBackup(backup.id)} 
                                                         className="btn btn-sm btn-ghost text-red-500"
                                                         title="Видалити"
+                                                        disabled={backupLoading}
                                                     >
                                                         <Icons.Trash className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                    ))
+                                    );})
                                 )}
                             </div>
                             
