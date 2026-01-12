@@ -18,6 +18,8 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -528,6 +530,65 @@
         const db = firebase.firestore();
         db.enablePersistence().catch(console.log);
 
+        // ==================== ERROR BOUNDARY ====================
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null, errorInfo: null };
+            }
+            
+            static getDerivedStateFromError(error) {
+                return { hasError: true };
+            }
+            
+            componentDidCatch(error, errorInfo) {
+                this.setState({ error, errorInfo });
+                console.error('ErrorBoundary caught:', error, errorInfo);
+            }
+            
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+                            <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-6 text-center">
+                                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-2">Щось пішло не так</h2>
+                                <p className="text-gray-600 mb-4">Виникла помилка. Спробуйте оновити сторінку.</p>
+                                <div className="space-y-2">
+                                    <button 
+                                        onClick={() => window.location.reload()} 
+                                        className="w-full px-4 py-2 bg-primary-500 text-white rounded-xl font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                        Оновити сторінку
+                                    </button>
+                                    <button 
+                                        onClick={() => this.setState({ hasError: false, error: null })} 
+                                        className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                                    >
+                                        Спробувати знову
+                                    </button>
+                                </div>
+                                {this.state.error && (
+                                    <details className="mt-4 text-left">
+                                        <summary className="text-xs text-gray-400 cursor-pointer">Деталі помилки</summary>
+                                        <pre className="mt-2 p-2 bg-gray-100 rounded text-xs text-red-600 overflow-auto max-h-32">
+                                            {this.state.error.toString()}
+                                        </pre>
+                                    </details>
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
         // ==================== SVG ICONS ====================
         const Icons = {
             Menu: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>,
@@ -575,6 +636,8 @@
             Building: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>,
             Brain: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>,
             Clock: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Activity: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+            Cloud: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>,
             Save: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>,
             History: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>,
             HelpCircle: (p) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>,
@@ -646,6 +709,64 @@
                 valueFormat: 'Формат значения', formatNumber: 'Число', formatPercent: 'Проценты %', formatUAH: 'Гривны ₴', formatUSD: 'Доллары $', formatEUR: 'Евро €',
             }
         };
+
+        // ==================== ERROR BOUNDARY ====================
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+            
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+            
+            componentDidCatch(error, errorInfo) {
+                console.error('ErrorBoundary caught:', error, errorInfo);
+            }
+            
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-2">Щось пішло не так</h2>
+                                <p className="text-gray-500 mb-6">Сталася помилка. Спробуйте оновити сторінку.</p>
+                                <div className="space-y-3">
+                                    <button 
+                                        onClick={() => window.location.reload()} 
+                                        className="w-full bg-primary-500 text-white py-3 px-4 rounded-xl font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                        Оновити сторінку
+                                    </button>
+                                    <button 
+                                        onClick={() => this.setState({ hasError: false, error: null })} 
+                                        className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                                    >
+                                        Спробувати знову
+                                    </button>
+                                </div>
+                                {this.state.error && (
+                                    <details className="mt-4 text-left">
+                                        <summary className="text-xs text-gray-400 cursor-pointer">Технічні деталі</summary>
+                                        <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-32">
+                                            {this.state.error.toString()}
+                                        </pre>
+                                    </details>
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
 
         // ==================== FORMAT VALUE ====================
         const formatValue = (value, format) => {
@@ -1174,7 +1295,7 @@
                                             </div>
                                         </div>
                                         <p className="text-sm text-green-600 mt-2 bg-green-100 p-2 rounded-lg">
-                                            💡 Введіть <b>вашу пошту</b> та придумайте пароль
+                                            <Icons.AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" /> Введіть <b>вашу пошту</b> та придумайте пароль
                                         </p>
                                     </div>
                                 )}
@@ -1225,7 +1346,7 @@
                                 disabled={isLoading || inviteLoading || !!inviteError}
                             >
                                 {isLoading ? <Icons.Loader className="w-5 h-5" /> : (
-                                    inviteData ? '🚀 Приєднатись' : (isRegister ? t.registerBtn : t.loginBtn)
+                                    inviteData ? 'Приєднатись' : (isRegister ? t.registerBtn : t.loginBtn)
                                 )}
                             </button>
                         </form>
@@ -2885,7 +3006,7 @@ ${aiSettings.businessContext}
 ══════════════════════════════════════════════════
 
 ---РОЗПОРЯДЖЕННЯ---
-📄 РОЗПОРЯДЖЕННЯ (TALKO SYSTEM FORMAT)
+РОЗПОРЯДЖЕННЯ (TALKO SYSTEM FORMAT)
 
 КОМУ: [Посада + ПІБ відповідального, наприклад: Старший адміністратор клініки]
 ДАТА: [дата створення]
@@ -2916,7 +3037,7 @@ ${aiSettings.businessContext}
 ══════════════════════════════════════════════════
 
 ---РОЗПОРЯДЖЕННЯ---
-📄 РОЗПОРЯДЖЕННЯ (TALKO SYSTEM FORMAT)
+РОЗПОРЯДЖЕННЯ (TALKO SYSTEM FORMAT)
 
 КОМУ: Старший адміністратор клініки [ПІБ]
 ДАТА: ${today.toLocaleDateString('uk-UA')}
@@ -3612,6 +3733,574 @@ ${aiSettings.businessContext}
             );
         };
 
+        // ==================== TRENDS CHART ====================
+        const TrendsChart = ({ columns, rows, periodType = 'weekly', t }) => {
+            const chartRef = React.useRef(null);
+            const chartInstance = React.useRef(null);
+            const [selectedColumns, setSelectedColumns] = useState([]);
+            const [chartType, setChartType] = useState('line');
+            
+            // Фільтруємо колонки по періоду
+            const periodColumns = columns.filter(c => c.period === periodType);
+            const periodRows = rows.filter(r => !r.isTarget && r.periodType === periodType)
+                .sort((a, b) => a.date?.localeCompare(b.date));
+            
+            // Ініціалізуємо вибрані колонки (перші 3)
+            useEffect(() => {
+                if (selectedColumns.length === 0 && periodColumns.length > 0) {
+                    setSelectedColumns(periodColumns.slice(0, 3).map(c => c.id));
+                }
+            }, [periodColumns]);
+            
+            // Кольори для графіків
+            const colors = [
+                { bg: 'rgba(34, 197, 94, 0.2)', border: '#22c55e' },
+                { bg: 'rgba(59, 130, 246, 0.2)', border: '#3b82f6' },
+                { bg: 'rgba(239, 68, 68, 0.2)', border: '#ef4444' },
+                { bg: 'rgba(168, 85, 247, 0.2)', border: '#a855f7' },
+                { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b' },
+                { bg: 'rgba(20, 184, 166, 0.2)', border: '#14b8a6' },
+            ];
+            
+            // Форматування дати для лейблів
+            const formatLabel = (date) => {
+                if (!date) return '';
+                if (periodType === 'monthly') {
+                    const [year, month] = date.split('-');
+                    const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
+                    return `${months[parseInt(month) - 1]} ${year.slice(2)}`;
+                }
+                // Тижневий формат
+                const d = new Date(date);
+                return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+            };
+            
+            // Створюємо/оновлюємо графік
+            useEffect(() => {
+                if (!chartRef.current || selectedColumns.length === 0 || periodRows.length === 0) return;
+                
+                // Знищуємо попередній графік
+                if (chartInstance.current) {
+                    chartInstance.current.destroy();
+                }
+                
+                const labels = periodRows.map(r => formatLabel(r.date));
+                const datasets = selectedColumns.map((colId, idx) => {
+                    const col = periodColumns.find(c => c.id === colId);
+                    const color = colors[idx % colors.length];
+                    return {
+                        label: col?.name || colId,
+                        data: periodRows.map(r => parseFloat(r.values?.[colId]) || 0),
+                        backgroundColor: color.bg,
+                        borderColor: color.border,
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: chartType === 'line',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                    };
+                });
+                
+                chartInstance.current = new Chart(chartRef.current, {
+                    type: chartType === 'bar' ? 'bar' : 'line',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { font: { family: 'Inter' }, padding: 15 }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1f2937',
+                                titleFont: { family: 'Inter' },
+                                bodyFont: { family: 'Inter' },
+                                padding: 12,
+                                cornerRadius: 8,
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: '#f3f4f6' },
+                                ticks: { font: { family: 'Inter' } }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { family: 'Inter' } }
+                            }
+                        },
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        }
+                    }
+                });
+                
+                return () => {
+                    if (chartInstance.current) {
+                        chartInstance.current.destroy();
+                    }
+                };
+            }, [selectedColumns, periodRows, chartType]);
+            
+            const toggleColumn = (colId) => {
+                if (selectedColumns.includes(colId)) {
+                    setSelectedColumns(selectedColumns.filter(id => id !== colId));
+                } else if (selectedColumns.length < 6) {
+                    setSelectedColumns([...selectedColumns, colId]);
+                }
+            };
+            
+            if (periodColumns.length === 0) {
+                return (
+                    <div className="text-center py-8 text-gray-500">
+                        <Icons.BarChart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <p>Немає показників для {periodType === 'weekly' ? 'тижневого' : 'місячного'} графіку</p>
+                    </div>
+                );
+            }
+            
+            return (
+                <div className="space-y-4">
+                    {/* Вибір показників */}
+                    <div className="flex flex-wrap gap-2">
+                        {periodColumns.map((col, idx) => (
+                            <button
+                                key={col.id}
+                                onClick={() => toggleColumn(col.id)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                    selectedColumns.includes(col.id)
+                                        ? 'text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                                style={selectedColumns.includes(col.id) ? {
+                                    backgroundColor: colors[selectedColumns.indexOf(col.id) % colors.length].border
+                                } : {}}
+                            >
+                                {col.name}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    {/* Тип графіку */}
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setChartType('line')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium ${chartType === 'line' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                        >
+                                                        <Icons.TrendingUp className="w-3.5 h-3.5" /> Лінійний
+                        </button>
+                        <button
+                            onClick={() => setChartType('bar')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 ${chartType === 'bar' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                        >
+                            <Icons.BarChart className="w-3.5 h-3.5" /> Стовпчиковий
+                        </button>
+                    </div>
+                    
+                    {/* Графік */}
+                    <div className="bg-white rounded-2xl p-4 border border-gray-100" style={{ height: 350 }}>
+                        {selectedColumns.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-gray-400">
+                                Виберіть показники для відображення
+                            </div>
+                        ) : (
+                            <canvas ref={chartRef}></canvas>
+                        )}
+                    </div>
+                    
+                    {/* Підказка */}
+                    <p className="text-xs text-gray-400 text-center">
+                        Виберіть до 6 показників для порівняння трендів
+                    </p>
+                </div>
+            );
+        };
+
+        // ==================== PDF EXPORT ====================
+        const PDFExport = ({ columns, rows, companyName, aiSettings, t }) => {
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [reportType, setReportType] = useState('full'); // full, weekly, monthly
+            const [includeCharts, setIncludeCharts] = useState(true);
+            
+            const generatePDF = async () => {
+                setIsGenerating(true);
+                
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF('p', 'mm', 'a4');
+                    
+                    // Шрифт (без кирилиці краще, але спробуємо)
+                    doc.setFont('helvetica');
+                    
+                    let y = 20;
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const margin = 15;
+                    const contentWidth = pageWidth - margin * 2;
+                    
+                    // Заголовок
+                    doc.setFontSize(20);
+                    doc.setTextColor(34, 197, 94);
+                    doc.text(companyName || 'Stats Report', margin, y);
+                    y += 10;
+                    
+                    // Дата звіту
+                    doc.setFontSize(10);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(`Report: ${new Date().toLocaleDateString('uk-UA')}`, margin, y);
+                    y += 15;
+                    
+                    // Фільтруємо дані по типу звіту
+                    const weeklyColumns = columns.filter(c => c.period === 'weekly');
+                    const monthlyColumns = columns.filter(c => c.period === 'monthly');
+                    const weeklyRows = rows.filter(r => !r.isTarget && r.periodType === 'weekly').sort((a, b) => b.date?.localeCompare(a.date));
+                    const monthlyRows = rows.filter(r => !r.isTarget && r.periodType === 'monthly').sort((a, b) => b.date?.localeCompare(a.date));
+                    
+                    // Тижневі дані
+                    if ((reportType === 'full' || reportType === 'weekly') && weeklyColumns.length > 0 && weeklyRows.length > 0) {
+                        doc.setFontSize(14);
+                        doc.setTextColor(30, 30, 30);
+                        doc.text('Weekly Statistics', margin, y);
+                        y += 8;
+                        
+                        // Таблиця
+                        const weeklyHeaders = ['Period', ...weeklyColumns.slice(0, 6).map(c => c.name.substring(0, 12))];
+                        const weeklyData = weeklyRows.slice(0, 10).map(row => {
+                            const period = row.date || '-';
+                            const values = weeklyColumns.slice(0, 6).map(col => {
+                                const val = row.values?.[col.id];
+                                return val !== undefined ? val.toString() : '-';
+                            });
+                            return [period, ...values];
+                        });
+                        
+                        doc.autoTable({
+                            startY: y,
+                            head: [weeklyHeaders],
+                            body: weeklyData,
+                            margin: { left: margin, right: margin },
+                            styles: { fontSize: 8, cellPadding: 2 },
+                            headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+                            alternateRowStyles: { fillColor: [245, 247, 250] },
+                        });
+                        
+                        y = doc.lastAutoTable.finalY + 15;
+                    }
+                    
+                    // Місячні дані
+                    if ((reportType === 'full' || reportType === 'monthly') && monthlyColumns.length > 0 && monthlyRows.length > 0) {
+                        // Перевірка чи потрібна нова сторінка
+                        if (y > 250) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        
+                        doc.setFontSize(14);
+                        doc.setTextColor(30, 30, 30);
+                        doc.text('Monthly Statistics', margin, y);
+                        y += 8;
+                        
+                        const monthlyHeaders = ['Period', ...monthlyColumns.slice(0, 6).map(c => c.name.substring(0, 12))];
+                        const monthlyData = monthlyRows.slice(0, 12).map(row => {
+                            const period = row.date || '-';
+                            const values = monthlyColumns.slice(0, 6).map(col => {
+                                const val = row.values?.[col.id];
+                                return val !== undefined ? val.toString() : '-';
+                            });
+                            return [period, ...values];
+                        });
+                        
+                        doc.autoTable({
+                            startY: y,
+                            head: [monthlyHeaders],
+                            body: monthlyData,
+                            margin: { left: margin, right: margin },
+                            styles: { fontSize: 8, cellPadding: 2 },
+                            headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+                            alternateRowStyles: { fillColor: [245, 247, 250] },
+                        });
+                        
+                        y = doc.lastAutoTable.finalY + 15;
+                    }
+                    
+                    // Підсумок
+                    if (y > 250) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.setTextColor(30, 30, 30);
+                    doc.text('Summary', margin, y);
+                    y += 8;
+                    
+                    doc.setFontSize(9);
+                    doc.setTextColor(80, 80, 80);
+                    doc.text(`Total indicators: ${columns.length}`, margin, y);
+                    y += 5;
+                    doc.text(`Weekly: ${weeklyColumns.length} indicators, ${weeklyRows.length} periods`, margin, y);
+                    y += 5;
+                    doc.text(`Monthly: ${monthlyColumns.length} indicators, ${monthlyRows.length} periods`, margin, y);
+                    y += 10;
+                    
+                    // Футер
+                    const pageCount = doc.internal.getNumberOfPages();
+                    for (let i = 1; i <= pageCount; i++) {
+                        doc.setPage(i);
+                        doc.setFontSize(8);
+                        doc.setTextColor(150, 150, 150);
+                        doc.text(
+                            `Page ${i} of ${pageCount} | Generated by Stats Tracker`,
+                            pageWidth / 2,
+                            doc.internal.pageSize.getHeight() - 10,
+                            { align: 'center' }
+                        );
+                    }
+                    
+                    // Зберігаємо
+                    const fileName = `${companyName || 'stats'}_report_${new Date().toISOString().split('T')[0]}.pdf`;
+                    doc.save(fileName);
+                    
+                } catch (error) {
+                    console.error('PDF generation error:', error);
+                    alert('Error generating PDF');
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+            
+            return (
+                <div className="space-y-4">
+                    {/* Тип звіту */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Тип звіту</label>
+                        <div className="flex gap-2">
+                            {[
+                                { id: 'full', label: 'Повний', desc: 'Тижневі + місячні', icon: 'FileText' },
+                                { id: 'weekly', label: 'Тижневий', desc: 'Тільки тижневі', icon: 'Calendar' },
+                                { id: 'monthly', label: 'Місячний', desc: 'Тільки місячні', icon: 'BarChart' },
+                            ].map(type => {
+                                const IconComponent = Icons[type.icon];
+                                return (
+                                <button
+                                    key={type.id}
+                                    onClick={() => setReportType(type.id)}
+                                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
+                                        reportType === type.id
+                                            ? 'border-primary-500 bg-primary-50'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <div className="font-medium text-sm flex items-center justify-center gap-1">
+                                        <IconComponent className="w-4 h-4" />
+                                        {type.label}
+                                    </div>
+                                    <div className="text-xs text-gray-500">{type.desc}</div>
+                                </button>
+                            );})}
+                        </div>
+                    </div>
+                    
+                    {/* Кнопка генерації */}
+                    <button
+                        onClick={generatePDF}
+                        disabled={isGenerating}
+                        className="btn btn-primary w-full"
+                    >
+                        {isGenerating ? (
+                            <>
+                                <Icons.Loader className="w-4 h-4 animate-spin" />
+                                Генерація...
+                            </>
+                        ) : (
+                            <>
+                                <Icons.FileText className="w-4 h-4" />
+                                Завантажити PDF
+                            </>
+                        )}
+                    </button>
+                    
+                    <p className="text-xs text-gray-400 text-center">
+                        PDF буде містити таблиці з даними та підсумок
+                    </p>
+                </div>
+            );
+        };
+
+        // ==================== CHANGE HISTORY ====================
+        const ChangeHistory = ({ companyId, t }) => {
+            const [history, setHistory] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [filter, setFilter] = useState('all'); // all, columns, rows, settings
+            
+            // Завантажуємо історію змін
+            useEffect(() => {
+                if (!companyId) return;
+                
+                const loadHistory = async () => {
+                    setLoading(true);
+                    try {
+                        const snapshot = await db.collection('companies').doc(companyId)
+                            .collection('history')
+                            .orderBy('timestamp', 'desc')
+                            .limit(50)
+                            .get();
+                        
+                        const historyData = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        setHistory(historyData);
+                    } catch (e) {
+                        console.error('Error loading history:', e);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                
+                loadHistory();
+            }, [companyId]);
+            
+            const getActionIcon = (action) => {
+                switch (action) {
+                    case 'create': return <Icons.Plus className="w-4 h-4 text-green-500" />;
+                    case 'update': return <Icons.Edit className="w-4 h-4 text-blue-500" />;
+                    case 'delete': return <Icons.Trash className="w-4 h-4 text-red-500" />;
+                    case 'import': return <Icons.Upload className="w-4 h-4 text-purple-500" />;
+                    case 'restore': return <Icons.Undo className="w-4 h-4 text-amber-500" />;
+                    default: return <Icons.Activity className="w-4 h-4 text-gray-500" />;
+                }
+            };
+            
+            const getActionLabel = (action) => {
+                switch (action) {
+                    case 'create': return 'Створено';
+                    case 'update': return 'Оновлено';
+                    case 'delete': return 'Видалено';
+                    case 'import': return 'Імпорт';
+                    case 'restore': return 'Відновлено';
+                    default: return action;
+                }
+            };
+            
+            const formatTimestamp = (timestamp) => {
+                if (!timestamp) return '';
+                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                return date.toLocaleString('uk-UA', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+            
+            const filteredHistory = filter === 'all' 
+                ? history 
+                : history.filter(h => h.type === filter);
+            
+            if (loading) {
+                return (
+                    <div className="text-center py-8">
+                        <Icons.Loader className="w-8 h-8 mx-auto text-gray-300 animate-spin" />
+                        <p className="text-gray-500 mt-2">Завантаження історії...</p>
+                    </div>
+                );
+            }
+            
+            return (
+                <div className="space-y-4">
+                    {/* Фільтри */}
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {[
+                            { id: 'all', label: 'Всі' },
+                            { id: 'columns', label: 'Показники' },
+                            { id: 'rows', label: 'Записи' },
+                            { id: 'settings', label: 'Налаштування' },
+                        ].map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setFilter(f.id)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                                    filter === f.id
+                                        ? 'bg-primary-500 text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    {/* Список змін */}
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {filteredHistory.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                                <Icons.Clock className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                                <p>Історія змін порожня</p>
+                                <p className="text-xs mt-1">Зміни будуть відображатися тут</p>
+                            </div>
+                        ) : (
+                            filteredHistory.map(item => (
+                                <div key={item.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                                    <div className="mt-0.5">
+                                        {getActionIcon(item.action)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-sm text-gray-900">
+                                                {getActionLabel(item.action)}
+                                            </span>
+                                            <span className="text-xs text-gray-400">
+                                                {item.type}
+                                            </span>
+                                        </div>
+                                        {item.details && (
+                                            <p className="text-xs text-gray-600 mt-0.5 truncate">
+                                                {item.details}
+                                            </p>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                                            <span>{formatTimestamp(item.timestamp)}</span>
+                                            {item.userName && (
+                                                <>
+                                                    <span>•</span>
+                                                    <span>{item.userName}</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    
+                    <p className="text-xs text-gray-400 text-center">
+                        Показані останні 50 змін
+                    </p>
+                </div>
+            );
+        };
+        
+        // Функція для запису в історію (для використання в App)
+        const logChange = async (db, companyId, userId, userName, action, type, details) => {
+            try {
+                await db.collection('companies').doc(companyId)
+                    .collection('history')
+                    .add({
+                        action,
+                        type,
+                        details,
+                        userId,
+                        userName,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+            } catch (e) {
+                console.error('Error logging change:', e);
+            }
+        };
+
         // ==================== MAIN APP ====================
         const App = () => {
             const toast = useToast();
@@ -3660,11 +4349,20 @@ ${aiSettings.businessContext}
             const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
             const [showAIModal, setShowAIModal] = useState(false);
             const [showDemoModal, setShowDemoModal] = useState(false);
+            const [showTrendsModal, setShowTrendsModal] = useState(false);
+            const [showPDFModal, setShowPDFModal] = useState(false);
+            const [showHistoryModal, setShowHistoryModal] = useState(false);
+            const [trendsPeriodType, setTrendsPeriodType] = useState('weekly');
             const [showToolsDropdown, setShowToolsDropdown] = useState(false);
             const [confirmDialog, setConfirmDialog] = useState({ isOpen: false });
             const [editingColumn, setEditingColumn] = useState(null);
             const [companyId, setCompanyId] = useState(null);
             const [companyName, setCompanyName] = useState('');
+            
+            // Search & Filter state
+            const [searchQuery, setSearchQuery] = useState('');
+            const [filterResponsible, setFilterResponsible] = useState('');
+            const [showFilters, setShowFilters] = useState(false);
             
             // Form state
             const [newStatsName, setNewStatsName] = useState('');
@@ -3696,9 +4394,37 @@ ${aiSettings.businessContext}
             const targetRow = rows.find(r => r.isTarget);
             const dataRows = rows.filter(r => !r.isTarget);
             
-            // Групування колонок по періоду
-            const weeklyColumns = useMemo(() => columns.filter(c => c.period === 'weekly' || c.period === 'daily'), [columns]);
-            const monthlyColumns = useMemo(() => columns.filter(c => c.period === 'monthly'), [columns]);
+            // Унікальні відповідальні для фільтру
+            const uniqueResponsibles = useMemo(() => {
+                const responsibles = columns.map(c => c.responsible).filter(Boolean);
+                return [...new Set(responsibles)].sort();
+            }, [columns]);
+            
+            // Фільтрація колонок по пошуку та відповідальному
+            const filterColumns = useCallback((cols) => {
+                return cols.filter(c => {
+                    // Фільтр по пошуку
+                    if (searchQuery) {
+                        const query = searchQuery.toLowerCase();
+                        const matchesName = c.name?.toLowerCase().includes(query);
+                        const matchesResponsible = c.responsible?.toLowerCase().includes(query);
+                        if (!matchesName && !matchesResponsible) return false;
+                    }
+                    // Фільтр по відповідальному
+                    if (filterResponsible && c.responsible !== filterResponsible) {
+                        return false;
+                    }
+                    return true;
+                });
+            }, [searchQuery, filterResponsible]);
+            
+            // Групування колонок по періоду з фільтрацією
+            const weeklyColumns = useMemo(() => filterColumns(columns.filter(c => c.period === 'weekly' || c.period === 'daily')), [columns, filterColumns]);
+            const monthlyColumns = useMemo(() => filterColumns(columns.filter(c => c.period === 'monthly')), [columns, filterColumns]);
+            
+            // Всі колонки (без фільтрації) для підрахунків
+            const allWeeklyColumns = useMemo(() => columns.filter(c => c.period === 'weekly' || c.period === 'daily'), [columns]);
+            const allMonthlyColumns = useMemo(() => columns.filter(c => c.period === 'monthly'), [columns]);
             
             // Групування рядків по типу періоду
             const weeklyRows = useMemo(() => dataRows.filter(r => r.periodType !== 'monthly'), [dataRows]);
@@ -4601,6 +5327,48 @@ ${aiSettings.businessContext}
             const updateDate = (rowId, date) => setRows(rows.map(row => row.id === rowId ? { ...row, date } : row));
             const updateValue = (rowId, colId, value) => setRows(rows.map(row => row.id === rowId ? { ...row, values: { ...row.values, [colId]: value } } : row));
             const updateTarget = (rowId, colId, value) => setRows(rows.map(row => row.id === rowId ? { ...row, targets: { ...row.targets, [colId]: value } } : row));
+            
+            // Keyboard navigation для таблиці
+            const handleTableKeyDown = useCallback((e, rowIdx, colIdx, totalRows, totalCols) => {
+                const inputs = document.querySelectorAll('.stats-table input[type="number"], .mobile-excel-table input[type="number"]');
+                const currentIndex = Array.from(inputs).findIndex(input => input === e.target);
+                
+                if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
+                    e.preventDefault();
+                    // Переходимо до наступного інпуту
+                    const nextInput = inputs[currentIndex + 1];
+                    if (nextInput) {
+                        nextInput.focus();
+                        nextInput.select();
+                    }
+                } else if (e.key === 'Tab' && e.shiftKey) {
+                    e.preventDefault();
+                    // Переходимо до попереднього інпуту
+                    const prevInput = inputs[currentIndex - 1];
+                    if (prevInput) {
+                        prevInput.focus();
+                        prevInput.select();
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    // Переходимо на рядок нижче (приблизно)
+                    const nextRowInput = inputs[currentIndex + totalCols];
+                    if (nextRowInput) {
+                        nextRowInput.focus();
+                        nextRowInput.select();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    // Переходимо на рядок вище
+                    const prevRowInput = inputs[currentIndex - totalCols];
+                    if (prevRowInput) {
+                        prevRowInput.focus();
+                        prevRowInput.select();
+                    }
+                } else if (e.key === 'Escape') {
+                    e.target.blur();
+                }
+            }, []);
             const updateComment = (rowId, colId, comment) => setRows(rows.map(row => row.id === rowId ? { ...row, comments: { ...row.comments, [colId]: comment } } : row));
 
             // ==================== TEAM HANDLERS ====================
@@ -4837,7 +5605,7 @@ ${aiSettings.businessContext}
                     }
                     
                     await loadBackups();
-                    toast.success('✅ Бекап створено');
+                    toast.success('Бекап створено');
                 } catch (e) {
                     console.error('Error creating backup:', e);
                     toast.error('Помилка створення бекапу');
@@ -4891,14 +5659,18 @@ ${aiSettings.businessContext}
                     setSavedAnalyses(backup.data.savedAnalyses || []);
                     
                     setShowBackupModal(false);
-                    toast.success('✅ Дані відновлено з бекапу');
+                    toast.success('Дані відновлено з бекапу');
+                    
+                    // Записуємо в історію
+                    logChange(db, companyId, user?.uid, userProfile?.name || 'Unknown', 'restore', 'backup', 
+                        `Відновлено з бекапу: ${backup.name}`);
                 } catch (e) {
                     console.error('Error restoring backup:', e);
                     toast.error('Помилка відновлення');
                 } finally {
                     setBackupLoading(false);
                 }
-            }, [backups, companyId, columns, rows, aiSettings, savedAnalyses, user]);
+            }, [backups, companyId, columns, rows, aiSettings, savedAnalyses, user, userProfile]);
             
             // Видалити бекап
             const deleteBackup = useCallback(async (backupId) => {
@@ -5180,6 +5952,12 @@ ${aiSettings.businessContext}
                 setShowImportModal(false);
                 setImportPreview(null);
                 toast.success(`Імпортовано: ${importPreview.columns.length} показників, ${importPreview.weeklyCount} тижнів, ${importPreview.monthlyCount} місяців`);
+                
+                // Записуємо в історію
+                if (companyId) {
+                    logChange(db, companyId, user?.uid, userProfile?.name || 'Unknown', 'import', 'data', 
+                        `Імпорт: ${importPreview.columns.length} показників, ${importPreview.weeklyCount} тижнів, ${importPreview.monthlyCount} місяців`);
+                }
             };
 
             // ==================== RENDER ====================
@@ -5284,7 +6062,19 @@ ${aiSettings.businessContext}
                                                 {showToolsDropdown && (
                                                     <>
                                                         <div className="fixed inset-0 z-40" onClick={() => setShowToolsDropdown(false)} />
-                                                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                                                        <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                                                            {/* Нові функції */}
+                                                            <button onClick={() => { setShowTrendsModal(true); setShowToolsDropdown(false); }} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left">
+                                                                <Icons.TrendingUp className="w-4 h-4 text-green-500" /> Графіки трендів
+                                                            </button>
+                                                            <button onClick={() => { setShowPDFModal(true); setShowToolsDropdown(false); }} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left">
+                                                                <Icons.FileText className="w-4 h-4 text-red-500" /> Експорт PDF
+                                                            </button>
+                                                            <button onClick={() => { setShowHistoryModal(true); setShowToolsDropdown(false); }} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left">
+                                                                <Icons.Clock className="w-4 h-4 text-blue-500" /> Історія змін
+                                                            </button>
+                                                            <hr className="my-2" />
+                                                            {/* Зовнішні інструменти */}
                                                             <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
                                                                 <Icons.Target className="w-4 h-4 text-gray-500" />AI Статистики
                                                             </a>
@@ -5316,12 +6106,53 @@ ${aiSettings.businessContext}
                         {/* Stats content */}
                         {activeTab === 'stats' && (
                         <>
+                        {/* Search & Filter Bar */}
+                        <div className="hidden sm:flex gap-3 mb-3 items-center">
+                            {/* Пошук */}
+                            <div className="relative flex-1 max-w-xs">
+                                <Icons.Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Пошук показників..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="input-field pl-9 py-1.5 text-sm"
+                                />
+                                {searchQuery && (
+                                    <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                        <Icons.Close className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {/* Фільтр по відповідальному */}
+                            {uniqueResponsibles.length > 0 && (
+                                <select
+                                    value={filterResponsible}
+                                    onChange={(e) => setFilterResponsible(e.target.value)}
+                                    className="select-field py-1.5 text-sm w-auto"
+                                >
+                                    <option value="">Всі відповідальні</option>
+                                    {uniqueResponsibles.map(r => (
+                                        <option key={r} value={r}>{r}</option>
+                                    ))}
+                                </select>
+                            )}
+                            
+                            {/* Лічильник фільтрованих */}
+                            {(searchQuery || filterResponsible) && (
+                                <span className="text-xs text-gray-500">
+                                    Показано: {weeklyColumns.length + monthlyColumns.length} з {columns.length}
+                                </span>
+                            )}
+                        </div>
+                        
                         {/* Action buttons (desktop) */}
                         {isOwner && (
                             <div className="hidden sm:flex gap-3 mb-3">
                                 <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary btn-sm"><Icons.Plus className="w-4 h-4" />{t.addStats}</button>
                                 <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm"><Icons.Calendar className="w-4 h-4" />+ Тиждень</button>
-                                {monthlyColumns.length > 0 && (
+                                {allMonthlyColumns.length > 0 && (
                                     <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm"><Icons.BarChart className="w-4 h-4" />+ Місяць</button>
                                 )}
                             </div>
@@ -5329,6 +6160,32 @@ ${aiSettings.businessContext}
                         
                         {/* Mobile: Table view (як Excel) */}
                         <div className="sm:hidden">
+                            {/* Mobile Search & Filter */}
+                            <div className="flex gap-2 mb-3">
+                                <div className="relative flex-1">
+                                    <Icons.Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Пошук..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="input-field pl-9 py-2 text-sm w-full"
+                                    />
+                                </div>
+                                {uniqueResponsibles.length > 0 && (
+                                    <select
+                                        value={filterResponsible}
+                                        onChange={(e) => setFilterResponsible(e.target.value)}
+                                        className="select-field py-2 text-sm w-auto"
+                                    >
+                                        <option value="">Всі</option>
+                                        {uniqueResponsibles.map(r => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                            
                             {/* Тижневі показники */}
                             {weeklyColumns.length > 0 && (
                                 <div className="mb-4">
@@ -5364,13 +6221,14 @@ ${aiSettings.businessContext}
                                                                 ))}
                                                             </select>
                                                         </td>
-                                                        {weeklyColumns.map(col => (
+                                                        {weeklyColumns.map((col, colIdx) => (
                                                             <td key={col.id}>
                                                                 <input
                                                                     type="text"
                                                                     inputMode="decimal"
                                                                     value={row.values?.[col.id] || ''}
                                                                     onChange={(e) => updateValue(row.id, col.id, e.target.value)}
+                                                                    onKeyDown={(e) => handleTableKeyDown(e, idx, colIdx, weeklyRows.length, weeklyColumns.length)}
                                                                     className="mobile-cell-input"
                                                                     placeholder="0"
                                                                 />
@@ -5426,13 +6284,14 @@ ${aiSettings.businessContext}
                                                                 ))}
                                                             </select>
                                                         </td>
-                                                        {monthlyColumns.map(col => (
+                                                        {monthlyColumns.map((col, colIdx) => (
                                                             <td key={col.id}>
                                                                 <input
                                                                     type="text"
                                                                     inputMode="decimal"
                                                                     value={row.values?.[col.id] || ''}
                                                                     onChange={(e) => updateValue(row.id, col.id, e.target.value)}
+                                                                    onKeyDown={(e) => handleTableKeyDown(e, idx, colIdx, monthlyRows.length, monthlyColumns.length)}
                                                                     className="mobile-cell-input"
                                                                     placeholder="0"
                                                                 />
@@ -5656,7 +6515,7 @@ ${aiSettings.businessContext}
                             {isSuperAdmin && (
                                 <>
                                     <div className="pt-2 pb-1">
-                                        <p className="text-xs font-semibold text-red-400 uppercase tracking-wider px-1">🛡️ Super Admin</p>
+                                        <p className="text-xs font-semibold text-red-400 uppercase tracking-wider px-1 flex items-center gap-1"><Icons.Shield className="w-3 h-3" />Super Admin</p>
                                     </div>
                                     <button onClick={() => { setShowAdminPanel(true); setShowMenu(false); }} className="btn bg-gradient-to-r from-red-500 to-pink-500 text-white w-full justify-start">
                                         <Icons.Shield className="w-5 h-5" />Адмін-панель
@@ -6182,7 +7041,7 @@ ${aiSettings.businessContext}
                     
                     {/* Admin Panel modal (Super Admin only) */}
                     {isSuperAdmin && (
-                        <Modal isOpen={showAdminPanel} onClose={() => setShowAdminPanel(false)} title="🛡️ Адмін-панель" size="lg">
+                        <Modal isOpen={showAdminPanel} onClose={() => setShowAdminPanel(false)} title="Адмін-панель" size="lg">
                             <div className="space-y-6">
                                 {/* Create Company Form */}
                                 <div className="p-5 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-2xl">
@@ -6322,7 +7181,7 @@ ${aiSettings.businessContext}
                             {importPreview ? (
                                 <>
                                     <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                                        <h4 className="font-bold text-green-800 mb-2">✅ Файл розпізнано</h4>
+                                        <h4 className="font-bold text-green-800 mb-2 flex items-center gap-2"><Icons.Check className="w-5 h-5" /> Файл розпізнано</h4>
                                         <div className="grid grid-cols-3 gap-4 text-sm">
                                             <div className="text-center">
                                                 <div className="text-2xl font-bold text-green-600">{importPreview.columns.length}</div>
@@ -6397,7 +7256,7 @@ ${aiSettings.businessContext}
                             
                             <div className="pt-3 border-t">
                                 <p className="text-xs text-gray-400">
-                                    💡 Підтримувані формати: .xlsx, .xls, .csv<br/>
+                                    <Icons.AlertCircle className="w-4 h-4 text-amber-500 inline mr-1" /> Підтримувані формати: .xlsx, .xls, .csv<br/>
                                     Для найкращого результату використовуйте файл, експортований з цієї системи
                                 </p>
                             </div>
@@ -6490,7 +7349,7 @@ ${aiSettings.businessContext}
                     </Modal>
                     
                     {/* Backup Modal */}
-                    <Modal isOpen={showBackupModal} onClose={() => setShowBackupModal(false)} title="💾 Бекапи даних" size="lg">
+                    <Modal isOpen={showBackupModal} onClose={() => setShowBackupModal(false)} title="Бекапи даних" size="lg">
                         <div className="space-y-4">
                             {/* Створити бекап */}
                             <div className="flex gap-2">
@@ -6509,7 +7368,7 @@ ${aiSettings.businessContext}
                             </div>
                             
                             <p className="text-xs text-gray-500">
-                                ☁️ Бекапи зберігаються в хмарі (Firestore). Максимум {MAX_BACKUPS} бекапів.
+                                <Icons.Cloud className="w-4 h-4 text-blue-400 inline mr-1" /> Бекапи зберігаються в хмарі (Firestore). Максимум {MAX_BACKUPS} бекапів.
                             </p>
                             
                             {/* Список бекапів */}
@@ -6572,11 +7431,43 @@ ${aiSettings.businessContext}
                             {/* Підказка */}
                             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
                                 <p className="text-xs text-amber-800">
-                                    <b>💡 Порада:</b> Створюйте бекап перед важливими змінами. 
+                                    <b><Icons.AlertCircle className="w-4 h-4 text-amber-600 inline mr-1" />Порада:</b> Створюйте бекап перед важливими змінами. 
                                     При відновленні поточні дані будуть замінені даними з бекапу.
                                 </p>
                             </div>
                         </div>
+                    </Modal>
+                    
+                    {/* Trends Chart Modal */}
+                    <Modal isOpen={showTrendsModal} onClose={() => setShowTrendsModal(false)} title="Графіки трендів" size="lg">
+                        <div className="space-y-4">
+                            {/* Tabs для тижневих/місячних */}
+                            <div className="flex gap-2 border-b pb-2">
+                                <button
+                                    onClick={() => setTrendsPeriodType('weekly')}
+                                    className={`px-4 py-2 rounded-t-lg text-sm font-medium flex items-center gap-1 ${trendsPeriodType === 'weekly' ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'}`}
+                                >
+                                    <Icons.Calendar className="w-4 h-4" /> Тижневі
+                                </button>
+                                <button
+                                    onClick={() => setTrendsPeriodType('monthly')}
+                                    className={`px-4 py-2 rounded-t-lg text-sm font-medium flex items-center gap-1 ${trendsPeriodType === 'monthly' ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'}`}
+                                >
+                                    <Icons.BarChart className="w-4 h-4" /> Місячні
+                                </button>
+                            </div>
+                            <TrendsChart columns={columns} rows={rows} periodType={trendsPeriodType} t={t} />
+                        </div>
+                    </Modal>
+                    
+                    {/* PDF Export Modal */}
+                    <Modal isOpen={showPDFModal} onClose={() => setShowPDFModal(false)} title="Експорт PDF звіту">
+                        <PDFExport columns={columns} rows={rows} companyName={companyName} aiSettings={aiSettings} t={t} />
+                    </Modal>
+                    
+                    {/* History Modal */}
+                    <Modal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} title="Історія змін" size="lg">
+                        <ChangeHistory companyId={companyId} t={t} />
                     </Modal>
                     
                     {/* Confirm dialog */}
@@ -6586,7 +7477,7 @@ ${aiSettings.businessContext}
         };
 
         // ==================== ROOT ====================
-        const Root = () => (<ToastProvider><App /></ToastProvider>);
+        const Root = () => (<ErrorBoundary><ToastProvider><App /></ToastProvider></ErrorBoundary>);
         ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
     </script>
 </body>
