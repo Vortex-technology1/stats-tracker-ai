@@ -6063,8 +6063,8 @@ ${aiSettings.businessContext}
                         {/* Stats content */}
                         {activeTab === 'stats' && (
                         <>
-                        {/* Search & Filter Bar */}
-                        <div className="hidden sm:flex gap-3 mb-3 items-center">
+                        {/* Toolbar: Search + Filter + Actions */}
+                        <div className="hidden sm:flex gap-3 mb-4 items-center bg-white rounded-xl p-3 shadow-sm border border-gray-100">
                             {/* Пошук */}
                             <div className="relative flex-1 max-w-xs">
                                 <Icons.Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -6073,7 +6073,7 @@ ${aiSettings.businessContext}
                                     placeholder="Пошук показників..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="input-field pl-9 py-1.5 text-sm"
+                                    className="input-field pl-9 py-1.5 text-sm bg-gray-50"
                                 />
                                 {searchQuery && (
                                     <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -6087,7 +6087,7 @@ ${aiSettings.businessContext}
                                 <select
                                     value={filterResponsible}
                                     onChange={(e) => setFilterResponsible(e.target.value)}
-                                    className="select-field py-1.5 text-sm w-auto"
+                                    className="select-field py-1.5 text-sm w-auto bg-gray-50"
                                 >
                                     <option value="">Всі відповідальні</option>
                                     {uniqueResponsibles.map(r => (
@@ -6102,18 +6102,21 @@ ${aiSettings.businessContext}
                                     Показано: {weeklyColumns.length + monthlyColumns.length} з {columns.length}
                                 </span>
                             )}
+                            
+                            {/* Розділювач */}
+                            <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                            
+                            {/* Action buttons */}
+                            {isOwner && (
+                                <>
+                                    <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary btn-sm"><Icons.Plus className="w-4 h-4" />{t.addStats}</button>
+                                    <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm"><Icons.Calendar className="w-4 h-4" />+ Тиждень</button>
+                                    {allMonthlyColumns.length > 0 && (
+                                        <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm"><Icons.BarChart className="w-4 h-4" />+ Місяць</button>
+                                    )}
+                                </>
+                            )}
                         </div>
-                        
-                        {/* Action buttons (desktop) */}
-                        {isOwner && (
-                            <div className="hidden sm:flex gap-3 mb-3">
-                                <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary btn-sm"><Icons.Plus className="w-4 h-4" />{t.addStats}</button>
-                                <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm"><Icons.Calendar className="w-4 h-4" />+ Тиждень</button>
-                                {allMonthlyColumns.length > 0 && (
-                                    <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm"><Icons.BarChart className="w-4 h-4" />+ Місяць</button>
-                                )}
-                            </div>
-                        )}
                         
                         {/* Mobile: Table view (як Excel) */}
                         <div className="sm:hidden">
