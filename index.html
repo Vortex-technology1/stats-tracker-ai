@@ -4572,12 +4572,16 @@ ${aiSettings.businessContext}
             };
             
             const loadUserProfile = async (userId) => {
+                console.log('loadUserProfile called with userId:', userId);
                 try {
                     const currentUser = auth.currentUser;
                     const userEmail = currentUser?.email?.toLowerCase();
+                    console.log('Current user email:', userEmail);
                     
                     // 1. Спочатку шукаємо глобальний профіль користувача
+                    console.log('Fetching user doc...');
                     const userDoc = await db.collection('users').doc(userId).get();
+                    console.log('User doc fetched, exists:', userDoc.exists);
                     
                     if (userDoc.exists) {
                         const userData = userDoc.data();
@@ -4587,7 +4591,9 @@ ${aiSettings.businessContext}
                         if (userCompanyId) {
                             // 2. Завантажуємо дані компанії
                             setCompanyId(userCompanyId);
+                            console.log('Calling loadCompanyData...');
                             await loadCompanyData(userCompanyId, userId);
+                            console.log('loadCompanyData finished');
                         }
                     } else {
                         // Можливо це новий owner - перевіряємо pendingOwners
@@ -4659,9 +4665,13 @@ ${aiSettings.businessContext}
                     setDataLoaded(false);
                     
                     // 1. Завантажуємо дані компанії
+                    console.log('Fetching company doc...');
                     const companyDoc = await db.collection('companies').doc(companyId).get();
+                    console.log('Company doc fetched, exists:', companyDoc.exists);
+                    
                     if (!companyDoc.exists) {
                         console.log('Company not found:', companyId);
+                        setAuthLoading(false);
                         return;
                     }
                     
@@ -4756,9 +4766,11 @@ ${aiSettings.businessContext}
                     
                     // Позначаємо що дані завантажені - тепер можна зберігати
                     setDataLoaded(true);
+                    console.log('Data loaded flag set to true');
                     
                 } catch (error) {
                     console.error('Error loading company:', error);
+                    console.error('Error details:', error.message, error.code);
                 }
             };
             
