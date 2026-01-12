@@ -3621,6 +3621,7 @@ ${aiSettings.businessContext}
             const [userProfile, setUserProfile] = useState(null);
             const [authLoading, setAuthLoading] = useState(true);
             const [isSubmitting, setIsSubmitting] = useState(false);
+            const [dataLoaded, setDataLoaded] = useState(false); // Флаг що дані завантажені
             
             // Data state
             const [columns, setColumns] = useState([]);
@@ -3792,11 +3793,10 @@ ${aiSettings.businessContext}
                 const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
                     setUser(authUser);
                     if (authUser) {
-                        // Якщо супер-адмін - завантажуємо список компаній + демо-дані
+                        // Якщо супер-адмін - завантажуємо список компаній
                         if (authUser.email === SUPER_ADMIN_EMAIL) {
                             await loadAdminCompanies();
-                            // Автоматично завантажуємо демо-дані для супер-адміна
-                            loadSuperAdminDemo();
+                            // НЕ завантажуємо демо автоматично - тільки список компаній
                             setAuthLoading(false);
                         } else {
                             await loadUserProfile(authUser.uid);
@@ -3984,6 +3984,9 @@ ${aiSettings.businessContext}
                 try {
                     console.log('Loading company:', companyId);
                     
+                    // Скидаємо флаг поки дані завантажуються
+                    setDataLoaded(false);
+                    
                     // 1. Завантажуємо дані компанії
                     const companyDoc = await db.collection('companies').doc(companyId).get();
                     if (!companyDoc.exists) {
@@ -4079,6 +4082,9 @@ ${aiSettings.businessContext}
                         rowsCount: companyData.rows?.length,
                         usersCount: Object.keys(employeesData).length 
                     });
+                    
+                    // Позначаємо що дані завантажені - тепер можна зберігати
+                    setDataLoaded(true);
                     
                 } catch (error) {
                     console.error('Error loading company:', error);
@@ -4289,9 +4295,28 @@ ${aiSettings.businessContext}
                 }
             };
             
-            const loadDemoData = (type = 'consulting') => {
+            const loadDemoData = async (type = 'consulting') => {
                 const demo = DEMO_DATA[type];
                 if (!demo) return;
+                
+                // Автоматичний бекап перед завантаженням демо!
+                if (columns.length > 0 && companyId && user) {
+                    try {
+                        await db.collection('companies').doc(companyId)
+                            .collection('backups')
+                            .add({
+                                name: `Авто-бекап перед демо ${new Date().toLocaleString('uk-UA')}`,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                createdBy: user?.uid,
+                                data: { columns, rows, aiSettings, savedAnalyses },
+                                stats: { columnsCount: columns.length, rowsCount: rows.filter(r => !r.isTarget).length },
+                                autoBackup: true
+                            });
+                        console.log('Auto-backup created before demo');
+                    } catch (e) {
+                        console.error('Auto-backup failed:', e);
+                    }
+                }
                 
                 const today = new Date();
                 const getWeekDateKey = (weeksAgo) => {
@@ -4345,6 +4370,8 @@ ${aiSettings.businessContext}
                 setEmployees({});
                 setSavedAnalyses([]);
                 setCompanyName(`DEMO: ${demo.companyName}`);
+                setCompanyId(null); // Скидаємо companyId щоб демо дані НЕ зберігались в реальну компанію!
+                setDataLoaded(false); // Демо дані не потрібно зберігати
                 
                 toast.success(`${demo.name} — демо завантажено!`);
                 setShowDemoModal(false);
@@ -4429,6 +4456,7 @@ ${aiSettings.businessContext}
                 await auth.signOut();
                 setColumns([]); setRows([]); setEmployees({}); setUserProfile(null);
                 setCompanyId(null); setCompanyName('');
+                setDataLoaded(false); // Скидаємо флаг при logout
                 toast.info('До побачення!');
             };
 
@@ -4440,12 +4468,16 @@ ${aiSettings.businessContext}
             }, [columns, rows, aiSettings, savedAnalyses]);
             
             const saveData = useCallback(async () => {
-                if (!user || !companyId || !isOwner) return;
+                if (!user || !companyId || !isOwner) {
+                    console.log('Skip save - no permission', { user: !!user, companyId, isOwner });
+                    return;
+                }
                 const data = dataRef.current;
                 if (!data.columns || data.columns.length === 0 || !data.rows || data.rows.length === 0) {
                     console.log('Skip save - no data', { cols: data.columns?.length, rows: data.rows?.length });
                     return;
                 }
+                console.log('Saving data...', { cols: data.columns?.length, rows: data.rows?.length, companyId });
                 setSaveStatus('saving');
                 try {
                     await db.collection('companies').doc(companyId).update({
@@ -4455,6 +4487,7 @@ ${aiSettings.businessContext}
                         savedAnalyses: data.savedAnalyses || [],
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+                    console.log('Data saved successfully');
                     setSaveStatus('saved');
                     setTimeout(() => setSaveStatus(null), 2000);
                 } catch (error) {
@@ -4475,10 +4508,11 @@ ${aiSettings.businessContext}
                 // - це власник
                 // - є дані (columns і rows)
                 // - не йде завантаження
-                if (user && companyId && columns.length > 0 && rows.length > 0 && isOwner && !authLoading) {
+                // - ДАНІ ЗАВАНТАЖЕНІ (dataLoaded) - щоб не перезаписати порожніми!
+                if (user && companyId && columns.length > 0 && rows.length > 0 && isOwner && !authLoading && dataLoaded) {
                     debouncedSave();
                 }
-            }, [columns, rows, aiSettings, savedAnalyses, isOwner, companyId, debouncedSave, authLoading]);
+            }, [columns, rows, aiSettings, savedAnalyses, isOwner, companyId, debouncedSave, authLoading, dataLoaded]);
 
             // ==================== DATA HANDLERS ====================
             const addColumn = () => {
@@ -4826,6 +4860,21 @@ ${aiSettings.businessContext}
                 
                 setBackupLoading(true);
                 try {
+                    // Автоматичний бекап поточних даних перед відновленням!
+                    if (columns.length > 0) {
+                        await db.collection('companies').doc(companyId)
+                            .collection('backups')
+                            .add({
+                                name: `Авто-бекап перед відновленням ${new Date().toLocaleString('uk-UA')}`,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                createdBy: user?.uid,
+                                data: { columns, rows, aiSettings, savedAnalyses },
+                                stats: { columnsCount: columns.length, rowsCount: rows.filter(r => !r.isTarget).length },
+                                autoBackup: true
+                            });
+                        console.log('Auto-backup created before restore');
+                    }
+                    
                     // Оновлюємо дані в компанії
                     await db.collection('companies').doc(companyId).update({
                         columns: backup.data.columns || [],
@@ -4849,7 +4898,7 @@ ${aiSettings.businessContext}
                 } finally {
                     setBackupLoading(false);
                 }
-            }, [backups, companyId]);
+            }, [backups, companyId, columns, rows, aiSettings, savedAnalyses, user]);
             
             // Видалити бекап
             const deleteBackup = useCallback(async (backupId) => {
@@ -5078,8 +5127,27 @@ ${aiSettings.businessContext}
                 return null;
             };
             
-            const confirmImport = (mode) => {
+            const confirmImport = async (mode) => {
                 if (!importPreview) return;
+                
+                // Автоматичний бекап перед імпортом!
+                if (columns.length > 0 && companyId) {
+                    try {
+                        await db.collection('companies').doc(companyId)
+                            .collection('backups')
+                            .add({
+                                name: `Авто-бекап перед імпортом ${new Date().toLocaleString('uk-UA')}`,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                createdBy: user?.uid,
+                                data: { columns, rows, aiSettings, savedAnalyses },
+                                stats: { columnsCount: columns.length, rowsCount: rows.filter(r => !r.isTarget).length },
+                                autoBackup: true
+                            });
+                        console.log('Auto-backup created before import');
+                    } catch (e) {
+                        console.error('Auto-backup failed:', e);
+                    }
+                }
                 
                 if (mode === 'replace') {
                     setColumns(importPreview.columns);
