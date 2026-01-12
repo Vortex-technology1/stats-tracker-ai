@@ -945,18 +945,19 @@
             }, [isOpen]);
             if (!isOpen) return null;
             const sizeClass = size === 'lg' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-2xl' : size === '2xl' ? 'sm:max-w-4xl' : size === 'full' ? 'sm:max-w-[95vw] sm:w-[95vw]' : 'sm:max-w-md';
-            const heightClass = size === '2xl' || size === 'full' ? 'max-h-[85vh]' : 'max-h-[70vh]';
+            const heightClass = size === 'full' ? 'h-[calc(85vh-80px)]' : size === '2xl' ? 'max-h-[85vh]' : 'max-h-[70vh]';
+            const isFullScreen = size === 'full';
             return (
                 <>
                     <div className="modal-overlay" onClick={onClose} />
                     <div className={`modal-content ${sizeClass}`}>
                         <div className="sm:hidden"><div className="sheet-handle" /></div>
-                        <div className="p-5">
+                        <div className={`p-5 ${isFullScreen ? 'h-[90vh] flex flex-col' : ''}`}>
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-bold text-gray-900">{title}</h2>
                                 <button onClick={onClose} className="btn btn-ghost btn-icon"><Icons.Close className="w-5 h-5" /></button>
                             </div>
-                            <div className={`${heightClass} overflow-y-auto`}>{children}</div>
+                            <div className={`${isFullScreen ? 'flex-1 min-h-0' : heightClass} overflow-y-auto`}>{children}</div>
                         </div>
                     </div>
                 </>
@@ -3683,16 +3684,18 @@ ${aiSettings.businessContext}
             const [chartType, setChartType] = useState('line');
             
             // Фільтруємо колонки по періоду
-            const periodColumns = columns.filter(c => c.period === periodType);
-            const periodRows = rows.filter(r => !r.isTarget && r.periodType === periodType)
-                .sort((a, b) => a.date?.localeCompare(b.date));
+            const periodColumns = useMemo(() => columns.filter(c => c.period === periodType), [columns, periodType]);
+            const periodRows = useMemo(() => rows.filter(r => !r.isTarget && r.periodType === periodType)
+                .sort((a, b) => a.date?.localeCompare(b.date)), [rows, periodType]);
             
-            // Ініціалізуємо вибрані колонки (перші 3)
+            // Ініціалізуємо вибрані колонки (перші 3) - тільки коли змінюється periodType
             useEffect(() => {
-                if (selectedColumns.length === 0 && periodColumns.length > 0) {
+                if (periodColumns.length > 0) {
                     setSelectedColumns(periodColumns.slice(0, 3).map(c => c.id));
+                } else {
+                    setSelectedColumns([]);
                 }
-            }, [periodColumns]);
+            }, [periodType, columns.length]);
             
             // Кольори для графіків
             const colors = [
@@ -3805,7 +3808,7 @@ ${aiSettings.businessContext}
             }
             
             return (
-                <div className="space-y-4">
+                <div className="flex flex-col h-full gap-4">
                     {/* Вибір показників */}
                     <div className="flex flex-wrap gap-2">
                         {periodColumns.map((col, idx) => (
@@ -3843,7 +3846,7 @@ ${aiSettings.businessContext}
                     </div>
                     
                     {/* Графік */}
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100" style={{ height: 350 }}>
+                    <div className="bg-white rounded-2xl p-4 border border-gray-100 flex-1 min-h-[300px] sm:min-h-[400px] md:min-h-[500px]">
                         {selectedColumns.length === 0 ? (
                             <div className="h-full flex items-center justify-center text-gray-400">
                                 Виберіть показники для відображення
@@ -7381,8 +7384,8 @@ ${aiSettings.businessContext}
                     </Modal>
                     
                     {/* Trends Chart Modal */}
-                    <Modal isOpen={showTrendsModal} onClose={() => setShowTrendsModal(false)} title="Графіки трендів" size="lg">
-                        <div className="space-y-4">
+                    <Modal isOpen={showTrendsModal} onClose={() => setShowTrendsModal(false)} title="Графіки трендів" size="full">
+                        <div className="flex flex-col h-full gap-4">
                             {/* Tabs для тижневих/місячних */}
                             <div className="flex gap-2 border-b pb-2">
                                 <button
@@ -7398,7 +7401,9 @@ ${aiSettings.businessContext}
                                     <Icons.BarChart className="w-4 h-4" /> Місячні
                                 </button>
                             </div>
-                            <TrendsChart columns={columns} rows={rows} periodType={trendsPeriodType} t={t} />
+                            <div className="flex-1 min-h-0">
+                                <TrendsChart columns={columns} rows={rows} periodType={trendsPeriodType} t={t} />
+                            </div>
                         </div>
                     </Modal>
                     
