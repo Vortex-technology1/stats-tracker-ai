@@ -4671,6 +4671,7 @@ ${aiSettings.businessContext}
                     
                     if (!companyDoc.exists) {
                         console.log('Company not found:', companyId);
+                        toast.error('Компанію не знайдено');
                         setAuthLoading(false);
                         return;
                     }
@@ -4766,11 +4767,14 @@ ${aiSettings.businessContext}
                     
                     // Позначаємо що дані завантажені - тепер можна зберігати
                     setDataLoaded(true);
+                    setAuthLoading(false);
                     console.log('Data loaded flag set to true');
                     
                 } catch (error) {
                     console.error('Error loading company:', error);
                     console.error('Error details:', error.message, error.code);
+                    toast.error('Помилка завантаження: ' + error.message);
+                    setAuthLoading(false);
                 }
             };
             
