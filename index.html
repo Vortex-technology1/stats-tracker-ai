@@ -5059,6 +5059,7 @@ ${aiSettings.businessContext}
                 setCompanyName(`DEMO: ${demo.companyName}`);
                 setCompanyId(null); // Скидаємо companyId щоб демо дані НЕ зберігались в реальну компанію!
                 setDataLoaded(false); // Демо дані не потрібно зберігати
+                setUserProfile({ role: 'owner', name: 'Demo Admin' }); // Даємо права owner для демо
                 
                 toast.success(`${demo.name} — демо завантажено!`);
                 setShowDemoModal(false);
@@ -6010,54 +6011,6 @@ ${aiSettings.businessContext}
                                         <button onClick={exportToExcel} className="btn btn-sm btn-secondary" title="Експорт в Excel"><Icons.Download className="w-4 h-4" /></button>
                                         <button onClick={() => { loadBackups(); setShowBackupModal(true); }} className="btn btn-sm btn-secondary" title="Бекапи"><Icons.Database className="w-4 h-4" /></button>
                                         
-                                        {/* Tools dropdown */}
-                                        {isOwner && (
-                                            <div className="relative">
-                                                <button 
-                                                    onClick={() => setShowToolsDropdown(!showToolsDropdown)} 
-                                                    className="btn btn-sm btn-secondary"
-                                                    title="Інструменти"
-                                                >
-                                                    <Icons.ExternalLink className="w-4 h-4" />
-                                                </button>
-                                                {showToolsDropdown && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-40" onClick={() => setShowToolsDropdown(false)} />
-                                                        <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
-                                                            {/* Нові функції */}
-                                                            <button onClick={() => { setShowTrendsModal(true); setShowToolsDropdown(false); }} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left">
-                                                                <Icons.TrendingUp className="w-4 h-4 text-green-500" /> Графіки трендів
-                                                            </button>
-                                                            <button onClick={() => { setShowPDFModal(true); setShowToolsDropdown(false); }} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left">
-                                                                <Icons.FileText className="w-4 h-4 text-red-500" /> Експорт PDF
-                                                            </button>
-                                                            <button onClick={() => { setShowHistoryModal(true); setShowToolsDropdown(false); }} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left">
-                                                                <Icons.Clock className="w-4 h-4 text-blue-500" /> Історія змін
-                                                            </button>
-                                                            <hr className="my-2" />
-                                                            {/* Зовнішні інструменти */}
-                                                            <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
-                                                                <Icons.Target className="w-4 h-4 text-gray-500" />AI Статистики
-                                                            </a>
-                                                            <a href="https://chatgpt.com/g/g-684be37e3bcc81918f64088a2bb094da-instructions-generator" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
-                                                                <Icons.Edit className="w-4 h-4 text-gray-500" />Розпорядження
-                                                            </a>
-                                                            <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
-                                                                <Icons.CheckSquare className="w-4 h-4 text-gray-500" />Задачі
-                                                            </a>
-                                                            <a href="https://alextalko.com/tms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
-                                                                <Icons.GitBranch className="w-4 h-4 text-gray-500" />Структура
-                                                            </a>
-                                                            <hr className="my-2" />
-                                                            <a href={GPT_BOTTLENECK_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
-                                                                <Icons.Brain className="w-4 h-4 text-purple-500" />AI Вузькі місця
-                                                            </a>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                        )}
-                                        
                                         <button onClick={handleLogout} className="btn btn-sm btn-ghost"><Icons.LogOut className="w-4 h-4" /></button>
                                     </div>
                                 </div>
@@ -6107,19 +6060,65 @@ ${aiSettings.businessContext}
                                 </span>
                             )}
                             
-                            {/* Розділювач */}
-                            <div className="h-6 w-px bg-gray-200 mx-1"></div>
-                            
-                            {/* Action buttons */}
-                            {isOwner && (
-                                <>
-                                    <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary btn-sm"><Icons.Plus className="w-4 h-4" />{t.addStats}</button>
-                                    <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm"><Icons.Calendar className="w-4 h-4" />+ Тиждень</button>
-                                    {allMonthlyColumns.length > 0 && (
-                                        <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm"><Icons.BarChart className="w-4 h-4" />+ Місяць</button>
+                            {/* Action buttons - для всіх користувачів */}
+                            <>
+                                {/* Розділювач */}
+                                <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                                <button onClick={() => setShowAddStatsModal(true)} className="btn btn-primary btn-sm"><Icons.Plus className="w-4 h-4" />{t.addStats}</button>
+                                <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm"><Icons.Calendar className="w-4 h-4" />+ Тиждень</button>
+                                {allMonthlyColumns.length > 0 && (
+                                    <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm"><Icons.BarChart className="w-4 h-4" />+ Місяць</button>
+                                )}
+                                
+                                {/* Розділювач */}
+                                <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                                
+                                {/* Інструменти */}
+                                <button onClick={() => setShowTrendsModal(true)} className="btn btn-secondary btn-sm" title="Графіки трендів">
+                                    <Icons.TrendingUp className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => setShowPDFModal(true)} className="btn btn-secondary btn-sm" title="Експорт PDF">
+                                    <Icons.FileText className="w-4 h-4" />
+                                </button>
+                                
+                                {/* Tools dropdown */}
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => setShowToolsDropdown(!showToolsDropdown)} 
+                                        className="btn btn-sm btn-secondary"
+                                        title="Більше інструментів"
+                                    >
+                                        <Icons.ExternalLink className="w-4 h-4" />
+                                    </button>
+                                    {showToolsDropdown && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setShowToolsDropdown(false)} />
+                                            <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                                                <button onClick={() => { setShowHistoryModal(true); setShowToolsDropdown(false); }} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 w-full text-left">
+                                                    <Icons.Clock className="w-4 h-4 text-blue-500" /> Історія змін
+                                                </button>
+                                                <hr className="my-2" />
+                                                <a href="https://chatgpt.com/g/g-6851a70e282481918ad5c2894ff30b13-statistics" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                    <Icons.Target className="w-4 h-4 text-gray-500" />AI Статистики
+                                                </a>
+                                                <a href="https://chatgpt.com/g/g-684be37e3bcc81918f64088a2bb094da-instructions-generator" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                    <Icons.Edit className="w-4 h-4 text-gray-500" />Розпорядження
+                                                </a>
+                                                <a href="https://alextalko.com/alta" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                    <Icons.CheckSquare className="w-4 h-4 text-gray-500" />Задачі
+                                                </a>
+                                                <a href="https://alextalko.com/tms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                    <Icons.GitBranch className="w-4 h-4 text-gray-500" />Структура
+                                                </a>
+                                                <hr className="my-2" />
+                                                <a href={GPT_BOTTLENECK_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50" onClick={() => setShowToolsDropdown(false)}>
+                                                    <Icons.Brain className="w-4 h-4 text-purple-500" />AI Вузькі місця
+                                                </a>
+                                            </div>
+                                        </>
                                     )}
-                                </>
-                            )}
+                                </div>
+                            </>
                         </div>
                         
                         {/* Mobile: Table view (як Excel) */}
