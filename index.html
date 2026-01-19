@@ -7273,15 +7273,30 @@ const App = () => {
       // 1. Завантажуємо дані компанії з timeout
       console.log('Fetching company doc...');
       
-      // Timeout для запиту до Firestore (15 секунд)
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firestore timeout - перевірте з\'єднання')), 15000)
-      );
+      let companyDoc;
       
-      const companyDoc = await Promise.race([
-        db.collection('companies').doc(companyId).get(),
-        timeoutPromise
-      ]);
+      try {
+        // Спочатку пробуємо з сервера (5 секунд timeout)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('timeout')), 5000)
+        );
+        
+        companyDoc = await Promise.race([
+          db.collection('companies').doc(companyId).get(),
+          timeoutPromise
+        ]);
+      } catch (e) {
+        // Якщо timeout або помилка мережі - пробуємо з кешу
+        console.log('Server fetch failed, trying cache...', e.message);
+        try {
+          companyDoc = await db.collection('companies').doc(companyId).get({ source: 'cache' });
+          console.log('Loaded from cache');
+          toast.info('Завантажено з кешу (офлайн режим)');
+        } catch (cacheError) {
+          console.log('Cache also failed:', cacheError.message);
+          throw new Error('Не вдалося завантажити дані. Перевірте з\'єднання.');
+        }
+      }
       
       console.log('Company doc fetched, exists:', companyDoc.exists);
       if (!companyDoc.exists) {
