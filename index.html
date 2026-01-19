@@ -3629,12 +3629,15 @@ const StatsTable = ({
   onCommentChange,
   onEditColumn,
   onMoveColumn,
+  onMoveRow,
   editable,
   t,
   duplicateDates = []
 }) => {
   const [draggedCol, setDraggedCol] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
+  const [draggedRow, setDraggedRow] = useState(null);
+  const [dragOverRow, setDragOverRow] = useState(null);
   const [editingTarget, setEditingTarget] = useState(null); // {rowId, colId, value} - для редагування локальної цілі
   const [editingComment, setEditingComment] = useState(null); // {rowId, colId} - для редагування коментаря
   const [currentPage, setCurrentPage] = useState(0); // Пагінація для великих таблиць
@@ -3805,6 +3808,8 @@ const StatsTable = ({
     if (col.period === 'custom') return null;
     return isFilled ? 'filled' : 'pending';
   };
+  
+  // Handlers для drag колонок
   const handleDragStart = (e, colId) => {
     setDraggedCol(colId);
     e.dataTransfer.effectAllowed = 'move';
@@ -3831,6 +3836,38 @@ const StatsTable = ({
     setDraggedCol(null);
     setDragOverCol(null);
   };
+  
+  // Handlers для drag рядків
+  const handleRowDragStart = (e, rowId) => {
+    setDraggedRow(rowId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/row', rowId);
+    // Візуальний фідбек
+    e.currentTarget.style.opacity = '0.5';
+  };
+  const handleRowDragOver = (e, rowId) => {
+    e.preventDefault();
+    if (draggedRow && draggedRow !== rowId) {
+      setDragOverRow(rowId);
+    }
+  };
+  const handleRowDragLeave = () => {
+    setDragOverRow(null);
+  };
+  const handleRowDrop = (e, targetRowId) => {
+    e.preventDefault();
+    if (draggedRow && draggedRow !== targetRowId && onMoveRow) {
+      onMoveRow(draggedRow, targetRowId, periodType);
+    }
+    setDraggedRow(null);
+    setDragOverRow(null);
+  };
+  const handleRowDragEnd = (e) => {
+    e.currentTarget.style.opacity = '1';
+    setDraggedRow(null);
+    setDragOverRow(null);
+  };
+  
   return /*#__PURE__*/React.createElement("div", {
     className: "card overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3905,13 +3942,23 @@ const StatsTable = ({
   }))), editable && /*#__PURE__*/React.createElement("td", null)), displayRows.map(row => {
     const currentPeriodKey = periodType === 'monthly' ? row.date : row.date ? getWeekKey(row.date) : null;
     const isRowDuplicate = isDuplicate(row.date);
+    const isDraggingThis = draggedRow === row.id;
+    const isDragOverThis = dragOverRow === row.id;
     return /*#__PURE__*/React.createElement("tr", {
       key: row.id,
-      className: isRowDuplicate ? 'bg-amber-50' : '',
-      title: isRowDuplicate ? 'Дублікат періоду!' : ''
+      draggable: editable,
+      onDragStart: e => handleRowDragStart(e, row.id),
+      onDragOver: e => handleRowDragOver(e, row.id),
+      onDragLeave: handleRowDragLeave,
+      onDrop: e => handleRowDrop(e, row.id),
+      onDragEnd: handleRowDragEnd,
+      className: `${isRowDuplicate ? 'bg-amber-50' : ''} ${isDraggingThis ? 'opacity-50' : ''} ${isDragOverThis ? 'bg-primary-50 border-t-2 border-primary-400' : ''} ${editable ? 'cursor-grab active:cursor-grabbing' : ''}`,
+      title: isRowDuplicate ? 'Дублікат періоду!' : editable ? 'Перетягніть для зміни порядку' : ''
     }, /*#__PURE__*/React.createElement("td", {
       className: "sticky-col"
-    }, isRowDuplicate && /*#__PURE__*/React.createElement("span", {
+    }, editable && /*#__PURE__*/React.createElement("span", {
+      className: "inline-block w-4 text-gray-300 hover:text-gray-500 cursor-grab mr-1"
+    }, /*#__PURE__*/React.createElement(Icons.GripVertical, { className: "w-3 h-3" })), isRowDuplicate && /*#__PURE__*/React.createElement("span", {
       className: "text-amber-500 mr-1",
       title: "\u0414\u0443\u0431\u043B\u0456\u043A\u0430\u0442"
     }, "\u26A0"), /*#__PURE__*/React.createElement("select", {
@@ -9246,6 +9293,33 @@ const App = () => {
     setColumns(newColumns);
     toast.success('Порядок змінено');
   };
+  
+  // Переміщення рядків (тижнів/місяців)
+  const moveRow = (draggedId, targetId, periodType) => {
+    // Знаходимо тільки рядки цього типу періоду (без target)
+    const periodRows = rows.filter(r => !r.isTarget && r.periodType === periodType);
+    const otherRows = rows.filter(r => r.isTarget || r.periodType !== periodType);
+    
+    const draggedIdx = periodRows.findIndex(r => r.id === draggedId);
+    const targetIdx = periodRows.findIndex(r => r.id === targetId);
+    
+    if (draggedIdx === -1 || targetIdx === -1) return;
+    
+    // Переміщуємо рядок
+    const newPeriodRows = [...periodRows];
+    const [dragged] = newPeriodRows.splice(draggedIdx, 1);
+    newPeriodRows.splice(targetIdx, 0, dragged);
+    
+    // Оновлюємо order для збереження порядку
+    newPeriodRows.forEach((row, idx) => {
+      row.order = idx;
+    });
+    
+    // Об'єднуємо назад
+    setRows([...otherRows, ...newPeriodRows]);
+    toast.success('Порядок змінено');
+  };
+  
   const deleteColumn = id => {
     setConfirmDialog({
       isOpen: true,
@@ -10414,6 +10488,7 @@ const App = () => {
       setShowEditColumnModal(true);
     },
     onMoveColumn: moveColumn,
+    onMoveRow: moveRow,
     editable: canEdit,
     t: t,
     duplicateDates: duplicateDates.weekly
@@ -10449,6 +10524,7 @@ const App = () => {
       setShowEditColumnModal(true);
     },
     onMoveColumn: moveColumn,
+    onMoveRow: moveRow,
     editable: canEdit,
     t: t,
     duplicateDates: duplicateDates.monthly
