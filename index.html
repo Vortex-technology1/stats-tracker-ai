@@ -1392,21 +1392,9 @@
             };
             
             const calculateProgress = (colId) => {
-                const col = columns.find(c => c.id === colId);
                 const target = parseFloat(String(row.targets?.[colId] || '').replace(',', '.'));
                 const value = parseFloat(String(row.values?.[colId] || '').replace(',', '.'));
-                
-                if (isNaN(value)) return null;
-                
-                // Для від'ємних показників (чим менше - тим краще)
-                if (col?.inverted) {
-                    if (isNaN(target) || target === 0) {
-                        return value === 0 ? 100 : Math.round(-value * 25);
-                    }
-                    return Math.round((1 - value / target) * 100);
-                }
-                
-                if (isNaN(target) || target === 0) return null;
+                if (isNaN(target) || isNaN(value) || target === 0) return null;
                 return Math.round((value / target) * 100);
             };
             
@@ -1534,13 +1522,9 @@
         const StatsCard = React.memo(StatsCardComponent);
 
         // ==================== STATS TABLE (DESKTOP) ====================
-        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onTargetChange, onCommentChange, onEditColumn, onMoveColumn, editable, t, duplicateDates = [] }) => {
+        const StatsTable = ({ columns, rows, targetRow, periodType = 'weekly', onDeleteRow, onDateChange, onValueChange, onCommentChange, onEditColumn, onMoveColumn, editable, t }) => {
             const [draggedCol, setDraggedCol] = useState(null);
             const [dragOverCol, setDragOverCol] = useState(null);
-            const [editingTarget, setEditingTarget] = useState(null); // {rowId, colId, value} - для редагування локальної цілі
-            
-            // Перевірка чи дата є дублікатом
-            const isDuplicate = (date) => duplicateDates.includes(date);
             
             // Використовуємо відповідний кеш залежно від типу періоду
             const periods = periodType === 'monthly' ? MONTHS_CACHE : WEEKS_CACHE;
@@ -1561,42 +1545,12 @@
                 return set;
             }, [rows, periodType]);
             
-            // Розрахунок прогресу з підтримкою:
-            // 1. Індивідуальних цілей на період (row.targets)
-            // 2. Глобальних цілей (targetRow.values)
-            // 3. Від'ємних показників (inverted)
-            const calculateProgress = (row, colId, col) => {
-                if (!row.values) return null;
-                
-                // Ціль: спочатку з row.targets, потім з targetRow.values
-                const rowTarget = row.targets?.[colId];
-                const globalTarget = targetRow?.values?.[colId];
-                const target = parseFloat(String(rowTarget || globalTarget || '').replace(',', '.'));
+            const calculateProgress = (row, colId) => {
+                if (!targetRow || !row.values) return null;
+                const target = parseFloat(String(targetRow.values[colId] || '').replace(',', '.'));
                 const value = parseFloat(String(row.values[colId] || '').replace(',', '.'));
-                
-                if (isNaN(value)) return null;
-                
-                // Для від'ємних показників (чим менше - тим краще)
-                // Ціль = максимально допустиме значення "поганого"
-                // value=0 → 100%, value=target → 0%, value>target → від'ємний %
-                if (col?.inverted) {
-                    if (isNaN(target) || target === 0) {
-                        // Немає цілі - оцінюємо відносно 0
-                        return value === 0 ? 100 : Math.round(-value * 25); // Кожна одиниця = -25%
-                    }
-                    // Формула: (1 - value/target) * 100
-                    // value=0 → 100%, value=target → 0%, value=2*target → -100%
-                    return Math.round((1 - value / target) * 100);
-                }
-                
-                // Звичайний показник
-                if (isNaN(target) || target === 0) return null;
+                if (isNaN(target) || isNaN(value) || target === 0) return null;
                 return Math.round((value / target) * 100);
-            };
-            
-            // Отримання цілі для показу (row.targets або targetRow)
-            const getTarget = (row, colId) => {
-                return row.targets?.[colId] || targetRow?.values?.[colId] || '';
             };
             
             const getPeriodStatus = (periodKey) => {
@@ -1715,7 +1669,6 @@
                                                 <div className="header-content">
                                                     {status && <span className={`status-dot ${status === 'filled' ? 'status-filled' : 'status-pending'}`}></span>}
                                                     <span className="header-name">
-                                                        {col.inverted && <span className="text-red-500" title="Від'ємний (чим менше — тим краще)">↓</span>}
                                                         {col.name}
                                                         {col.format && col.format !== 'number' && (
                                                             <span className="text-gray-400"> {col.format === 'percent' ? '%' : col.format === 'uah' ? '₴' : col.format === 'usd' ? '$' : '€'}</span>
@@ -1753,15 +1706,13 @@
                                 )}
                                 {rows.filter(r => !r.isTarget).map(row => {
                                     const currentPeriodKey = periodType === 'monthly' ? row.date : (row.date ? getWeekKey(row.date) : null);
-                                    const isRowDuplicate = isDuplicate(row.date);
                                     return (
-                                    <tr key={row.id} className={isRowDuplicate ? 'bg-amber-50' : ''} title={isRowDuplicate ? 'Дублікат періоду!' : ''}>
+                                    <tr key={row.id}>
                                         <td className="sticky-col">
-                                            {isRowDuplicate && <span className="text-amber-500 mr-1" title="Дублікат">⚠</span>}
                                             <select 
                                                 value={currentPeriodKey || ''} 
                                                 onChange={(e) => onDateChange(row.id, e.target.value)}
-                                                className={`w-full px-1 py-0.5 text-xs border rounded focus:border-primary-400 cursor-pointer ${isRowDuplicate ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-200'}`}
+                                                className="w-full px-1 py-0.5 text-xs bg-white border border-gray-200 rounded focus:border-primary-400 cursor-pointer"
                                             >
                                                 <option value="">—</option>
                                                 {periods.filter(p => p.isFuture).length > 0 && (
@@ -1796,29 +1747,12 @@
                                             </select>
                                         </td>
                                         {columns.map(col => {
-                                            const progress = calculateProgress(row, col.id, col);
+                                            const progress = calculateProgress(row, col.id);
                                             const value = row.values?.[col.id] || '';
                                             const hasComment = row.comments?.[col.id];
-                                            const hasRowTarget = row.targets?.[col.id];
-                                            
-                                            // Кольори з урахуванням inverted
-                                            const getProgressClass = (p, isInverted) => {
-                                                if (isInverted) {
-                                                    // Для від'ємних: 100+ = добре, 0-99 = погано
-                                                    if (p >= 100) return 'bg-emerald-100 text-emerald-700';
-                                                    if (p >= 50) return 'bg-amber-100 text-amber-700';
-                                                    return 'bg-red-100 text-red-700';
-                                                }
-                                                // Звичайні показники
-                                                if (p >= 100) return 'bg-emerald-100 text-emerald-700';
-                                                if (p >= 80) return 'bg-blue-100 text-blue-700';
-                                                if (p >= 50) return 'bg-amber-100 text-amber-700';
-                                                return 'bg-red-100 text-red-700';
-                                            };
-                                            
                                             return (
                                                 <td key={col.id}>
-                                                    <div className="flex items-center gap-1 relative">
+                                                    <div className="flex items-center gap-1">
                                                         {editable ? (
                                                             <input
                                                                 type="text" value={value} onChange={(e) => onValueChange(row.id, col.id, e.target.value)}
@@ -1829,63 +1763,15 @@
                                                                 {formatValue(value, col.format, progress) || '-'}
                                                             </span>
                                                         )}
-                                                        
-                                                        {/* Popup для редагування цілі */}
-                                                        {editingTarget?.rowId === row.id && editingTarget?.colId === col.id && (
-                                                            <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-lg shadow-xl border p-2 min-w-[120px]">
-                                                                <div className="text-[10px] text-gray-500 mb-1">Ціль для цього періоду:</div>
-                                                                <input
-                                                                    type="text"
-                                                                    autoFocus
-                                                                    value={editingTarget.value}
-                                                                    onChange={(e) => setEditingTarget({...editingTarget, value: e.target.value})}
-                                                                    onBlur={() => {
-                                                                        if (editingTarget.value !== (row.targets?.[col.id] || '')) {
-                                                                            onTargetChange?.(row.id, col.id, editingTarget.value);
-                                                                        }
-                                                                        setEditingTarget(null);
-                                                                    }}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') {
-                                                                            if (editingTarget.value !== (row.targets?.[col.id] || '')) {
-                                                                                onTargetChange?.(row.id, col.id, editingTarget.value);
-                                                                            }
-                                                                            setEditingTarget(null);
-                                                                        }
-                                                                        if (e.key === 'Escape') setEditingTarget(null);
-                                                                    }}
-                                                                    className="w-full px-2 py-1 text-xs border rounded focus:border-primary-400"
-                                                                    placeholder={targetRow?.values?.[col.id] || '0'}
-                                                                />
-                                                                <div className="text-[9px] text-gray-400 mt-1">
-                                                                    Глобальна: {targetRow?.values?.[col.id] || '—'}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        
-                                                        {progress !== null ? (
-                                                            <span 
-                                                                className={`text-[10px] px-1 rounded cursor-pointer hover:ring-2 hover:ring-primary-300 ${getProgressClass(progress, col.inverted)}`}
-                                                                onClick={() => editable && setEditingTarget({rowId: row.id, colId: col.id, value: row.targets?.[col.id] || ''})}
-                                                                title={col.inverted ? "Від'ємний показник (клік для зміни цілі)" : "Клік для зміни цілі періоду"}
-                                                            >
-                                                                {col.inverted ? (
-                                                                    progress >= 100 ? '✓' : 
-                                                                    progress >= 0 ? `${progress}%` : 
-                                                                    `${Math.abs(progress)}%↓`
-                                                                ) : `${progress}%`}
+                                                        {progress !== null && (
+                                                            <span className={`text-[10px] px-1 rounded ${
+                                                                progress >= 100 ? 'bg-emerald-100 text-emerald-700' : 
+                                                                progress >= 80 ? 'bg-blue-100 text-blue-700' : 
+                                                                progress >= 50 ? 'bg-amber-100 text-amber-700' : 
+                                                                'bg-red-100 text-red-700'
+                                                            }`}>
+                                                                {progress}%
                                                             </span>
-                                                        ) : editable && (
-                                                            <span 
-                                                                className="text-[10px] px-1 rounded bg-gray-100 text-gray-400 cursor-pointer hover:bg-gray-200"
-                                                                onClick={() => setEditingTarget({rowId: row.id, colId: col.id, value: row.targets?.[col.id] || ''})}
-                                                                title="Клік для встановлення цілі"
-                                                            >
-                                                                🎯
-                                                            </span>
-                                                        )}
-                                                        {hasRowTarget && !editingTarget && (
-                                                            <span className="w-1 h-1 bg-purple-400 rounded-full" title={`Ціль періоду: ${hasRowTarget}`}></span>
                                                         )}
                                                         {hasComment && (
                                                             <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" title={hasComment}></span>
@@ -2120,25 +2006,16 @@
                         ? Math.round(values[0].fact / values[0].plan * 100)
                         : null;
                     
-                    const isInverted = col.inverted || false;
-                    
-                    // Визначення напрямку (з урахуванням inverted)
+                    // Визначення напрямку
                     let direction = 'стабільно';
-                    if (isInverted) {
-                        // Для inverted: зростання = погано, падіння = добре
-                        if (periodChange > 10) direction = 'зростає ⚠️';
-                        else if (periodChange < -10) direction = 'падає ✓';
-                    } else {
-                        if (periodChange > 10) direction = 'зростає';
-                        else if (periodChange < -10) direction = 'падає';
-                    }
+                    if (periodChange > 10) direction = 'зростає';
+                    else if (periodChange < -10) direction = 'падає';
                     
                     const metric = {
                         name: col.name,
                         responsible: col.responsible || 'не вказано',
                         format: col.format,
                         importance: col.importance || 'medium',
-                        inverted: isInverted, // Від'ємний показник (чим менше - тим краще)
                         latest: { value: latest, date: values[0]?.dateLabel },
                         previous: { value: previous, date: values[1]?.dateLabel },
                         weekChange: weekChange,
@@ -2154,138 +2031,63 @@
                     
                     results.weekly.push(metric);
                     
-                    // === ЧЕРВОНІ ПРАПОРЦІ (з урахуванням importance та inverted) ===
+                    // === ЧЕРВОНІ ПРАПОРЦІ (з урахуванням importance) ===
                     const importanceMultiplier = { critical: 4, high: 3, medium: 2, low: 1 };
                     const colImportance = col.importance || 'medium';
-                    const isInverted = col.inverted || false;
                     
-                    // 1. Падає/зростає 3+ періоди поспіль
-                    // Для inverted: зростання = погано, падіння = добре
-                    // Для звичайних: зростання = добре, падіння = погано
-                    let consecutiveRises = 0;
-                    for (let i = 0; i < facts.length - 1; i++) {
-                        if (facts[i] > facts[i + 1]) consecutiveRises++;
-                        else break;
+                    // 1. Падає 3+ періоди поспіль
+                    if (consecutiveDrops >= 3) {
+                        results.redFlags.push({
+                            type: 'consecutive_drop',
+                            severity: 'high',
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * 3,
+                            metric: col.name,
+                            message: `${col.name}: падає ${consecutiveDrops} тижні поспіль`,
+                            details: `${formatValueForAI(oldest, col.format)} → ${formatValueForAI(latest, col.format)} (${periodChange > 0 ? '+' : ''}${periodChange}%)`
+                        });
                     }
                     
-                    if (isInverted) {
-                        // Для inverted: зростання поспіль = проблема
-                        if (consecutiveRises >= 3) {
-                            results.redFlags.push({
-                                type: 'consecutive_rise_inverted',
-                                severity: 'high',
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * 3,
-                                metric: col.name,
-                                message: `↓${col.name}: зростає ${consecutiveRises} тижні поспіль (це погано!)`,
-                                details: `${formatValueForAI(oldest, col.format)} → ${formatValueForAI(latest, col.format)}`
-                            });
-                        }
-                    } else {
-                        // Для звичайних: падіння поспіль = проблема
-                        if (consecutiveDrops >= 3) {
-                            results.redFlags.push({
-                                type: 'consecutive_drop',
-                                severity: 'high',
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * 3,
-                                metric: col.name,
-                                message: `${col.name}: падає ${consecutiveDrops} тижні поспіль`,
-                                details: `${formatValueForAI(oldest, col.format)} → ${formatValueForAI(latest, col.format)} (${periodChange > 0 ? '+' : ''}${periodChange}%)`
-                            });
-                        }
+                    // 2. Виконання плану < 70%
+                    if (latestPlanExecution !== null && latestPlanExecution < 70) {
+                        const sev = latestPlanExecution < 50 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'low_execution',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: виконання плану лише ${latestPlanExecution}%`,
+                            details: `Факт: ${formatValueForAI(latest, col.format)}, План: ${formatValueForAI(values[0]?.plan, col.format)}`
+                        });
                     }
                     
-                    // 2. Виконання плану
-                    // Для inverted: план = максимально допустиме, виконання = (1 - value/plan) * 100
-                    if (latestPlanExecution !== null) {
-                        if (isInverted) {
-                            const invertedExecution = values[0]?.plan ? Math.round((1 - latest / values[0].plan) * 100) : null;
-                            if (invertedExecution !== null && invertedExecution < 0) {
-                                // Перевищили допустимий ліміт
-                                results.redFlags.push({
-                                    type: 'over_limit_inverted',
-                                    severity: 'critical',
-                                    importance: colImportance,
-                                    importanceScore: importanceMultiplier[colImportance] * 4,
-                                    metric: col.name,
-                                    message: `↓${col.name}: перевищено ліміт! ${latest} при максимумі ${values[0]?.plan}`,
-                                    details: `Перевищення: ${Math.abs(invertedExecution)}%`
-                                });
-                            }
-                        } else if (latestPlanExecution < 70) {
-                            const sev = latestPlanExecution < 50 ? 'critical' : 'high';
-                            results.redFlags.push({
-                                type: 'low_execution',
-                                severity: sev,
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
-                                metric: col.name,
-                                message: `${col.name}: виконання плану лише ${latestPlanExecution}%`,
-                                details: `Факт: ${formatValueForAI(latest, col.format)}, План: ${formatValueForAI(values[0]?.plan, col.format)}`
-                            });
-                        }
+                    // 3. Різке падіння (>20% за тиждень)
+                    if (weekChange < -20) {
+                        const sev = weekChange < -30 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'sharp_drop',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: різке падіння ${weekChange}% за тиждень`,
+                            details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
+                        });
                     }
                     
-                    // 3. Різка зміна за тиждень
-                    // Для inverted: різке зростання = погано
-                    // Для звичайних: різке падіння = погано
-                    if (isInverted) {
-                        if (weekChange > 30) { // Зросло більше 30%
-                            results.redFlags.push({
-                                type: 'sharp_rise_inverted',
-                                severity: 'critical',
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * 4,
-                                metric: col.name,
-                                message: `↓${col.name}: різке зростання +${weekChange}% за тиждень (це погано!)`,
-                                details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
-                            });
-                        }
-                    } else {
-                        if (weekChange < -20) {
-                            const sev = weekChange < -30 ? 'critical' : 'high';
-                            results.redFlags.push({
-                                type: 'sharp_drop',
-                                severity: sev,
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
-                                metric: col.name,
-                                message: `${col.name}: різке падіння ${weekChange}% за тиждень`,
-                                details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
-                            });
-                        }
-                    }
-                    
-                    // 4. Новий екстремум
-                    // Для inverted: новий максимум = погано
-                    // Для звичайних: новий мінімум = погано
-                    if (isInverted) {
-                        const prevMax = Math.max(...facts.slice(1));
-                        if (latest > prevMax && facts.length > 2) {
-                            results.redFlags.push({
-                                type: 'new_maximum_inverted',
-                                severity: 'medium',
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * 2,
-                                metric: col.name,
-                                message: `↓${col.name}: новий максимум за період (це погано!)`,
-                                details: `${formatValueForAI(latest, col.format)} — найвище значення за ${facts.length} тижнів`
-                            });
-                        }
-                    } else {
-                        const prevMin = Math.min(...facts.slice(1));
-                        if (latest < prevMin && facts.length > 2) {
-                            results.redFlags.push({
-                                type: 'new_minimum',
-                                severity: 'medium',
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * 2,
-                                metric: col.name,
-                                message: `${col.name}: новий мінімум за період`,
-                                details: `${formatValueForAI(latest, col.format)} — найнижче значення за ${facts.length} тижнів`
-                            });
-                        }
+                    // 4. Значення нижче мінімуму (за винятком останнього)
+                    const prevMin = Math.min(...facts.slice(1));
+                    if (latest < prevMin && facts.length > 2) {
+                        results.redFlags.push({
+                            type: 'new_minimum',
+                            severity: 'medium',
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * 2,
+                            metric: col.name,
+                            message: `${col.name}: новий мінімум за період`,
+                            details: `${formatValueForAI(latest, col.format)} — найнижче значення за ${facts.length} тижнів`
+                        });
                     }
                     
                     // === ПОРІВНЯННЯ ПЕРІОДІВ ===
@@ -2293,7 +2095,6 @@
                         metric: col.name,
                         type: 'weekly',
                         importance: colImportance,
-                        inverted: isInverted,
                         current: { 
                             period: values[0]?.dateLabel, 
                             value: formatValueForAI(latest, col.format),
@@ -2305,10 +2106,7 @@
                             planExecution: (values[1]?.plan && values[1].plan !== 0) ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
                         },
                         change: `${weekChange > 0 ? '+' : ''}${weekChange}%`,
-                        // Для inverted: зростання = погано (down), падіння = добре (up)
-                        trend: isInverted 
-                            ? (weekChange > 5 ? 'down' : weekChange < -5 ? 'up' : 'stable')
-                            : (weekChange > 5 ? 'up' : weekChange < -5 ? 'down' : 'stable')
+                        trend: weekChange > 5 ? 'up' : weekChange < -5 ? 'down' : 'stable'
                     });
                 });
                 
@@ -2327,7 +2125,6 @@
                     const latest = facts[0];
                     const previous = facts[1];
                     const avg = facts.reduce((a, b) => a + b, 0) / facts.length;
-                    const isInverted = col.inverted || false;
                     
                     // Захист від ділення на 0
                     const monthChange = (previous && previous !== 0) 
@@ -2338,21 +2135,14 @@
                         : null;
                     
                     let direction = 'стабільно';
-                    if (isInverted) {
-                        // Для inverted: зростання = погано, падіння = добре
-                        if (monthChange > 10) direction = 'зростає ⚠️';
-                        else if (monthChange < -10) direction = 'падає ✓';
-                    } else {
-                        if (monthChange > 10) direction = 'зростає';
-                        else if (monthChange < -10) direction = 'падає';
-                    }
+                    if (monthChange > 10) direction = 'зростає';
+                    else if (monthChange < -10) direction = 'падає';
                     
                     const metric = {
                         name: col.name,
                         responsible: col.responsible || 'не вказано',
                         format: col.format,
                         importance: col.importance || 'medium',
-                        inverted: isInverted,
                         latest: { value: latest, date: values[0]?.dateLabel },
                         previous: { value: previous, date: values[1]?.dateLabel },
                         monthChange: monthChange,
@@ -2363,72 +2153,40 @@
                     
                     results.monthly.push(metric);
                     
-                    // Червоні прапорці для місячних (з importance та inverted)
+                    // Червоні прапорці для місячних (з importance)
                     const importanceMultiplier = { critical: 4, high: 3, medium: 2, low: 1 };
                     const colImportance = col.importance || 'medium';
                     
-                    // Виконання плану
-                    if (latestPlanExecution !== null) {
-                        if (isInverted) {
-                            const invertedExecution = values[0]?.plan ? Math.round((1 - latest / values[0].plan) * 100) : null;
-                            if (invertedExecution !== null && invertedExecution < 0) {
-                                results.redFlags.push({
-                                    type: 'over_limit_inverted',
-                                    severity: 'critical',
-                                    importance: colImportance,
-                                    importanceScore: importanceMultiplier[colImportance] * 4,
-                                    metric: col.name,
-                                    message: `↓${col.name}: перевищено місячний ліміт! ${latest} при максимумі ${values[0]?.plan}`,
-                                    details: `Перевищення: ${Math.abs(invertedExecution)}%`
-                                });
-                            }
-                        } else if (latestPlanExecution < 70) {
-                            const sev = latestPlanExecution < 50 ? 'critical' : 'high';
-                            results.redFlags.push({
-                                type: 'low_execution',
-                                severity: sev,
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
-                                metric: col.name,
-                                message: `${col.name}: виконання плану лише ${latestPlanExecution}%`,
-                                details: `Факт: ${formatValueForAI(latest, col.format)}, План: ${formatValueForAI(values[0]?.plan, col.format)}`
-                            });
-                        }
+                    if (latestPlanExecution !== null && latestPlanExecution < 70) {
+                        const sev = latestPlanExecution < 50 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'low_execution',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: виконання плану лише ${latestPlanExecution}%`,
+                            details: `Факт: ${formatValueForAI(latest, col.format)}, План: ${formatValueForAI(values[0]?.plan, col.format)}`
+                        });
                     }
                     
-                    // Різка зміна за місяць
-                    if (isInverted) {
-                        if (monthChange > 25) {
-                            results.redFlags.push({
-                                type: 'monthly_rise_inverted',
-                                severity: 'critical',
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * 4,
-                                metric: col.name,
-                                message: `↓${col.name}: зростання +${monthChange}% за місяць (це погано!)`,
-                                details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
-                            });
-                        }
-                    } else {
-                        if (monthChange < -15) {
-                            const sev = monthChange < -25 ? 'critical' : 'high';
-                            results.redFlags.push({
-                                type: 'monthly_drop',
-                                severity: sev,
-                                importance: colImportance,
-                                importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
-                                metric: col.name,
-                                message: `${col.name}: падіння ${monthChange}% за місяць`,
-                                details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
-                            });
-                        }
+                    if (monthChange < -15) {
+                        const sev = monthChange < -25 ? 'critical' : 'high';
+                        results.redFlags.push({
+                            type: 'monthly_drop',
+                            severity: sev,
+                            importance: colImportance,
+                            importanceScore: importanceMultiplier[colImportance] * (sev === 'critical' ? 4 : 3),
+                            metric: col.name,
+                            message: `${col.name}: падіння ${monthChange}% за місяць`,
+                            details: `${values[1]?.dateLabel}: ${formatValueForAI(previous, col.format)} → ${values[0]?.dateLabel}: ${formatValueForAI(latest, col.format)}`
+                        });
                     }
                     
                     results.periodComparison.push({
                         metric: col.name,
                         type: 'monthly',
                         importance: colImportance,
-                        inverted: isInverted,
                         current: { 
                             period: values[0]?.dateLabel, 
                             value: formatValueForAI(latest, col.format),
@@ -2440,9 +2198,7 @@
                             planExecution: (values[1]?.plan && values[1].plan !== 0) ? `${Math.round(previous / values[1].plan * 100)}%` : '-'
                         },
                         change: `${monthChange > 0 ? '+' : ''}${monthChange}%`,
-                        trend: isInverted 
-                            ? (monthChange > 5 ? 'down' : monthChange < -5 ? 'up' : 'stable')
-                            : (monthChange > 5 ? 'up' : monthChange < -5 ? 'down' : 'stable')
+                        trend: monthChange > 5 ? 'up' : monthChange < -5 ? 'down' : 'stable'
                     });
                 });
                 
@@ -2686,16 +2442,11 @@
                 let importanceBlock = '\n\n### [$$] ВАЖЛИВІСТЬ ПОКАЗНИКІВ:\n';
                 const criticalMetrics = columnsInfo.filter(c => c.importance === 'critical');
                 const highMetrics = columnsInfo.filter(c => c.importance === 'high');
-                const invertedMetrics = columnsInfo.filter(c => c.inverted);
                 if (criticalMetrics.length > 0) {
                     importanceBlock += `КРИТИЧНІ (впливають на гроші): ${criticalMetrics.map(c => c.name).join(', ')}\n`;
                 }
                 if (highMetrics.length > 0) {
                     importanceBlock += `ВИСОКІ: ${highMetrics.map(c => c.name).join(', ')}\n`;
-                }
-                if (invertedMetrics.length > 0) {
-                    importanceBlock += `\n⚠️ ВІД'ЄМНІ ПОКАЗНИКИ (чим менше - тим краще): ${invertedMetrics.map(c => c.name).join(', ')}\n`;
-                    importanceBlock += `Для цих показників: зростання = ПОГАНО, падіння = ДОБРЕ!\n`;
                 }
                 importanceBlock += `\nЗверни БІЛЬШЕ уваги на критичні показники!\n`;
                 
@@ -4080,9 +3831,7 @@ ${aiSettings.businessContext}
                                 style={selectedColumns.includes(col.id) ? {
                                     backgroundColor: colors[selectedColumns.indexOf(col.id) % colors.length].border
                                 } : {}}
-                                title={col.inverted ? "Від'ємний показник (чим менше - тим краще)" : col.name}
                             >
-                                {col.inverted && <span className="mr-1">↓</span>}
                                 {col.name}
                             </button>
                         ))}
@@ -4170,7 +3919,7 @@ ${aiSettings.businessContext}
                         y += 8;
                         
                         // Таблиця
-                        const weeklyHeaders = ['Period', ...weeklyColumns.slice(0, 6).map(c => c.inverted ? `↓${c.name.substring(0, 10)}` : c.name.substring(0, 12))];
+                        const weeklyHeaders = ['Period', ...weeklyColumns.slice(0, 6).map(c => c.name.substring(0, 12))];
                         const weeklyData = weeklyRows.slice(0, 10).map(row => {
                             const period = row.date || '-';
                             const values = weeklyColumns.slice(0, 6).map(col => {
@@ -4206,7 +3955,7 @@ ${aiSettings.businessContext}
                         doc.text('Monthly Statistics', margin, y);
                         y += 8;
                         
-                        const monthlyHeaders = ['Period', ...monthlyColumns.slice(0, 6).map(c => c.inverted ? `↓${c.name.substring(0, 10)}` : c.name.substring(0, 12))];
+                        const monthlyHeaders = ['Period', ...monthlyColumns.slice(0, 6).map(c => c.name.substring(0, 12))];
                         const monthlyData = monthlyRows.slice(0, 12).map(row => {
                             const period = row.date || '-';
                             const values = monthlyColumns.slice(0, 6).map(col => {
@@ -4575,7 +4324,6 @@ ${aiSettings.businessContext}
             const [newStatsTarget, setNewStatsTarget] = useState('');
             const [newStatsFormat, setNewStatsFormat] = useState('number'); // number, percent, uah, usd, eur
             const [newStatsImportance, setNewStatsImportance] = useState('medium'); // critical, high, medium, low
-            const [newStatsInverted, setNewStatsInverted] = useState(false); // Від'ємний показник (чим менше тим краще)
             const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
             const [newEmployeeName, setNewEmployeeName] = useState('');
             const [selectedColumns, setSelectedColumns] = useState([]);
@@ -4632,47 +4380,9 @@ ${aiSettings.businessContext}
             const allWeeklyColumns = useMemo(() => columns.filter(c => c.period === 'weekly' || c.period === 'daily'), [columns]);
             const allMonthlyColumns = useMemo(() => columns.filter(c => c.period === 'monthly'), [columns]);
             
-            // Групування рядків по типу періоду + СОРТУВАННЯ по даті (від нових до старих)
-            const parseDate = (dateStr) => {
-                if (!dateStr) return 0;
-                // Спробуємо різні формати
-                // ISO: 2025-01-13
-                if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-                    return new Date(dateStr).getTime();
-                }
-                // Monthly key: 2025-01
-                if (/^\d{4}-\d{2}$/.test(dateStr)) {
-                    return new Date(dateStr + '-01').getTime();
-                }
-                // Fallback
-                return new Date(dateStr).getTime() || 0;
-            };
-            
-            const weeklyRows = useMemo(() => 
-                dataRows
-                    .filter(r => r.periodType !== 'monthly')
-                    .sort((a, b) => parseDate(b.date) - parseDate(a.date)), 
-                [dataRows]
-            );
-            const monthlyRows = useMemo(() => 
-                dataRows
-                    .filter(r => r.periodType === 'monthly')
-                    .sort((a, b) => parseDate(b.date) - parseDate(a.date)), 
-                [dataRows]
-            );
-            
-            // Виявлення дублікатів дат
-            const duplicateDates = useMemo(() => {
-                const weeklyDates = weeklyRows.map(r => r.date).filter(Boolean);
-                const monthlyDates = monthlyRows.map(r => r.date).filter(Boolean);
-                
-                const findDuplicates = (arr) => arr.filter((item, index) => arr.indexOf(item) !== index);
-                
-                return {
-                    weekly: [...new Set(findDuplicates(weeklyDates))],
-                    monthly: [...new Set(findDuplicates(monthlyDates))]
-                };
-            }, [weeklyRows, monthlyRows]);
+            // Групування рядків по типу періоду
+            const weeklyRows = useMemo(() => dataRows.filter(r => r.periodType !== 'monthly'), [dataRows]);
+            const monthlyRows = useMemo(() => dataRows.filter(r => r.periodType === 'monthly'), [dataRows]);
             
             // Автоматичне додавання поточного тижня/місяця при фокусі на вікно
             useEffect(() => {
@@ -5121,8 +4831,8 @@ ${aiSettings.businessContext}
                         { id: 'col5', name: 'Дохід', responsible: 'Олександр', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col6', name: 'Реклама', responsible: 'Ігор', period: 'weekly', format: 'usd', importance: 'medium', visibleToEmployees: [] },
                         // Неочевидні тижневі
-                        { id: 'col7', name: 'Дзвінків до угоди', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'medium', inverted: true, visibleToEmployees: [] },
-                        { id: 'col8', name: 'Відмов', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'high', inverted: true, visibleToEmployees: [] },
+                        { id: 'col7', name: 'Дзвінків до угоди', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'medium', visibleToEmployees: [] },
+                        { id: 'col8', name: 'Відмов', responsible: 'Олена', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
                         { id: 'col9', name: 'Рекомендацій', responsible: 'Марія', period: 'weekly', format: 'number', importance: 'high', visibleToEmployees: [] },
                         { id: 'col10', name: 'Завантаженість', responsible: 'Олена', period: 'weekly', format: 'percent', importance: 'medium', visibleToEmployees: [] },
                         // Місячні - 7 показників
@@ -5130,7 +4840,7 @@ ${aiSettings.businessContext}
                         { id: 'col12', name: 'Маркетинг', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                         { id: 'col13', name: 'Окупність', responsible: 'Ігор', period: 'monthly', format: 'percent', importance: 'high', visibleToEmployees: [] },
                         // Неочевидні місячні
-                        { id: 'col14', name: 'Ціна клієнта', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'critical', inverted: true, visibleToEmployees: [] },
+                        { id: 'col14', name: 'Ціна клієнта', responsible: 'Ігор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col15', name: 'Дохід з клієнта', responsible: 'Олександр', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col16', name: 'Повторні', responsible: 'Олена', period: 'monthly', format: 'percent', visibleToEmployees: [] },
                         { id: 'col17', name: 'Оцінка сервісу', responsible: 'Марія', period: 'monthly', format: 'number', importance: 'high', visibleToEmployees: [] },
@@ -5180,14 +4890,14 @@ ${aiSettings.businessContext}
                         { id: 'col5', name: 'Виручка', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col6', name: 'Сер. чек', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                         // Неочевидні тижневі
-                        { id: 'col7', name: 'Неявки', responsible: 'Адмін', period: 'weekly', format: 'percent', importance: 'high', inverted: true, visibleToEmployees: [] },
+                        { id: 'col7', name: 'Неявки', responsible: 'Адмін', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
                         { id: 'col8', name: 'Послуг на візит', responsible: 'Лікар', period: 'weekly', format: 'number', importance: 'medium', visibleToEmployees: [] },
                         { id: 'col9', name: 'Дохід на крісло', responsible: 'Директор', period: 'weekly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col10', name: 'Завантаженість', responsible: 'Адмін', period: 'weekly', format: 'percent', importance: 'high', visibleToEmployees: [] },
                         // Місячні - 7 показників
                         { id: 'col11', name: 'Прибуток', responsible: 'Директор', period: 'monthly', format: 'uah', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col12', name: 'Реклама', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
-                        { id: 'col13', name: 'Ціна ліда', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', inverted: true, visibleToEmployees: [] },
+                        { id: 'col13', name: 'Ціна ліда', responsible: 'Маркетолог', period: 'monthly', format: 'uah', importance: 'high', visibleToEmployees: [] },
                         // Неочевидні місячні
                         { id: 'col14', name: 'Повторні', responsible: 'Адмін', period: 'monthly', format: 'percent', importance: 'critical', visibleToEmployees: [] },
                         { id: 'col15', name: 'Рекомендації', responsible: 'Адмін', period: 'monthly', format: 'number', importance: 'high', visibleToEmployees: [] },
@@ -5517,32 +5227,20 @@ ${aiSettings.businessContext}
                     debouncedSave();
                 }
             }, [user, columns, rows, aiSettings, savedAnalyses, isOwner, isSuperAdmin, companyId, debouncedSave, authLoading, dataLoaded]);
-            
-            // Cleanup saveTimeoutRef при unmount
-            useEffect(() => {
-                return () => {
-                    if (saveTimeoutRef.current) {
-                        clearTimeout(saveTimeoutRef.current);
-                        saveTimeoutRef.current = null;
-                    }
-                };
-            }, []);
 
             // ==================== DATA HANDLERS ====================
             const addColumn = () => {
                 if (!canEdit || !newStatsName.trim()) return;
                 const newColumn = {
                     id: Date.now().toString(), name: newStatsName, responsible: newStatsResponsible,
-                    period: newStatsPeriod, format: newStatsFormat, importance: newStatsImportance, 
-                    inverted: newStatsInverted || false, // Від'ємний показник (чим менше тим краще)
-                    visibleToEmployees: []
+                    period: newStatsPeriod, format: newStatsFormat, importance: newStatsImportance, visibleToEmployees: []
                 };
                 setColumns([...columns, newColumn]);
                 // Add target value
                 if (newStatsTarget) {
                     setRows(rows.map(row => row.isTarget ? { ...row, values: { ...row.values, [newColumn.id]: newStatsTarget } } : row));
                 }
-                setNewStatsName(''); setNewStatsResponsible(''); setNewStatsPeriod('weekly'); setNewStatsTarget(''); setNewStatsFormat('number'); setNewStatsImportance('medium'); setNewStatsInverted(false);
+                setNewStatsName(''); setNewStatsResponsible(''); setNewStatsPeriod('weekly'); setNewStatsTarget(''); setNewStatsFormat('number'); setNewStatsImportance('medium');
                 setShowAddStatsModal(false);
                 toast.success(t.addStats);
             };
@@ -5590,18 +5288,6 @@ ${aiSettings.businessContext}
             const confirmAddPeriod = () => {
                 if (!selectedAddPeriod) {
                     toast.error('Оберіть період');
-                    return;
-                }
-                
-                // Перевірка на дублікат
-                const existingRow = rows.find(r => 
-                    !r.isTarget && 
-                    r.periodType === addPeriodType && 
-                    r.date === selectedAddPeriod
-                );
-                
-                if (existingRow) {
-                    toast.warning(`Цей ${addPeriodType === 'monthly' ? 'місяць' : 'тиждень'} вже існує!`);
                     return;
                 }
                 
@@ -6506,10 +6192,7 @@ ${aiSettings.businessContext}
                                                 <tr>
                                                     <th className="sticky-col">Тижд.</th>
                                                     {weeklyColumns.map(col => (
-                                                        <th key={col.id} className="wrap-header" title={col.inverted ? "Від'ємний (чим менше - тим краще)" : col.name}>
-                                                            {col.inverted && <span className="text-red-500">↓</span>}
-                                                            {col.name}
-                                                        </th>
+                                                        <th key={col.id} className="wrap-header">{col.name}</th>
                                                     ))}
                                                     {canEdit && <th></th>}
                                                 </tr>
@@ -6572,10 +6255,7 @@ ${aiSettings.businessContext}
                                                 <tr>
                                                     <th className="sticky-col">Місяць</th>
                                                     {monthlyColumns.map(col => (
-                                                        <th key={col.id} className="wrap-header" title={col.inverted ? "Від'ємний (чим менше - тим краще)" : col.name}>
-                                                            {col.inverted && <span className="text-red-500">↓</span>}
-                                                            {col.name}
-                                                        </th>
+                                                        <th key={col.id} className="wrap-header">{col.name}</th>
                                                     ))}
                                                     {canEdit && <th></th>}
                                                 </tr>
@@ -6650,12 +6330,6 @@ ${aiSettings.businessContext}
                                             <Icons.Calendar className="w-5 h-5 text-primary-500" />
                                             Тижневі показники
                                             <span className="text-sm font-normal text-gray-500">({weeklyColumns.length} показників)</span>
-                                            {duplicateDates.weekly.length > 0 && (
-                                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                    <Icons.AlertCircle className="w-3 h-3" />
-                                                    {duplicateDates.weekly.length} дублікат(ів)
-                                                </span>
-                                            )}
                                         </h2>
                                         {canEdit && (
                                             <button onClick={() => addRow('weekly')} className="btn btn-secondary btn-sm">
@@ -6671,13 +6345,11 @@ ${aiSettings.businessContext}
                                         onDeleteRow={deleteRow} 
                                         onDateChange={updateDate} 
                                         onValueChange={updateValue} 
-                                        onTargetChange={updateTarget}
                                         onCommentChange={updateComment}
                                         onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
                                         onMoveColumn={moveColumn}
                                         editable={canEdit} 
                                         t={t}
-                                        duplicateDates={duplicateDates.weekly}
                                     />
                                 </div>
                             )}
@@ -6690,12 +6362,6 @@ ${aiSettings.businessContext}
                                             <Icons.BarChart className="w-5 h-5 text-blue-500" />
                                             Місячні показники
                                             <span className="text-sm font-normal text-gray-500">({monthlyColumns.length} показників)</span>
-                                            {duplicateDates.monthly.length > 0 && (
-                                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                    <Icons.AlertCircle className="w-3 h-3" />
-                                                    {duplicateDates.monthly.length} дублікат(ів)
-                                                </span>
-                                            )}
                                         </h2>
                                         {canEdit && (
                                             <button onClick={() => addRow('monthly')} className="btn btn-secondary btn-sm">
@@ -6711,13 +6377,11 @@ ${aiSettings.businessContext}
                                         onDeleteRow={deleteRow} 
                                         onDateChange={updateDate} 
                                         onValueChange={updateValue} 
-                                        onTargetChange={updateTarget}
                                         onCommentChange={updateComment}
                                         onEditColumn={(col) => { setEditingColumn(col); setShowEditColumnModal(true); }}
                                         onMoveColumn={moveColumn}
                                         editable={canEdit} 
                                         t={t}
-                                        duplicateDates={duplicateDates.monthly}
                                     />
                                 </div>
                             )}
@@ -7002,26 +6666,6 @@ ${aiSettings.businessContext}
                                     })}
                                 </div>
                             </div>
-                            
-                            {/* Від'ємний показник */}
-                            <div className="bg-gray-50 rounded-xl p-3">
-                                <label className="flex items-center gap-3 cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={newStatsInverted} 
-                                        onChange={(e) => setNewStatsInverted(e.target.checked)}
-                                        className="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
-                                    />
-                                    <div>
-                                        <div className="font-medium text-sm text-gray-900 flex items-center gap-2">
-                                            <Icons.TrendingDown className="w-4 h-4 text-red-500" />
-                                            Від'ємний показник
-                                        </div>
-                                        <div className="text-xs text-gray-500">Чим менше — тим краще (скасування, помилки, брак)</div>
-                                    </div>
-                                </label>
-                            </div>
-                            
                             <div className="flex gap-3 pt-2">
                                 <button onClick={() => setShowAddStatsModal(false)} className="btn btn-secondary flex-1">{t.cancel}</button>
                                 <button onClick={addColumn} disabled={!newStatsName.trim()} className="btn btn-primary flex-1">{t.add}</button>
@@ -7099,25 +6743,6 @@ ${aiSettings.businessContext}
                                             </button>
                                         ))}
                                     </div>
-                                </div>
-                                
-                                {/* Від'ємний показник */}
-                                <div className="bg-gray-50 rounded-xl p-3">
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={editingColumn.inverted || false} 
-                                            onChange={(e) => setEditingColumn({ ...editingColumn, inverted: e.target.checked })}
-                                            className="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
-                                        />
-                                        <div>
-                                            <div className="font-medium text-sm text-gray-900 flex items-center gap-2">
-                                                <Icons.TrendingDown className="w-4 h-4 text-red-500" />
-                                                Від'ємний показник
-                                            </div>
-                                            <div className="text-xs text-gray-500">Чим менше — тим краще (скасування, помилки, брак)</div>
-                                        </div>
-                                    </label>
                                 </div>
                                 
                                 {/* Кнопки переміщення */}
