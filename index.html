@@ -3929,25 +3929,27 @@ const StatsTable = ({
       title: isRowDuplicate ? 'Дублікат періоду!' : ''
     }, /*#__PURE__*/React.createElement("td", {
       className: "sticky-col"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-1"
     }, editable && /*#__PURE__*/React.createElement("div", {
-      className: "inline-flex flex-col mr-1"
+      className: "flex items-center"
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => onMoveRowUp?.(row.id, periodType),
       disabled: isFirst,
-      className: `p-0 w-4 h-3 flex items-center justify-center ${isFirst ? 'text-gray-200' : 'text-gray-400 hover:text-primary-500'}`,
+      className: `p-0.5 rounded ${isFirst ? 'text-gray-200' : 'text-gray-400 hover:text-primary-500 hover:bg-primary-50'}`,
       title: "Вгору"
     }, /*#__PURE__*/React.createElement(Icons.ChevronUp, { className: "w-3 h-3" })), /*#__PURE__*/React.createElement("button", {
       onClick: () => onMoveRowDown?.(row.id, periodType),
       disabled: isLast,
-      className: `p-0 w-4 h-3 flex items-center justify-center ${isLast ? 'text-gray-200' : 'text-gray-400 hover:text-primary-500'}`,
+      className: `p-0.5 rounded ${isLast ? 'text-gray-200' : 'text-gray-400 hover:text-primary-500 hover:bg-primary-50'}`,
       title: "Вниз"
     }, /*#__PURE__*/React.createElement(Icons.ChevronDown, { className: "w-3 h-3" }))), isRowDuplicate && /*#__PURE__*/React.createElement("span", {
-      className: "text-amber-500 mr-1",
+      className: "text-amber-500",
       title: "\u0414\u0443\u0431\u043B\u0456\u043A\u0430\u0442"
     }, "\u26A0"), /*#__PURE__*/React.createElement("select", {
       value: currentPeriodKey || '',
       onChange: e => onDateChange(row.id, e.target.value),
-      className: `w-full px-1 py-0.5 text-xs border rounded focus:border-primary-400 cursor-pointer ${isRowDuplicate ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-200'}`
+      className: `flex-1 px-1 py-0.5 text-xs border rounded focus:border-primary-400 cursor-pointer ${isRowDuplicate ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-200'}`
     }, /*#__PURE__*/React.createElement("option", {
       value: ""
     }, "\u2014"), periods.filter(p => p.isFuture).length > 0 && /*#__PURE__*/React.createElement("optgroup", {
@@ -3971,7 +3973,7 @@ const StatsTable = ({
         key: period.key,
         value: period.key
       }, period.label, " ", status === 'filled' && !isCurrentRow ? '✓' : '');
-    })))), columns.map(col => {
+    }))))), columns.map(col => {
       const progress = calculateProgress(row, col.id, col);
       const value = row.values?.[col.id] || '';
       const hasComment = row.comments?.[col.id];
