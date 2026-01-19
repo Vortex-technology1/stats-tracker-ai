@@ -3629,15 +3629,14 @@ const StatsTable = ({
   onCommentChange,
   onEditColumn,
   onMoveColumn,
-  onMoveRow,
+  onMoveRowUp,
+  onMoveRowDown,
   editable,
   t,
   duplicateDates = []
 }) => {
   const [draggedCol, setDraggedCol] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
-  const [draggedRow, setDraggedRow] = useState(null);
-  const [dragOverRow, setDragOverRow] = useState(null);
   const [editingTarget, setEditingTarget] = useState(null); // {rowId, colId, value} - для редагування локальної цілі
   const [editingComment, setEditingComment] = useState(null); // {rowId, colId} - для редагування коментаря
   const [currentPage, setCurrentPage] = useState(0); // Пагінація для великих таблиць
@@ -3837,37 +3836,6 @@ const StatsTable = ({
     setDragOverCol(null);
   };
   
-  // Handlers для drag рядків
-  const handleRowDragStart = (e, rowId) => {
-    setDraggedRow(rowId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/row', rowId);
-    // Візуальний фідбек
-    e.currentTarget.style.opacity = '0.5';
-  };
-  const handleRowDragOver = (e, rowId) => {
-    e.preventDefault();
-    if (draggedRow && draggedRow !== rowId) {
-      setDragOverRow(rowId);
-    }
-  };
-  const handleRowDragLeave = () => {
-    setDragOverRow(null);
-  };
-  const handleRowDrop = (e, targetRowId) => {
-    e.preventDefault();
-    if (draggedRow && draggedRow !== targetRowId && onMoveRow) {
-      onMoveRow(draggedRow, targetRowId, periodType);
-    }
-    setDraggedRow(null);
-    setDragOverRow(null);
-  };
-  const handleRowDragEnd = (e) => {
-    e.currentTarget.style.opacity = '1';
-    setDraggedRow(null);
-    setDragOverRow(null);
-  };
-  
   return /*#__PURE__*/React.createElement("div", {
     className: "card overflow-hidden"
   }, /*#__PURE__*/React.createElement("div", {
@@ -3939,26 +3907,30 @@ const StatsTable = ({
     disabled: !editable,
     className: "w-14 px-1 py-0.5 text-xs font-bold bg-transparent border border-transparent rounded focus:border-amber-400 focus:bg-white text-center",
     placeholder: "\u2014"
-  }))), editable && /*#__PURE__*/React.createElement("td", null)), displayRows.map(row => {
+  }))), editable && /*#__PURE__*/React.createElement("td", null)), displayRows.map((row, rowIndex) => {
     const currentPeriodKey = periodType === 'monthly' ? row.date : row.date ? getWeekKey(row.date) : null;
     const isRowDuplicate = isDuplicate(row.date);
-    const isDraggingThis = draggedRow === row.id;
-    const isDragOverThis = dragOverRow === row.id;
+    const isFirst = rowIndex === 0;
+    const isLast = rowIndex === displayRows.length - 1;
     return /*#__PURE__*/React.createElement("tr", {
       key: row.id,
-      draggable: editable,
-      onDragStart: e => handleRowDragStart(e, row.id),
-      onDragOver: e => handleRowDragOver(e, row.id),
-      onDragLeave: handleRowDragLeave,
-      onDrop: e => handleRowDrop(e, row.id),
-      onDragEnd: handleRowDragEnd,
-      className: `${isRowDuplicate ? 'bg-amber-50' : ''} ${isDraggingThis ? 'opacity-50' : ''} ${isDragOverThis ? 'bg-primary-50 border-t-2 border-primary-400' : ''} ${editable ? 'cursor-grab active:cursor-grabbing' : ''}`,
-      title: isRowDuplicate ? 'Дублікат періоду!' : editable ? 'Перетягніть для зміни порядку' : ''
+      className: isRowDuplicate ? 'bg-amber-50' : '',
+      title: isRowDuplicate ? 'Дублікат періоду!' : ''
     }, /*#__PURE__*/React.createElement("td", {
       className: "sticky-col"
-    }, editable && /*#__PURE__*/React.createElement("span", {
-      className: "inline-block w-4 text-gray-300 hover:text-gray-500 cursor-grab mr-1"
-    }, /*#__PURE__*/React.createElement(Icons.GripVertical, { className: "w-3 h-3" })), isRowDuplicate && /*#__PURE__*/React.createElement("span", {
+    }, editable && /*#__PURE__*/React.createElement("div", {
+      className: "inline-flex flex-col mr-1"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => onMoveRowUp?.(row.id, periodType),
+      disabled: isFirst,
+      className: `p-0 w-4 h-3 flex items-center justify-center ${isFirst ? 'text-gray-200' : 'text-gray-400 hover:text-primary-500'}`,
+      title: "Вгору"
+    }, /*#__PURE__*/React.createElement(Icons.ChevronUp, { className: "w-3 h-3" })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onMoveRowDown?.(row.id, periodType),
+      disabled: isLast,
+      className: `p-0 w-4 h-3 flex items-center justify-center ${isLast ? 'text-gray-200' : 'text-gray-400 hover:text-primary-500'}`,
+      title: "Вниз"
+    }, /*#__PURE__*/React.createElement(Icons.ChevronDown, { className: "w-3 h-3" }))), isRowDuplicate && /*#__PURE__*/React.createElement("span", {
       className: "text-amber-500 mr-1",
       title: "\u0414\u0443\u0431\u043B\u0456\u043A\u0430\u0442"
     }, "\u26A0"), /*#__PURE__*/React.createElement("select", {
@@ -9341,40 +9313,41 @@ const App = () => {
     toast.success('Порядок змінено');
   };
   
-  // Переміщення рядків (тижнів/місяців)
-  const moveRow = (draggedId, targetId, periodType) => {
-    // Знаходимо тільки рядки цього типу періоду (без target)
+  // Переміщення рядка вгору/вниз
+  const moveRowUp = (rowId, periodType) => {
     const periodRows = rows.filter(r => !r.isTarget && r.periodType === periodType);
-    const otherRows = rows.filter(r => r.isTarget || r.periodType !== periodType);
+    const idx = periodRows.findIndex(r => r.id === rowId);
+    if (idx <= 0) return; // Вже вгорі
     
-    const draggedIdx = periodRows.findIndex(r => r.id === draggedId);
-    const targetIdx = periodRows.findIndex(r => r.id === targetId);
-    
-    if (draggedIdx === -1 || targetIdx === -1) return;
-    
-    // Переміщуємо рядок (створюємо новий масив)
+    // Міняємо місцями з попереднім
     const newPeriodRows = [...periodRows];
-    const [dragged] = newPeriodRows.splice(draggedIdx, 1);
-    newPeriodRows.splice(targetIdx, 0, dragged);
+    [newPeriodRows[idx - 1], newPeriodRows[idx]] = [newPeriodRows[idx], newPeriodRows[idx - 1]];
     
-    // Оновлюємо order для збереження порядку (створюємо НОВІ об'єкти!)
-    const updatedPeriodRows = newPeriodRows.map((row, idx) => ({
-      ...row,
-      order: idx
-    }));
+    // Оновлюємо order
+    const updatedRows = newPeriodRows.map((row, i) => ({ ...row, order: i }));
     
-    // Об'єднуємо назад - targetRow завжди перший
-    const targetRow = otherRows.find(r => r.isTarget);
-    const otherNonTarget = otherRows.filter(r => !r.isTarget);
+    // Об'єднуємо
+    const targetRow = rows.find(r => r.isTarget);
+    const otherRows = rows.filter(r => !r.isTarget && r.periodType !== periodType);
+    setRows([targetRow, ...updatedRows, ...otherRows].filter(Boolean));
+  };
+  
+  const moveRowDown = (rowId, periodType) => {
+    const periodRows = rows.filter(r => !r.isTarget && r.periodType === periodType);
+    const idx = periodRows.findIndex(r => r.id === rowId);
+    if (idx === -1 || idx >= periodRows.length - 1) return; // Вже внизу
     
-    const finalRows = [
-      targetRow,
-      ...updatedPeriodRows,
-      ...otherNonTarget
-    ].filter(Boolean);
+    // Міняємо місцями з наступним
+    const newPeriodRows = [...periodRows];
+    [newPeriodRows[idx], newPeriodRows[idx + 1]] = [newPeriodRows[idx + 1], newPeriodRows[idx]];
     
-    setRows(finalRows);
-    toast.success('Порядок змінено');
+    // Оновлюємо order
+    const updatedRows = newPeriodRows.map((row, i) => ({ ...row, order: i }));
+    
+    // Об'єднуємо
+    const targetRow = rows.find(r => r.isTarget);
+    const otherRows = rows.filter(r => !r.isTarget && r.periodType !== periodType);
+    setRows([targetRow, ...updatedRows, ...otherRows].filter(Boolean));
   };
   
   const deleteColumn = id => {
@@ -10545,7 +10518,8 @@ const App = () => {
       setShowEditColumnModal(true);
     },
     onMoveColumn: moveColumn,
-    onMoveRow: moveRow,
+    onMoveRowUp: moveRowUp,
+    onMoveRowDown: moveRowDown,
     editable: canEdit,
     t: t,
     duplicateDates: duplicateDates.weekly
@@ -10581,7 +10555,8 @@ const App = () => {
       setShowEditColumnModal(true);
     },
     onMoveColumn: moveColumn,
-    onMoveRow: moveRow,
+    onMoveRowUp: moveRowUp,
+    onMoveRowDown: moveRowDown,
     editable: canEdit,
     t: t,
     duplicateDates: duplicateDates.monthly
