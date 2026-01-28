@@ -426,10 +426,26 @@
         @media (max-width: 640px) {
             .desktop-only { display: none !important; }
             body { padding-bottom: calc(70px + var(--sab)); }
-            .btn { min-height: 52px; }
-            .btn-icon { width: 52px; height: 52px; }
-            .input-field { min-height: 52px; font-size: 16px; }
-            .card { border-radius: 20px; }
+            .btn { min-height: 44px; padding: 8px 12px; }
+            .btn-sm { min-height: 36px; padding: 6px 10px; font-size: 12px; }
+            .btn-icon { width: 44px; height: 44px; }
+            .input-field { min-height: 44px; font-size: 16px; }
+            .card { border-radius: 16px; padding: 12px; }
+            
+            /* Компактний header */
+            .app-header { padding: 8px 12px; }
+            .company-name { font-size: 14px; }
+            .badge { font-size: 10px; padding: 2px 6px; }
+            
+            /* Таблиця на мобільному */
+            .stats-table { font-size: 11px; }
+            .stats-table th, .stats-table td { padding: 6px 4px; }
+            .stats-table .sticky-col { min-width: 90px; max-width: 110px; }
+            .stats-table input { font-size: 14px; padding: 4px; min-height: 32px; }
+            .stats-table select { font-size: 11px; padding: 2px; }
+            
+            /* Кнопки стрілок менші */
+            .stats-table button { padding: 2px; }
             
             /* Покращений scroll */
             .scroll-container { 
@@ -440,12 +456,23 @@
             
             /* Більші touch targets для value inputs */
             .value-input {
-                min-height: 48px;
-                font-size: 18px;
+                min-height: 40px;
+                font-size: 16px;
                 font-weight: 600;
                 text-align: center;
-                border-radius: 12px;
+                border-radius: 8px;
             }
+            
+            /* Модалі на весь екран */
+            .modal-content {
+                max-height: 90vh;
+                margin: 8px;
+                border-radius: 16px;
+            }
+            
+            /* Toolbar компактніший */
+            .toolbar { gap: 4px; flex-wrap: wrap; }
+            .toolbar .btn { padding: 6px 8px; }
         }
         @media (min-width: 641px) { 
             .mobile-only { display: none !important; } 
@@ -719,7 +746,23 @@ const GPT_BOTTLENECK_URL = "https://chatgpt.com/g/g-6856346cb4c481918bb7e00d87b5
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-db.enablePersistence().catch(console.log);
+
+// Налаштування persistence з synchronizeTabs для синхронізації між вкладками
+db.enablePersistence({ synchronizeTabs: true })
+  .then(() => console.log('Firestore persistence enabled'))
+  .catch(err => {
+    if (err.code === 'failed-precondition') {
+      // Кілька вкладок відкрито
+      console.warn('Persistence failed: multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      // Браузер не підтримує
+      console.warn('Persistence not supported');
+    }
+  });
+
+// Глобальна черга незбережених змін (для відновлення при втраті з'єднання)
+const pendingSavesQueue = [];
+const MAX_PENDING_SAVES = 10;
 
 // ==================== SVG ICONS ====================
 const Icons = {
@@ -1497,6 +1540,29 @@ const Icons = {
     d: "M6 18a4 4 0 0 1-1.967-.516"
   }), /*#__PURE__*/React.createElement("path", {
     d: "M19.967 17.484A4 4 0 0 1 18 18"
+  })),
+  WifiOff: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("line", {
+    x1: "2", y1: "2", x2: "22", y2: "22"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M8.5 16.5a5 5 0 0 1 7 0"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M2 8.82a15 15 0 0 1 4.17-2.65"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M10.66 5c4.01-.36 8.14.9 11.34 3.76"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M16.85 11.25a10 10 0 0 1 2.22 1.68"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M5 13a10 10 0 0 1 5.24-2.76"
+  }), /*#__PURE__*/React.createElement("line", {
+    x1: "12", y1: "20", x2: "12.01", y2: "20"
   })),
   Clock: p => /*#__PURE__*/React.createElement("svg", _extends({
     xmlns: "http://www.w3.org/2000/svg",
@@ -6616,6 +6682,104 @@ const PDFExport = ({
   }, "PDF \u0431\u0443\u0434\u0435 \u043C\u0456\u0441\u0442\u0438\u0442\u0438 \u0442\u0430\u0431\u043B\u0438\u0446\u0456 \u0437 \u0434\u0430\u043D\u0438\u043C\u0438 \u0442\u0430 \u043F\u0456\u0434\u0441\u0443\u043C\u043E\u043A"));
 };
 
+// ==================== EXCEL EXPORT ====================
+const ExcelExport = ({ columns, rows, companyName }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  const generateExcel = () => {
+    setIsGenerating(true);
+    try {
+      // Розділяємо по типу періоду
+      const weeklyColumns = columns.filter(c => c.period === 'weekly' || c.period === 'daily');
+      const monthlyColumns = columns.filter(c => c.period === 'monthly');
+      const targetRow = rows.find(r => r.isTarget);
+      const weeklyRows = rows.filter(r => !r.isTarget && r.periodType !== 'monthly').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const monthlyRows = rows.filter(r => !r.isTarget && r.periodType === 'monthly').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      
+      // Генеруємо CSV (простіший формат, відкривається в Excel)
+      let csv = '\uFEFF'; // BOM для UTF-8
+      
+      // Тижневі дані
+      if (weeklyColumns.length > 0) {
+        csv += 'ТИЖНЕВІ ПОКАЗНИКИ\n';
+        csv += 'Період,' + weeklyColumns.map(c => `"${c.name}"`).join(',') + '\n';
+        
+        // Цілі
+        if (targetRow) {
+          csv += 'ЦІЛЬ,' + weeklyColumns.map(c => targetRow.values?.[c.id] || '').join(',') + '\n';
+        }
+        
+        // Дані
+        weeklyRows.forEach(row => {
+          csv += `"${row.date || ''}",` + weeklyColumns.map(c => row.values?.[c.id] || '').join(',') + '\n';
+        });
+        csv += '\n';
+      }
+      
+      // Місячні дані
+      if (monthlyColumns.length > 0) {
+        csv += 'МІСЯЧНІ ПОКАЗНИКИ\n';
+        csv += 'Період,' + monthlyColumns.map(c => `"${c.name}"`).join(',') + '\n';
+        
+        // Цілі
+        if (targetRow) {
+          csv += 'ЦІЛЬ,' + monthlyColumns.map(c => targetRow.values?.[c.id] || '').join(',') + '\n';
+        }
+        
+        // Дані
+        monthlyRows.forEach(row => {
+          csv += `"${row.date || ''}",` + monthlyColumns.map(c => row.values?.[c.id] || '').join(',') + '\n';
+        });
+      }
+      
+      // Відповідальні
+      csv += '\nВІДПОВІДАЛЬНІ\n';
+      csv += 'Показник,Відповідальний,Період\n';
+      columns.forEach(c => {
+        csv += `"${c.name}","${c.responsible || ''}","${c.period}"\n`;
+      });
+      
+      // Завантажуємо файл
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${companyName || 'stats'}_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Excel export error:', error);
+    }
+    setIsGenerating(false);
+  };
+  
+  return React.createElement('div', { className: 'space-y-4' },
+    React.createElement('p', { className: 'text-sm text-gray-600' },
+      'Експорт всіх даних у форматі CSV (відкривається в Excel, Google Sheets)'
+    ),
+    React.createElement('button', {
+      onClick: generateExcel,
+      disabled: isGenerating,
+      className: 'btn btn-primary w-full'
+    }, isGenerating ? 
+      React.createElement(React.Fragment, null,
+        React.createElement(Icons.Loader, { className: 'w-4 h-4 animate-spin' }),
+        ' Генерація...'
+      ) :
+      React.createElement(React.Fragment, null,
+        React.createElement(Icons.Download, { className: 'w-4 h-4' }),
+        ' Завантажити Excel (CSV)'
+      )
+    ),
+    React.createElement('p', { className: 'text-xs text-gray-400 text-center' },
+      'Включає: тижневі та місячні дані, цілі, відповідальних'
+    )
+  );
+};
+
 // ==================== CHANGE HISTORY ====================
 const ChangeHistory = ({
   companyId,
@@ -6779,6 +6943,66 @@ const logChange = async (db, companyId, userId, userName, action, type, details)
 const App = () => {
   const toast = useToast();
 
+  // Online/Offline status
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingChanges, setPendingChanges] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsOnline(true);
+      toast.success('З\'єднання відновлено');
+      
+      // Якщо є незбережені зміни - синхронізуємо
+      if (hasUnsavedChanges?.current) {
+        setIsSyncing(true);
+        toast.info('Синхронізація даних...');
+        
+        // Чекаємо поки Firestore синхронізує
+        setTimeout(() => {
+          setIsSyncing(false);
+          // Примусово зберігаємо якщо є зміни
+          if (typeof saveData === 'function') {
+            saveData(true);
+          }
+        }, 2000);
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning('Офлайн режим — зміни збережуться при відновленні');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [toast]);
+
+  // Попередження про кілька вкладок
+  const [otherTabActive, setOtherTabActive] = useState(false);
+  useEffect(() => {
+    const tabId = Date.now().toString();
+    const channelName = 'talko-stats-tab-sync';
+    
+    // Використовуємо BroadcastChannel якщо доступний
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel(channelName);
+      
+      // Повідомляємо інші вкладки що ми активні
+      channel.postMessage({ type: 'tab-active', tabId });
+      
+      channel.onmessage = (e) => {
+        if (e.data.type === 'tab-active' && e.data.tabId !== tabId) {
+          setOtherTabActive(true);
+        }
+      };
+      
+      return () => channel.close();
+    }
+  }, []);
+
   // Auth state
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -6833,6 +7057,7 @@ const App = () => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [showTrendsModal, setShowTrendsModal] = useState(false);
   const [showPDFModal, setShowPDFModal] = useState(false);
+  const [showExcelModal, setShowExcelModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false); // Порівняння періодів
   const [showAlertsModal, setShowAlertsModal] = useState(false); // Панель алертів
@@ -6886,14 +7111,48 @@ const App = () => {
     return [...new Set(responsibles)].sort();
   }, [columns]);
 
+  // Fuzzy search з підтримкою транслітерації та помилок
+  const fuzzyMatch = useCallback((text, query) => {
+    if (!text || !query) return false;
+    const t = text.toLowerCase();
+    const q = query.toLowerCase();
+    
+    // Точний match
+    if (t.includes(q)) return true;
+    
+    // Транслітерація uk -> en клавіатура
+    const ukToEn = {'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ї':']','ф':'a','і':'s','в':'d','а':'f','п':'g','р':'h','о':'j','л':'k','д':'l','ж':';','є':"'",'я':'z','ч':'x','с':'c','м':'v','и':'b','т':'n','ь':'m','б':',','ю':'.'};
+    const enToUk = Object.fromEntries(Object.entries(ukToEn).map(([k,v]) => [v,k]));
+    
+    const translit = str => str.split('').map(c => ukToEn[c] || enToUk[c] || c).join('');
+    if (t.includes(translit(q)) || translit(t).includes(q)) return true;
+    
+    // Levenshtein distance для коротких запитів (до 2 помилок)
+    if (q.length >= 3 && q.length <= 10) {
+      const words = t.split(/\s+/);
+      for (const word of words) {
+        if (word.length >= q.length - 2) {
+          let dist = 0;
+          const len = Math.min(word.length, q.length);
+          for (let i = 0; i < len; i++) {
+            if (word[i] !== q[i]) dist++;
+          }
+          dist += Math.abs(word.length - q.length);
+          if (dist <= 2) return true;
+        }
+      }
+    }
+    
+    return false;
+  }, []);
+
   // Фільтрація колонок по пошуку та відповідальному
   const filterColumns = useCallback(cols => {
     return cols.filter(c => {
-      // Фільтр по пошуку
+      // Фільтр по пошуку (з fuzzy match)
       if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesName = c.name?.toLowerCase().includes(query);
-        const matchesResponsible = c.responsible?.toLowerCase().includes(query);
+        const matchesName = fuzzyMatch(c.name, searchQuery);
+        const matchesResponsible = fuzzyMatch(c.responsible, searchQuery);
         if (!matchesName && !matchesResponsible) return false;
       }
       // Фільтр по відповідальному
@@ -6902,7 +7161,7 @@ const App = () => {
       }
       return true;
     });
-  }, [searchQuery, filterResponsible]);
+  }, [searchQuery, filterResponsible, fuzzyMatch]);
 
   // Групування колонок по періоду з фільтрацією
   const weeklyColumns = useMemo(() => filterColumns(columns.filter(c => c.period === 'weekly' || c.period === 'daily')), [columns, filterColumns]);
@@ -7033,6 +7292,31 @@ const App = () => {
     console.log('Filtered columns for employee:', filtered.length);
     return filtered;
   }, [columns, isOwner, isSuperAdmin, employees, user]);
+
+  // Перевірка локального бекапу при старті (на випадок якщо попередня сесія перервалась)
+  useEffect(() => {
+    try {
+      const localBackup = localStorage.getItem('talko_local_backup');
+      if (localBackup) {
+        const backup = JSON.parse(localBackup);
+        const ageMinutes = (Date.now() - backup.timestamp) / 1000 / 60;
+        
+        // Якщо бекап свіжий (менше 30 хвилин) - попереджаємо користувача
+        if (ageMinutes < 30 && backup.data?.rows?.length > 0) {
+          console.log('Found local backup from', ageMinutes.toFixed(1), 'minutes ago');
+          toast.warning(
+            'Знайдено незбережені дані з попередньої сесії. Перевірте чи все збережено.',
+            8000
+          );
+        } else {
+          // Старий бекап - видаляємо
+          localStorage.removeItem('talko_local_backup');
+        }
+      }
+    } catch (e) {
+      console.warn('Error checking local backup:', e);
+    }
+  }, [toast]);
 
   // ==================== AUTH ====================
   useEffect(() => {
@@ -7420,7 +7704,8 @@ const App = () => {
       }
       
       setAuthLoading(false);
-      setDataLoaded(true); // Дозволяємо UI працювати
+      // НЕ ставимо dataLoaded = true при помилці, щоб не перезаписати дані!
+      // setDataLoaded(true); 
     }
   };
   const initializeDefaultData = () => {
@@ -9092,6 +9377,26 @@ const App = () => {
       return { success: true };
     }
     
+    // ЗАХИСТ: перевіряємо що не зберігаємо менше даних ніж було
+    if (lastSuccessfulState.current) {
+      const prevRowsWithValues = lastSuccessfulState.current.rows?.filter(r => 
+        !r.isTarget && Object.keys(r.values || {}).length > 0
+      ).length || 0;
+      const newRowsWithValues = dataToSave.rows.filter(r => 
+        !r.isTarget && Object.keys(r.values || {}).length > 0
+      ).length;
+      
+      // Якщо втратили більше 50% рядків з даними - це підозріло
+      if (prevRowsWithValues > 3 && newRowsWithValues < prevRowsWithValues * 0.5) {
+        console.error('BLOCKED SAVE: Suspicious data loss detected!', {
+          prevRows: prevRowsWithValues,
+          newRows: newRowsWithValues
+        });
+        toast.error('Збереження заблоковано: виявлено втрату даних. Оновіть сторінку.');
+        return { success: false, blocked: true };
+      }
+    }
+    
     // Перевірка чи дані змінились (оптимізація)
     const dataHash = JSON.stringify(dataToSave);
     if (lastSavedData.current === dataHash) {
@@ -9108,18 +9413,40 @@ const App = () => {
     });
     setSaveStatus('saving');
     
+    // Локальний бекап в localStorage перед збереженням (на випадок втрати з'єднання)
     try {
+      const localBackup = {
+        timestamp: Date.now(),
+        companyId,
+        data: dataToSave
+      };
+      localStorage.setItem('talko_local_backup', JSON.stringify(localBackup));
+    } catch (e) {
+      console.warn('localStorage backup failed:', e);
+    }
+    
+    try {
+      // Додаємо версію для відстеження конфліктів
+      const saveVersion = Date.now();
+      
       await db.collection('companies').doc(companyId).update({
         columns: dataToSave.columns,
         rows: dataToSave.rows,
         aiSettings: dataToSave.aiSettings || {},
         savedAnalyses: dataToSave.savedAnalyses || [],
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSaveVersion: saveVersion,
+        lastSaveBy: user?.uid || 'unknown'
       });
-      console.log('Data saved successfully');
+      console.log('Data saved successfully, version:', saveVersion);
       lastSavedData.current = dataHash;
       hasUnsavedChanges.current = false;
       saveRetryCount.current = 0;
+      
+      // Очищаємо локальний бекап після успішного збереження
+      try {
+        localStorage.removeItem('talko_local_backup');
+      } catch (e) {}
       
       // Зберігаємо успішний стан для можливого rollback
       lastSuccessfulState.current = dataToSave;
@@ -9129,6 +9456,23 @@ const App = () => {
       return { success: true };
     } catch (error) {
       console.error('Error saving:', error);
+      
+      // Перевіряємо чи це помилка мережі
+      const isNetworkError = !navigator.onLine || 
+        error.code === 'unavailable' || 
+        error.message?.includes('network') ||
+        error.message?.includes('offline');
+      
+      if (isNetworkError) {
+        console.log('Network error detected, data saved locally');
+        setSaveStatus('offline');
+        toast.warning('Немає з\'єднання. Дані збережено локально і синхронізуються автоматично.', 5000);
+        
+        // Firestore persistence повинен синхронізувати автоматично коли онлайн
+        hasUnsavedChanges.current = true;
+        return { success: false, offline: true };
+      }
+      
       saveRetryCount.current++;
       
       // Автоматичний retry
@@ -9149,7 +9493,7 @@ const App = () => {
       
       // Показуємо помилку з можливістю rollback
       if (lastSuccessfulState.current) {
-        toast.error('Помилка збереження. Дані можуть бути втрачені.', 6000);
+        toast.error('Помилка збереження. Дані збережено локально, але можуть бути втрачені при оновленні сторінки.', 8000);
       } else {
         toast.error(t.saveError);
       }
@@ -9226,7 +9570,8 @@ const App = () => {
     
     const handleVisibilityChange = () => {
       // Зберігаємо коли вкладка стає невидимою
-      if (document.hidden && hasUnsavedChanges.current && companyId && isOwner && !isSuperAdmin) {
+      // ВАЖЛИВО: перевіряємо dataLoaded щоб не зберегти порожні дані!
+      if (document.hidden && hasUnsavedChanges.current && companyId && isOwner && !isSuperAdmin && dataLoaded && columns.length > 0 && rows.length > 0) {
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
         }
@@ -10020,6 +10365,12 @@ const App = () => {
   const confirmImport = async mode => {
     if (!importPreview || isImporting) return;
     
+    // ЗАХИСТ: не імпортуємо якщо дані ще не завантажені
+    if (!dataLoaded) {
+      toast.error('Дочекайтеся завантаження даних перед імпортом');
+      return;
+    }
+    
     setIsImporting(true);
 
     // Автоматичний бекап перед імпортом!
@@ -10160,7 +10511,14 @@ const App = () => {
     className: "w-3 h-3 mr-1"
   }), t.owner) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.User, {
     className: "w-3 h-3 mr-1"
-  }), t.employee))))), /*#__PURE__*/React.createElement("div", {
+  }), t.employee))), !isOnline && /*#__PURE__*/React.createElement("span", {
+    className: "badge text-xs bg-amber-100 text-amber-700 ml-1",
+    title: "Офлайн режим — зміни синхронізуються при відновленні"
+  }, /*#__PURE__*/React.createElement(Icons.WifiOff, { className: "w-3 h-3" })), otherTabActive && /*#__PURE__*/React.createElement("span", {
+    className: "badge text-xs bg-red-100 text-red-700 ml-1 cursor-pointer",
+    title: "Відкрито в іншій вкладці — можлива втрата даних!",
+    onClick: () => toast.warning('Закрийте інші вкладки з цим сайтом щоб уникнути втрати даних!')
+  }, "⚠️ 2+ вкладки"))), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-1 sm:gap-2 flex-shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowMenu(true),
@@ -10293,6 +10651,12 @@ const App = () => {
     className: "btn btn-secondary btn-sm",
     title: "\u0415\u043A\u0441\u043F\u043E\u0440\u0442 PDF"
   }, /*#__PURE__*/React.createElement(Icons.FileText, {
+    className: "w-4 h-4"
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowExcelModal(true),
+    className: "btn btn-secondary btn-sm",
+    title: "Експорт Excel"
+  }, /*#__PURE__*/React.createElement(Icons.Download, {
     className: "w-4 h-4"
   })), /*#__PURE__*/React.createElement("div", {
     className: "relative"
@@ -11805,6 +12169,14 @@ const App = () => {
     companyName: companyName,
     aiSettings: aiSettings,
     t: t
+  })), /*#__PURE__*/React.createElement(Modal, {
+    isOpen: showExcelModal,
+    onClose: () => setShowExcelModal(false),
+    title: "Експорт Excel"
+  }, /*#__PURE__*/React.createElement(ExcelExport, {
+    columns: columns,
+    rows: rows,
+    companyName: companyName
   })), /*#__PURE__*/React.createElement(Modal, {
     isOpen: showHistoryModal,
     onClose: () => setShowHistoryModal(false),
