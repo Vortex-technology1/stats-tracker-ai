@@ -6,11 +6,7 @@
     <meta name="theme-color" content="#22c55e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self'">
     <title>Трекер статистики Pro</title>
-    
-    <!-- Framebusting script -->
-    <script>if (top !== self) top.location = self.location;</script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -7681,7 +7677,20 @@ const App = () => {
           companyId: userCompanyId
         });
         if (userCompanyId) {
-          // 2. Завантажуємо дані компанії
+          // Спочатку отримуємо дані компанії для оптимістичного owner
+          const companyDoc = await db.collection('companies').doc(userCompanyId).get();
+          if (companyDoc.exists) {
+            const companyData = companyDoc.data();
+            const userEmail = currentUser?.email?.toLowerCase();
+            
+            // ОПТИМІСТИЧНО: якщо email співпадає з ownerEmail - одразу ставимо owner ДО setCompanyId
+            if (userEmail && companyData.ownerEmail?.toLowerCase() === userEmail) {
+              console.log('Optimistic owner set BEFORE companyId for:', userEmail);
+              setUserProfile({ role: 'owner', name: companyData.ownerName || userEmail.split('@')[0], email: userEmail });
+            }
+          }
+          
+          // 2. Тепер встановлюємо companyId і завантажуємо дані
           setCompanyId(userCompanyId);
           console.log('Calling loadCompanyData...');
           await loadCompanyData(userCompanyId, userId);
@@ -7740,7 +7749,10 @@ const App = () => {
       await db.collection('pendingOwners').doc(email).delete();
       toast.success(`Вітаємо! Ви власник компанії "${pending.companyName}"`);
 
-      // 4. Завантажуємо дані компанії
+      // 4. ОПТИМІСТИЧНО встановлюємо owner ДО setCompanyId
+      setUserProfile({ role: 'owner', name: pending.ownerName || email.split('@')[0], email: email });
+      
+      // 5. Завантажуємо дані компанії
       setCompanyId(pending.companyId);
       await loadCompanyData(pending.companyId, userId);
     } catch (error) {
@@ -7754,6 +7766,10 @@ const App = () => {
 
       // Скидаємо флаг поки дані завантажуються
       setDataLoaded(false);
+      
+      // ОПТИМІСТИЧНО: встановлюємо owner якщо email співпадає
+      const currentUser = auth.currentUser;
+      const currentEmail = currentUser?.email?.toLowerCase();
 
       // 1. Завантажуємо дані компанії з timeout
       console.log('Fetching company doc...');
@@ -7818,6 +7834,22 @@ const App = () => {
       // Міграція старих дат у формат тижнів
       const migratedRows = validatedRows.map(row => {
         if (row.isTarget || !row.date) return row;
+        
+        // Перевіряємо чи це ISO week format (2025-W04)
+        const isoWeekMatch = row.date.match(/^(\d{4})-W(\d{2})$/);
+        if (isoWeekMatch) {
+          // Конвертуємо ISO week у дату понеділка
+          const year = parseInt(isoWeekMatch[1]);
+          const week = parseInt(isoWeekMatch[2]);
+          const jan4 = new Date(year, 0, 4);
+          const dayOfWeek = jan4.getDay() || 7;
+          const monday = new Date(jan4);
+          monday.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
+          const weekKey = monday.toISOString().split('T')[0];
+          console.log('Migrating ISO week:', row.date, '→', weekKey);
+          return { ...row, date: weekKey };
+        }
+        
         // Перевіряємо чи дата вже в форматі weekKey (YYYY-MM-DD понеділка)
         const weekKey = getWeekKey(row.date);
         if (weekKey && row.date !== weekKey) {
@@ -11263,7 +11295,7 @@ const App = () => {
   }, /*#__PURE__*/React.createElement("td", {
     className: "sticky-col"
   }, /*#__PURE__*/React.createElement("select", {
-    value: getWeekKey(row.date) || '',
+    value: row.date || '',
     onChange: e => updateDate(row.id, e.target.value),
     className: "mobile-date-select"
   }, /*#__PURE__*/React.createElement("option", {
