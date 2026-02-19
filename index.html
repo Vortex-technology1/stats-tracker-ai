@@ -7862,12 +7862,30 @@ const App = () => {
         }
         return row;
       });
+      
+      // ОЧИСТКА: видаляємо порожні рядки без дати (крім targetRow)
+      const cleanedRows = migratedRows.filter(row => {
+        if (row.isTarget) return true; // targetRow завжди залишаємо
+        if (!row.date) {
+          // Перевіряємо чи є якісь дані в рядку
+          const hasValues = Object.values(row.values || {}).some(v => v !== '' && v !== null && v !== undefined && v !== 0);
+          if (!hasValues) {
+            console.log('Removing empty row without date:', row.id);
+            return false; // Видаляємо порожній рядок без дати
+          }
+        }
+        return true;
+      });
+      
+      if (cleanedRows.length !== migratedRows.length) {
+        console.log(`Cleaned ${migratedRows.length - cleanedRows.length} empty rows`);
+      }
 
       // Перевіряємо чи є targetRow, якщо ні - створюємо
-      const hasTargetRow = migratedRows.some(r => r.isTarget);
+      const hasTargetRow = cleanedRows.some(r => r.isTarget);
       if (!hasTargetRow) {
         console.log('Creating missing targetRow');
-        migratedRows.unshift({
+        cleanedRows.unshift({
           id: 'target',
           isTarget: true,
           date: '',
@@ -7879,10 +7897,10 @@ const App = () => {
       // Автоматично додаємо поточний тиждень якщо його немає
       const currentWeekKey = getWeekKey(new Date());
       const weeklyColumns = validatedColumns.filter(c => c.period === 'weekly');
-      const hasCurrentWeek = migratedRows.some(r => !r.isTarget && r.periodType === 'weekly' && r.date === currentWeekKey);
+      const hasCurrentWeek = cleanedRows.some(r => !r.isTarget && r.periodType === 'weekly' && r.date === currentWeekKey);
       if (weeklyColumns.length > 0 && !hasCurrentWeek && currentWeekKey) {
         console.log('Auto-adding current week:', currentWeekKey);
-        migratedRows.push({
+        cleanedRows.push({
           id: 'auto-week-' + Date.now(),
           isTarget: false,
           periodType: 'weekly',
@@ -7896,10 +7914,10 @@ const App = () => {
       // Автоматично додаємо поточний місяць якщо його немає
       const currentMonthKey = getMonthKeyFromDate(new Date());
       const monthlyColumns = validatedColumns.filter(c => c.period === 'monthly');
-      const hasCurrentMonth = migratedRows.some(r => !r.isTarget && r.periodType === 'monthly' && r.date === currentMonthKey);
+      const hasCurrentMonth = cleanedRows.some(r => !r.isTarget && r.periodType === 'monthly' && r.date === currentMonthKey);
       if (monthlyColumns.length > 0 && !hasCurrentMonth && currentMonthKey) {
         console.log('Auto-adding current month:', currentMonthKey);
-        migratedRows.push({
+        cleanedRows.push({
           id: 'auto-month-' + Date.now(),
           isTarget: false,
           periodType: 'monthly',
@@ -7909,7 +7927,7 @@ const App = () => {
           comments: {}
         });
       }
-      setRows(migratedRows);
+      setRows(cleanedRows);
       
       // ВАЛІДАЦІЯ: aiSettings
       const validAiSettings = {
