@@ -2049,6 +2049,10 @@ const getWeekRange = (date, startDay = null) => {
   const actualStartDay = startDay !== null ? startDay : getStoredWeekStartDay();
   const d = new Date(date);
   if (isNaN(d.getTime())) return null;
+  
+  // Нормалізуємо до полудня щоб DST перехід (о 2-3 ранку) не зміщував день
+  d.setHours(12, 0, 0, 0);
+  
   const day = d.getDay(); // 0=Нд, 1=Пн, ...
 
   // Різниця до початку тижня
@@ -2056,8 +2060,10 @@ const getWeekRange = (date, startDay = null) => {
   if (diff < 0) diff += 7;
   const weekStart = new Date(d);
   weekStart.setDate(d.getDate() - diff);
+  weekStart.setHours(0, 0, 0, 0); // Повертаємо початок дня
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
   return {
     start: weekStart,
     end: weekEnd
@@ -2084,7 +2090,12 @@ const getWeekKey = (date, startDay = null) => {
   const actualStartDay = startDay !== null ? startDay : getStoredWeekStartDay();
   const range = getWeekRange(date, actualStartDay);
   if (!range) return null;
-  return range.start.toISOString().split('T')[0];
+  // ФІКС: використовуємо локальну дату замість UTC (toISOString дає UTC і зміщує дату)
+  const s = range.start;
+  const yyyy = s.getFullYear();
+  const mm = (s.getMonth() + 1).toString().padStart(2, '0');
+  const dd = s.getDate().toString().padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 };
 const generateWeeks = (countBack = 52, countForward = 4, startDay = null) => {
   const actualStartDay = startDay !== null ? startDay : getStoredWeekStartDay();
@@ -2102,7 +2113,7 @@ const generateWeeks = (countBack = 52, countForward = 4, startDay = null) => {
       end
     } = range;
     weeks.push({
-      key: start.toISOString().split('T')[0],
+      key: getWeekKey(d, actualStartDay),
       label: formatWeekLabel(d, actualStartDay),
       start: start,
       end: end,
@@ -2122,7 +2133,7 @@ const generateWeeks = (countBack = 52, countForward = 4, startDay = null) => {
       end
     } = range;
     weeks.push({
-      key: start.toISOString().split('T')[0],
+      key: getWeekKey(d, actualStartDay),
       label: formatWeekLabel(d, actualStartDay),
       start: start,
       end: end,
@@ -2205,6 +2216,31 @@ const isMonthFilled = (monthKey, rows) => {
     if (row.isTarget || !row.date || row.periodType !== 'monthly') return false;
     return row.date === monthKey;
   });
+};
+
+// ==================== UNIFIED PROGRESS CALCULATION ====================
+// Єдина функція для розрахунку прогресу — уникаємо розходження між mobile/desktop/alerts
+const calcProgress = (value, target, inverted) => {
+  const val = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : parseFloat(value);
+  if (isNaN(val)) return null;
+  
+  const tgt = typeof target === 'string' ? parseFloat(target.replace(',', '.')) : parseFloat(target);
+  
+  if (inverted) {
+    // Від'ємний показник: чим менше — тим краще
+    if (val <= 0) return 100; // Ідеальний результат
+    if (isNaN(tgt) || tgt === 0) {
+      // Без цілі: 100% при 0, кожна одиниця = -10% (clamped 0-100)
+      return Math.max(0, Math.min(100, Math.round(100 - val * 10)));
+    }
+    const absTarget = Math.abs(tgt);
+    // value=0 → 100%, value=target → 0%, value>target → 0%
+    return Math.max(0, Math.min(100, Math.round((1 - val / absTarget) * 100)));
+  }
+  
+  // Звичайний показник
+  if (isNaN(tgt) || tgt === 0) return null;
+  return Math.round(val / tgt * 100);
 };
 
 // ==================== TOAST ====================
@@ -3438,6 +3474,7 @@ const isFilledForPeriod = (rows, colId, period) => {
 const StatsCardComponent = ({
   row,
   columns,
+  targetRow,
   onDelete,
   onDateChange,
   onValueChange,
@@ -3481,19 +3518,10 @@ const StatsCardComponent = ({
   };
   const calculateProgress = colId => {
     const col = columns.find(c => c.id === colId);
-    const target = parseFloat(String(row.targets?.[colId] || '').replace(',', '.'));
-    const value = parseFloat(String(row.values?.[colId] || '').replace(',', '.'));
-    if (isNaN(value)) return null;
-
-    // Для від'ємних показників (чим менше - тим краще)
-    if (col?.inverted) {
-      if (isNaN(target) || target === 0) {
-        return value === 0 ? 100 : Math.round(-value * 25);
-      }
-      return Math.round((1 - value / target) * 100);
-    }
-    if (isNaN(target) || target === 0) return null;
-    return Math.round(value / target * 100);
+    // Використовуємо row.targets з fallback на globalTarget
+    const target = row.targets?.[colId] || targetRow?.values?.[colId] || '';
+    const value = row.values?.[colId] || '';
+    return calcProgress(value, target, col?.inverted);
   };
   const getProgressColor = progress => {
     if (progress >= 100) return {
@@ -3869,44 +3897,9 @@ const StatsTable = ({
   // 3. Від'ємних показників (inverted)
   const calculateProgress = (row, colId, col) => {
     if (!row.values) return null;
-
-    // Ціль: спочатку з row.targets, потім з targetRow.values
-    const rowTarget = row.targets?.[colId];
-    const globalTarget = targetRow?.values?.[colId];
-    const target = parseFloat(String(rowTarget || globalTarget || '').replace(',', '.'));
-    const value = parseFloat(String(row.values[colId] || '').replace(',', '.'));
-    if (isNaN(value)) return null;
-
-    // Для від'ємних показників (чим менше - тим краще)
-    // Приклад: скасовані консультації, скарги, брак
-    // Ціль = максимально допустиме значення
-    // value <= 0 → 100% (ідеально)
-    // value < target → пропорційно (добре)  
-    // value >= target → 0% або менше (погано)
-    if (col?.inverted) {
-      // Якщо value = 0 або менше - ідеальний результат
-      if (value <= 0) return 100;
-      
-      // Якщо немає цілі - показуємо скільки "поганого" є
-      if (isNaN(target) || target === 0) {
-        // Без цілі: кожна одиниця "поганого" = -10% від 100
-        return Math.max(0, Math.round(100 - value * 10));
-      }
-      
-      // Ціль може бути від'ємною (наприклад -5 означає "максимум 5 скасувань")
-      const absTarget = Math.abs(target);
-      
-      // Формула: чим менше value відносно target - тим краще
-      // value = 0 → 100%
-      // value = absTarget → 0%
-      // value > absTarget → 0% (не показуємо від'ємні)
-      const progress = Math.round((1 - value / absTarget) * 100);
-      return Math.max(0, Math.min(100, progress));
-    }
-
-    // Звичайний показник
-    if (isNaN(target) || target === 0) return null;
-    return Math.round(value / target * 100);
+    const target = row.targets?.[colId] || targetRow?.values?.[colId] || '';
+    const value = row.values[colId] || '';
+    return calcProgress(value, target, col?.inverted);
   };
 
   // Генерація кольору по імені відповідального (консистентний хеш)
@@ -4976,7 +4969,20 @@ const AIAnalysis = ({
     }
     return limitations;
   };
+  const lastAICallRef = useRef(0);
+  const AI_RATE_LIMIT_MS = 10000; // Мінімум 10 секунд між AI запитами
+  
   const callAI = async prompt => {
+    // Rate limiting
+    const now = Date.now();
+    const timeSinceLastCall = now - lastAICallRef.current;
+    if (timeSinceLastCall < AI_RATE_LIMIT_MS) {
+      const waitMs = AI_RATE_LIMIT_MS - timeSinceLastCall;
+      toast.info(`Зачекайте ${Math.ceil(waitMs / 1000)} сек...`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+    }
+    lastAICallRef.current = Date.now();
+    
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 сек timeout
@@ -7072,6 +7078,9 @@ const App = () => {
   const [pendingChanges, setPendingChanges] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   
+  // Ref для saveData функції (заповниться після визначення saveData)
+  const saveDataRef = useRef(null);
+  
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
@@ -7085,9 +7094,9 @@ const App = () => {
         // Чекаємо поки Firestore синхронізує
         setTimeout(() => {
           setIsSyncing(false);
-          // Примусово зберігаємо якщо є зміни
-          if (typeof saveData === 'function') {
-            saveData(true);
+          // Примусово зберігаємо через ref (завжди актуальна версія saveData)
+          if (saveDataRef.current) {
+            saveDataRef.current(true);
           }
         }, 2000);
       }
@@ -7104,27 +7113,134 @@ const App = () => {
     };
   }, [toast]);
 
-  // Попередження про кілька вкладок
+  // ==================== TAB LOCK SYSTEM ====================
+  // Варіант 1: Client-side lock через localStorage + BroadcastChannel
   const [otherTabActive, setOtherTabActive] = useState(false);
+  const [tabLockBlocked, setTabLockBlocked] = useState(false); // true = ця вкладка заблокована (не може зберігати)
+  const tabLockBlockedRef = useRef(false);
+  const myTabIdRef = useRef(Date.now().toString() + '-' + Math.random().toString(36).slice(2, 6));
+  
   useEffect(() => {
-    const tabId = Date.now().toString();
-    const channelName = 'talko-stats-tab-sync';
+    const TAB_LOCK_KEY = 'talko_active_tab';
+    const HEARTBEAT_MS = 5000; // heartbeat кожні 5 сек
+    const STALE_MS = 15000; // tab вважається мертвим якщо heartbeat > 15 сек
+    const myTabId = myTabIdRef.current;
+    let channel = null;
     
-    // Використовуємо BroadcastChannel якщо доступний
-    if (typeof BroadcastChannel !== 'undefined') {
-      const channel = new BroadcastChannel(channelName);
+    // Перевіряємо чи є вже активна вкладка
+    const checkExistingTab = () => {
+      try {
+        const stored = localStorage.getItem(TAB_LOCK_KEY);
+        if (stored) {
+          const { tabId, timestamp, companyId: lockedCompanyId } = JSON.parse(stored);
+          const age = Date.now() - timestamp;
+          // Інша вкладка активна і жива
+          if (tabId !== myTabId && age < STALE_MS) {
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    };
+    
+    // Захоплюємо lock
+    const acquireLock = () => {
+      try {
+        localStorage.setItem(TAB_LOCK_KEY, JSON.stringify({
+          tabId: myTabId,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
+    };
+    
+    // Початкова перевірка
+    if (checkExistingTab()) {
+      setOtherTabActive(true);
+      setTabLockBlocked(true); tabLockBlockedRef.current = true;
+      toast.warning('Ця вкладка в режимі перегляду — редагування заблоковано. Закрийте іншу вкладку.', 8000);
+    } else {
+      acquireLock();
+    }
+    
+    // Heartbeat — оновлюємо timestamp кожні 5 сек
+    const heartbeatInterval = setInterval(() => {
+      if (!tabLockBlockedRef.current) {
+        acquireLock();
+      }
       
-      // Повідомляємо інші вкладки що ми активні
-      channel.postMessage({ type: 'tab-active', tabId });
+      // Перевіряємо чи нас не перехопили
+      try {
+        const stored = localStorage.getItem(TAB_LOCK_KEY);
+        if (stored) {
+          const { tabId } = JSON.parse(stored);
+          if (tabId !== myTabId && !tabLockBlockedRef.current) {
+            // Інша вкладка перехопила lock
+            setOtherTabActive(true);
+            setTabLockBlocked(true); tabLockBlockedRef.current = true;
+            toast.warning('Інша вкладка стала активною. Ця вкладка заблокована для редагування.');
+          }
+        }
+      } catch (e) {}
+    }, HEARTBEAT_MS);
+    
+    // BroadcastChannel для миттєвого сповіщення
+    if (typeof BroadcastChannel !== 'undefined') {
+      channel = new BroadcastChannel('talko-stats-tab-sync');
+      
+      // Повідомляємо інші вкладки
+      channel.postMessage({ type: 'tab-active', tabId: myTabId });
       
       channel.onmessage = (e) => {
-        if (e.data.type === 'tab-active' && e.data.tabId !== tabId) {
+        if (e.data.tabId === myTabId) return;
+        
+        if (e.data.type === 'tab-active') {
+          // Нова вкладка відкрилась — повідомляємо їй що ми тут
+          channel.postMessage({ type: 'tab-exists', tabId: myTabId });
+        }
+        
+        if (e.data.type === 'tab-exists') {
+          // Інша вкладка вже працює — блокуємо себе
           setOtherTabActive(true);
+          setTabLockBlocked(true); tabLockBlockedRef.current = true;
+        }
+        
+        if (e.data.type === 'tab-closing') {
+          // Інша вкладка закривається — можемо захопити lock
+          setTimeout(() => {
+            if (checkExistingTab()) return; // Ще хтось є
+            acquireLock();
+            setOtherTabActive(false);
+            setTabLockBlocked(false); tabLockBlockedRef.current = false;
+            toast.success('Ви тепер маєте повний доступ до редагування');
+          }, 500);
         }
       };
-      
-      return () => channel.close();
     }
+    
+    // При закритті — звільняємо lock і сповіщаємо
+    const handleBeforeUnload = () => {
+      try {
+        const stored = localStorage.getItem(TAB_LOCK_KEY);
+        if (stored) {
+          const { tabId } = JSON.parse(stored);
+          if (tabId === myTabId) {
+            localStorage.removeItem(TAB_LOCK_KEY);
+          }
+        }
+      } catch (e) {}
+      if (channel) {
+        try { channel.postMessage({ type: 'tab-closing', tabId: myTabId }); } catch (e) {}
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleBeforeUnload(); // Звільняємо lock при unmount
+      if (channel) channel.close();
+    };
   }, []);
 
   // Auth state
@@ -7154,6 +7270,7 @@ const App = () => {
   const [, forceUpdate] = useState(0); // Для форсування ререндеру
 
   // Зберігаємо weekStartDay в localStorage і оновлюємо глобальний кеш
+  // Зберігаємо weekStartDay в localStorage, Firestore і оновлюємо глобальний кеш
   const setWeekStartDay = day => {
     setWeekStartDayState(day);
     try {
@@ -7161,6 +7278,14 @@ const App = () => {
     } catch {}
     updateWeeksCache(day); // Оновлюємо глобальний кеш
     forceUpdate(n => n + 1); // Форсуємо ререндер
+    
+    // Зберігаємо в Firestore для синхронізації між пристроями
+    if (companyId && isOwner && !isSuperAdmin) {
+      db.collection('companies').doc(companyId).update({
+        weekStartDay: day,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(e => console.warn('Failed to save weekStartDay to Firestore:', e));
+    }
   };
   const [savedAnalyses, setSavedAnalyses] = useState([]);
 
@@ -7194,9 +7319,20 @@ const App = () => {
   
   // Undo система для критичних операцій
   const [undoStack, setUndoStack] = useState([]);
-  const MAX_UNDO_ITEMS = 5;
+  const MAX_UNDO_ITEMS = 3; // Менше записів = менше пам'яті
   
   const saveToUndo = useCallback((action, data) => {
+    // Обмежуємо розмір snapshot — якщо дані великі, зберігаємо тільки action type
+    try {
+      const serialized = JSON.stringify(data);
+      if (serialized.length > 500000) { // > 500KB — занадто великий
+        console.warn('Undo snapshot too large, skipping:', (serialized.length / 1000).toFixed(0), 'KB');
+        return;
+      }
+    } catch (e) {
+      return;
+    }
+    
     setUndoStack(prev => {
       const newStack = [{ action, data, timestamp: Date.now() }, ...prev].slice(0, MAX_UNDO_ITEMS);
       return newStack;
@@ -7387,19 +7523,35 @@ const App = () => {
     };
   }, [sortedWeeklyRows, sortedMonthlyRows]);
 
-  // Автоматичне додавання поточного тижня/місяця при фокусі на вікно
-  useEffect(() => {
-    const checkAndAddCurrentPeriod = () => {
-      if (!isOwner || columns.length === 0 || rows.length === 0) return;
-      let needsUpdate = false;
-      const updatedRows = [...rows];
+  // Ref для актуальних rows (уникаємо stale closure)
+  const rowsRef = useRef(rows);
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
+  const columnsRef = useRef(columns);
+  useEffect(() => { columnsRef.current = columns; }, [columns]);
 
-      // Перевіряємо поточний тиждень
-      const currentWeekKey = getWeekKey(new Date());
-      const hasWeeklyColumns = columns.some(c => c.period === 'weekly' || c.period === 'daily');
-      const hasCurrentWeek = rows.some(r => !r.isTarget && r.periodType === 'weekly' && r.date === currentWeekKey);
-      if (hasWeeklyColumns && !hasCurrentWeek && currentWeekKey) {
-        console.log('Auto-adding current week on focus:', currentWeekKey);
+  // Автоматичне додавання поточного тижня/місяця
+  // Використовує ref замість closure щоб завжди мати актуальні дані
+  const checkAndAddCurrentPeriod = useCallback(() => {
+    const currentRows = rowsRef.current;
+    const currentColumns = columnsRef.current;
+    if (!isOwner || currentColumns.length === 0 || currentRows.length === 0) return;
+    let needsUpdate = false;
+    const updatedRows = [...currentRows];
+
+    // Перевіряємо поточний тиждень
+    const currentWeekKey = getWeekKey(new Date());
+    const hasWeeklyColumns = currentColumns.some(c => c.period === 'weekly' || c.period === 'daily');
+    const hasCurrentWeek = currentRows.some(r => !r.isTarget && r.periodType === 'weekly' && r.date === currentWeekKey);
+    if (hasWeeklyColumns && !hasCurrentWeek && currentWeekKey) {
+      // Додаткова перевірка: чи немає рядка з дуже схожою датою (±1 день через timezone)
+      const weekKeyDate = new Date(currentWeekKey);
+      const hasSimilarWeek = currentRows.some(r => {
+        if (r.isTarget || r.periodType !== 'weekly' || !r.date) return false;
+        const rowDate = new Date(r.date);
+        return Math.abs(weekKeyDate - rowDate) < 2 * 24 * 60 * 60 * 1000; // ±2 дні
+      });
+      if (!hasSimilarWeek) {
+        log('Auto-adding current week:', currentWeekKey);
         updatedRows.push({
           id: 'auto-week-' + Date.now(),
           isTarget: false,
@@ -7411,39 +7563,53 @@ const App = () => {
         });
         needsUpdate = true;
       }
+    }
 
-      // Перевіряємо поточний місяць
-      const currentMonthKey = getMonthKeyFromDate(new Date());
-      const hasMonthlyColumns = columns.some(c => c.period === 'monthly');
-      const hasCurrentMonth = rows.some(r => !r.isTarget && r.periodType === 'monthly' && r.date === currentMonthKey);
-      if (hasMonthlyColumns && !hasCurrentMonth && currentMonthKey) {
-        console.log('Auto-adding current month on focus:', currentMonthKey);
-        updatedRows.push({
-          id: 'auto-month-' + Date.now(),
-          isTarget: false,
-          periodType: 'monthly',
-          date: currentMonthKey,
-          values: {},
-          targets: {},
-          comments: {}
-        });
-        needsUpdate = true;
-      }
-      if (needsUpdate) {
-        setRows(updatedRows);
-      }
-    };
+    // Перевіряємо поточний місяць
+    const currentMonthKey = getMonthKeyFromDate(new Date());
+    const hasMonthlyColumns = currentColumns.some(c => c.period === 'monthly');
+    const hasCurrentMonth = currentRows.some(r => !r.isTarget && r.periodType === 'monthly' && r.date === currentMonthKey);
+    if (hasMonthlyColumns && !hasCurrentMonth && currentMonthKey) {
+      log('Auto-adding current month:', currentMonthKey);
+      updatedRows.push({
+        id: 'auto-month-' + Date.now(),
+        isTarget: false,
+        periodType: 'monthly',
+        date: currentMonthKey,
+        values: {},
+        targets: {},
+        comments: {}
+      });
+      needsUpdate = true;
+    }
+    if (needsUpdate) {
+      setRows(updatedRows);
+    }
+  }, [isOwner]);
 
-    // Перевіряємо при фокусі на вікно
+  // Запускаємо одноразово при завантаженні даних
+  const autoAddDone = useRef(false);
+  useEffect(() => {
+    if (dataLoaded && !autoAddDone.current && columns.length > 0 && rows.length > 0 && isOwner) {
+      autoAddDone.current = true;
+      // Невелика затримка щоб rows/columns refs встигли оновитись
+      setTimeout(checkAndAddCurrentPeriod, 100);
+    }
+  }, [dataLoaded, columns.length, rows.length, isOwner, checkAndAddCurrentPeriod]);
+
+  // Перевіряємо при фокусі на вікно (без rows в dependencies — уникаємо stale closure через ref)
+  useEffect(() => {
+    if (!isOwner) return;
+    
     window.addEventListener('focus', checkAndAddCurrentPeriod);
 
-    // Перевіряємо кожні 10 хвилин (на випадок якщо вкладка відкрита довго)
+    // Перевіряємо кожні 10 хвилин
     const interval = setInterval(checkAndAddCurrentPeriod, 10 * 60 * 1000);
     return () => {
       window.removeEventListener('focus', checkAndAddCurrentPeriod);
       clearInterval(interval);
     };
-  }, [isOwner, columns, rows]);
+  }, [isOwner, checkAndAddCurrentPeriod]);
 
   // Visible columns for employees
   const visibleColumns = useMemo(() => {
@@ -7766,6 +7932,7 @@ const App = () => {
 
       // Скидаємо флаг поки дані завантажуються
       setDataLoaded(false);
+      autoAddDone.current = false; // Скидаємо щоб авто-додавання спрацювало для нової компанії
       
       // ОПТИМІСТИЧНО: встановлюємо owner якщо email співпадає
       const currentUser = auth.currentUser;
@@ -7809,6 +7976,19 @@ const App = () => {
       const companyData = companyDoc.data();
       setCompanyName(SecurityUtils.safeString(companyData.name, 'Компанія'));
       
+      // Зберігаємо версію даних для optimistic locking
+      loadedVersionRef.current = companyData.lastSaveVersion || null;
+      
+      // Синхронізуємо weekStartDay з Firestore (пріоритет над localStorage)
+      if (companyData.weekStartDay !== undefined) {
+        const firestoreStartDay = parseInt(companyData.weekStartDay);
+        if (firestoreStartDay === 0 || firestoreStartDay === 1) {
+          setWeekStartDayState(firestoreStartDay);
+          try { localStorage.setItem('weekStartDay', firestoreStartDay.toString()); } catch {}
+          updateWeeksCache(firestoreStartDay);
+        }
+      }
+      
       // ВАЛІДАЦІЯ: перевіряємо та очищаємо колонки
       const validatedColumns = ValidationUtils.validateColumns(companyData.columns);
       const originalColCount = companyData.columns?.length || 0;
@@ -7845,26 +8025,82 @@ const App = () => {
           const dayOfWeek = jan4.getDay() || 7;
           const monday = new Date(jan4);
           monday.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
-          const weekKey = monday.toISOString().split('T')[0];
-          console.log('Migrating ISO week:', row.date, '→', weekKey);
+          const weekKey = getWeekKey(monday);
+          log('Migrating ISO week:', row.date, '→', weekKey);
           return { ...row, date: weekKey };
         }
         
-        // Перевіряємо чи дата вже в форматі weekKey (YYYY-MM-DD понеділка)
-        const weekKey = getWeekKey(row.date);
-        if (weekKey && row.date !== weekKey) {
-          // Міграція: конвертуємо будь-яку дату в початок тижня
-          console.log('Migrating date:', row.date, '→', weekKey);
-          return {
-            ...row,
-            date: weekKey
-          };
+        // Для тижневих рядків: конвертуємо будь-яку дату в weekKey
+        if (row.periodType !== 'monthly') {
+          const weekKey = getWeekKey(row.date);
+          if (weekKey && row.date !== weekKey) {
+            log('Migrating date:', row.date, '→', weekKey);
+            return { ...row, date: weekKey };
+          }
         }
         return row;
       });
       
+      // ДЕДУПЛІКАЦІЯ: якщо після міграції з'явились рядки з однаковою датою/типом — зливаємо
+      const deduplicatedRows = [];
+      const seenPeriods = new Map(); // key: `${periodType}_${date}` → index in deduplicatedRows
+      
+      for (const row of migratedRows) {
+        if (row.isTarget) {
+          deduplicatedRows.push(row);
+          continue;
+        }
+        
+        const periodKey = `${row.periodType || 'weekly'}_${row.date || ''}`;
+        
+        if (!row.date || !seenPeriods.has(periodKey)) {
+          // Новий або без дати — додаємо
+          seenPeriods.set(periodKey, deduplicatedRows.length);
+          deduplicatedRows.push(row);
+        } else {
+          // Дублікат — зливаємо values, targets, comments з існуючим
+          const existIdx = seenPeriods.get(periodKey);
+          const existing = deduplicatedRows[existIdx];
+          
+          // Зливаємо: беремо непорожні значення з обох рядків (пріоритет у нового)
+          const mergedValues = { ...existing.values };
+          for (const [k, v] of Object.entries(row.values || {})) {
+            if (v !== '' && v !== null && v !== undefined) {
+              mergedValues[k] = v;
+            }
+          }
+          
+          const mergedTargets = { ...existing.targets };
+          for (const [k, v] of Object.entries(row.targets || {})) {
+            if (v !== '' && v !== null && v !== undefined) {
+              mergedTargets[k] = v;
+            }
+          }
+          
+          const mergedComments = { ...existing.comments };
+          for (const [k, v] of Object.entries(row.comments || {})) {
+            if (v) mergedComments[k] = v;
+          }
+          
+          deduplicatedRows[existIdx] = {
+            ...existing,
+            values: mergedValues,
+            targets: mergedTargets,
+            comments: mergedComments
+          };
+          
+          log('Merged duplicate period:', periodKey, 'rows:', existing.id, '+', row.id);
+        }
+      }
+      
+      if (deduplicatedRows.length < migratedRows.length) {
+        const merged = migratedRows.length - deduplicatedRows.length;
+        console.log(`Deduplicated: merged ${merged} duplicate periods`);
+        toast.info(`Об'єднано ${merged} дублікатів періодів`, 5000);
+      }
+      
       // ОЧИСТКА: видаляємо порожні рядки без дати (крім targetRow)
-      const cleanedRows = migratedRows.filter(row => {
+      const cleanedRows = deduplicatedRows.filter(row => {
         if (row.isTarget) return true; // targetRow завжди залишаємо
         if (!row.date) {
           // Перевіряємо чи є якісь дані в рядку
@@ -7877,8 +8113,8 @@ const App = () => {
         return true;
       });
       
-      if (cleanedRows.length !== migratedRows.length) {
-        console.log(`Cleaned ${migratedRows.length - cleanedRows.length} empty rows`);
+      if (cleanedRows.length !== deduplicatedRows.length) {
+        console.log(`Cleaned ${deduplicatedRows.length - cleanedRows.length} empty rows`);
       }
 
       // Перевіряємо чи є targetRow, якщо ні - створюємо
@@ -7894,39 +8130,9 @@ const App = () => {
         });
       }
 
-      // Автоматично додаємо поточний тиждень якщо його немає
-      const currentWeekKey = getWeekKey(new Date());
-      const weeklyColumns = validatedColumns.filter(c => c.period === 'weekly');
-      const hasCurrentWeek = cleanedRows.some(r => !r.isTarget && r.periodType === 'weekly' && r.date === currentWeekKey);
-      if (weeklyColumns.length > 0 && !hasCurrentWeek && currentWeekKey) {
-        console.log('Auto-adding current week:', currentWeekKey);
-        cleanedRows.push({
-          id: 'auto-week-' + Date.now(),
-          isTarget: false,
-          periodType: 'weekly',
-          date: currentWeekKey,
-          values: {},
-          targets: {},
-          comments: {}
-        });
-      }
-
-      // Автоматично додаємо поточний місяць якщо його немає
-      const currentMonthKey = getMonthKeyFromDate(new Date());
-      const monthlyColumns = validatedColumns.filter(c => c.period === 'monthly');
-      const hasCurrentMonth = cleanedRows.some(r => !r.isTarget && r.periodType === 'monthly' && r.date === currentMonthKey);
-      if (monthlyColumns.length > 0 && !hasCurrentMonth && currentMonthKey) {
-        console.log('Auto-adding current month:', currentMonthKey);
-        cleanedRows.push({
-          id: 'auto-month-' + Date.now(),
-          isTarget: false,
-          periodType: 'monthly',
-          date: currentMonthKey,
-          values: {},
-          targets: {},
-          comments: {}
-        });
-      }
+      // ПРИМІТКА: авто-додавання поточного тижня/місяця виконується ТІЛЬКИ 
+      // в useEffect checkAndAddCurrentPeriod (focus listener), щоб уникнути дублікатів
+      
       setRows(cleanedRows);
       
       // ВАЛІДАЦІЯ: aiSettings
@@ -9562,6 +9768,17 @@ const App = () => {
           return;
         }
         const invite = inviteDoc.data();
+        
+        // Перевірка expiry (7 днів)
+        const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+        if (invite.createdAt?.toDate) {
+          const createdTime = invite.createdAt.toDate().getTime();
+          if (Date.now() - createdTime > INVITE_EXPIRY_MS) {
+            toast.error('Код запрошення прострочений (діє 7 днів). Зверніться до адміністратора.');
+            return;
+          }
+        }
+        
         const inviteCompanyId = invite.companyId;
 
         // Створюємо користувача в Firebase Auth
@@ -9618,6 +9835,18 @@ const App = () => {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
     }
+    
+    // Звільняємо tab lock
+    try {
+      const stored = localStorage.getItem('talko_active_tab');
+      if (stored) {
+        const { tabId } = JSON.parse(stored);
+        if (tabId === myTabIdRef.current) {
+          localStorage.removeItem('talko_active_tab');
+        }
+      }
+    } catch (e) {}
+    
     await auth.signOut();
     setColumns([]);
     setRows([]);
@@ -9625,14 +9854,14 @@ const App = () => {
     setUserProfile(null);
     setCompanyId(null);
     setCompanyName('');
-    setDataLoaded(false); // Скидаємо флаг при logout
-    setAuthLoading(false); // Скидаємо стан завантаження
-    setSavedAnalyses([]); // Скидаємо збережені аналізи
+    setDataLoaded(false);
+    setAuthLoading(false);
+    setSavedAnalyses([]);
     setAiSettings({
       businessContext: '',
       priorities: '',
       analysisPeriod: 5
-    }); // Скидаємо AI налаштування
+    });
     toast.info('До побачення!');
   };
 
@@ -9660,6 +9889,11 @@ const App = () => {
   const lastSuccessfulState = useRef(null);
   const saveRetryCount = useRef(0);
   const MAX_SAVE_RETRIES = 3;
+  
+  // Firestore optimistic locking — версія даних при завантаженні
+  const loadedVersionRef = useRef(null); // lastSaveVersion з Firestore при load
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const conflictDataRef = useRef(null); // Дані для conflict resolution
   
   const saveData = useCallback(async (immediate = false, isRetry = false) => {
     // MUTEX: якщо вже йде збереження - пропускаємо (крім retry)
@@ -9736,6 +9970,14 @@ const App = () => {
     isSavingRef.current = true; // Встановлюємо mutex
     setSaveStatus('saving');
     
+    // TAB LOCK: перевіряємо чи ця вкладка має право зберігати
+    if (tabLockBlockedRef.current) {
+      console.log('Skip save - tab is locked (another tab is active)');
+      isSavingRef.current = false;
+      setSaveStatus(null);
+      return { success: false, blocked: true };
+    }
+    
     // Локальний бекап в localStorage перед збереженням (на випадок втрати з'єднання)
     try {
       const localBackup = {
@@ -9749,6 +9991,38 @@ const App = () => {
     }
     
     try {
+      // OPTIMISTIC LOCKING: перевіряємо чи дані не змінилися іншим пристроєм
+      if (loadedVersionRef.current !== null) {
+        try {
+          const currentDoc = await db.collection('companies').doc(companyId).get();
+          const currentData = currentDoc.data();
+          const serverVersion = currentData?.lastSaveVersion || null;
+          const serverSaveBy = currentData?.lastSaveBy || null;
+          
+          if (serverVersion && serverVersion !== loadedVersionRef.current && serverSaveBy !== user?.uid) {
+            // Конфлікт! Хтось інший зберіг дані поки ми працювали
+            console.warn('CONFLICT DETECTED! Server version:', serverVersion, 'Loaded version:', loadedVersionRef.current);
+            
+            isSavingRef.current = false;
+            setSaveStatus('conflict');
+            
+            // Зберігаємо серверні дані для показу в модалці
+            conflictDataRef.current = {
+              serverData: currentData,
+              localData: dataToSave,
+              serverVersion,
+              serverSaveBy
+            };
+            setShowConflictModal(true);
+            
+            return { success: false, conflict: true };
+          }
+        } catch (versionCheckError) {
+          // Якщо не вдалось прочитати версію — зберігаємо без перевірки (graceful degradation)
+          console.warn('Version check failed, saving anyway:', versionCheckError);
+        }
+      }
+      
       // Додаємо версію для відстеження конфліктів
       const saveVersion = Date.now();
       
@@ -9765,6 +10039,7 @@ const App = () => {
       lastSavedData.current = dataHash;
       hasUnsavedChanges.current = false;
       saveRetryCount.current = 0;
+      loadedVersionRef.current = saveVersion; // Оновлюємо версію після успішного збереження
       
       // Очищаємо локальний бекап після успішного збереження
       try {
@@ -9817,6 +10092,16 @@ const App = () => {
       setSaveStatus('error');
       saveRetryCount.current = 0;
       
+      // Schedulе повторну спробу через 30 секунд (щоб не зависли зміни назавжди)
+      if (hasUnsavedChanges.current) {
+        setTimeout(() => {
+          if (hasUnsavedChanges.current) {
+            console.log('Retry save after 30s cooldown');
+            saveData(true);
+          }
+        }, 30000);
+      }
+      
       // Показуємо помилку з можливістю rollback
       if (lastSuccessfulState.current) {
         toast.error('Помилка збереження. Дані збережено локально, але можуть бути втрачені при оновленні сторінки.', 8000);
@@ -9850,6 +10135,9 @@ const App = () => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => saveData(false), CONSTANTS.SAVE_DEBOUNCE_MS);
   }, [saveData]);
+  
+  // Оновлюємо ref для handleOnline (який визначений раніше і не бачить saveData через closure)
+  useEffect(() => { saveDataRef.current = saveData; }, [saveData]);
   
   // Ініціалізуємо lastSuccessfulState при першому завантаженні даних
   useEffect(() => {
@@ -10211,9 +10499,8 @@ const App = () => {
     setRows(rows.map(r => r.id === rowId ? { ...r, date } : r));
   };
   const updateValue = (rowId, colId, value) => {
-    // Валідація: тільки числа або порожнє значення
-    const sanitizedValue = value === '' ? '' : 
-      (isNaN(parseFloat(value)) ? '' : value);
+    // Дозволяємо порожне, числа, та проміжні стани вводу (мінус, крапка, кома)
+    const sanitizedValue = value === '' ? '' : value;
     
     setRows(rows.map(row => row.id === rowId ? {
       ...row,
@@ -10589,9 +10876,13 @@ const App = () => {
       toast.error('Бекап не знайдено');
       return;
     }
-    if (!confirm(`Відновити дані з "${backup.name}"?\n\nПоточні дані будуть замінені!`)) {
-      return;
-    }
+    
+    // Використовуємо ConfirmDialog замість native confirm()
+    setConfirmDialog({
+      isOpen: true,
+      title: `Відновити з "${backup.name}"?`,
+      message: 'Поточні дані будуть замінені даними з бекапу!',
+      onConfirm: async () => {
     setBackupLoading(true);
     try {
       // Автоматичний бекап поточних даних перед відновленням!
@@ -10615,18 +10906,48 @@ const App = () => {
         console.log('Auto-backup created before restore');
       }
 
-      // Оновлюємо дані в компанії
+      // ВАЛІДАЦІЯ даних з бекапу (так само як при loadCompanyData)
+      const validatedColumns = ValidationUtils.validateColumns(backup.data.columns);
+      const validatedRows = ValidationUtils.validateRows(backup.data.rows);
+      
+      if (validatedColumns.length === 0) {
+        toast.error('Бекап пошкоджений: немає валідних показників');
+        return;
+      }
+      
+      // Перевіряємо наявність targetRow
+      const hasTargetRow = validatedRows.some(r => r.isTarget);
+      if (!hasTargetRow) {
+        validatedRows.unshift({
+          id: 'target',
+          isTarget: true,
+          date: '',
+          values: {},
+          comments: {}
+        });
+      }
+
+      // Оновлюємо дані в компанії (валідовані!)
       await db.collection('companies').doc(companyId).update({
-        columns: backup.data.columns || [],
-        rows: backup.data.rows || [],
+        columns: validatedColumns,
+        rows: validatedRows,
         aiSettings: backup.data.aiSettings || {},
         savedAnalyses: backup.data.savedAnalyses || [],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
+      // Скидаємо lastSuccessfulState щоб захист від втрати даних 
+      // не блокував збереження відновлених даних
+      lastSuccessfulState.current = {
+        columns: JSON.parse(JSON.stringify(validatedColumns)),
+        rows: JSON.parse(JSON.stringify(validatedRows)),
+        aiSettings: backup.data.aiSettings || {},
+        savedAnalyses: backup.data.savedAnalyses || []
+      };
+
       // Оновлюємо локальний стан
-      setColumns(backup.data.columns || []);
-      setRows(backup.data.rows || []);
+      setColumns(validatedColumns);
+      setRows(validatedRows);
       setAiSettings(backup.data.aiSettings || {
         businessContext: '',
         priorities: '',
@@ -10644,11 +10965,17 @@ const App = () => {
     } finally {
       setBackupLoading(false);
     }
+      }
+    });
   }, [backups, companyId, columns, rows, aiSettings, savedAnalyses, user, userProfile]);
 
   // Видалити бекап
   const deleteBackup = useCallback(async backupId => {
-    if (!confirm('Видалити цей бекап?')) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Видалити цей бекап?',
+      message: 'Бекап буде видалено назавжди.',
+      onConfirm: async () => {
     setBackupLoading(true);
     try {
       await db.collection('companies').doc(companyId).collection('backups').doc(backupId).delete();
@@ -10660,6 +10987,8 @@ const App = () => {
     } finally {
       setBackupLoading(false);
     }
+      }
+    });
   }, [backups, companyId]);
 
   // Завантажуємо бекапи при зміні компанії
@@ -10848,18 +11177,24 @@ const App = () => {
     return 'number';
   };
   const parseWeekFromLabel = label => {
-    // Формат: "09.12 - 15.12" або "Тиждень 50" або "2024-W50"
-    const match = label.match(/(\d{2})\.(\d{2})\s*-\s*(\d{2})\.(\d{2})/);
+    // Формат: "09.12 - 15.12" або "09-15.12.24" або "09.12-15.12.24"
+    const match = label.match(/(\d{2})\.(\d{2})\s*-?\s*(\d{2})\.(\d{2})/);
     if (match) {
       const year = new Date().getFullYear();
       const startDate = new Date(year, parseInt(match[2]) - 1, parseInt(match[1]));
       return getWeekKey(startDate);
     }
+    // Формат: "Тиждень 50" або "W50" — конвертуємо в дату замість ISO week
     const weekMatch = label.match(/W?(\d{1,2})/i);
     if (weekMatch) {
       const weekNum = parseInt(weekMatch[1]);
       const year = new Date().getFullYear();
-      return `${year}-W${String(weekNum).padStart(2, '0')}`;
+      // Конвертуємо номер тижня в дату понеділка
+      const jan4 = new Date(year, 0, 4);
+      const dayOfWeek = jan4.getDay() || 7;
+      const monday = new Date(jan4);
+      monday.setDate(jan4.getDate() - dayOfWeek + 1 + (weekNum - 1) * 7);
+      return getWeekKey(monday);
     }
     return null;
   };
@@ -10932,24 +11267,49 @@ const App = () => {
       });
       
       if (mode === 'replace') {
+        // Додаємо targetRow якщо його немає в імпортованих даних
+        const importedRows = [...importPreview.rows];
+        const hasTargetRow = importedRows.some(r => r.isTarget);
+        if (!hasTargetRow) {
+          importedRows.unshift({
+            id: 'target',
+            isTarget: true,
+            date: '',
+            values: {},
+            comments: {}
+          });
+        }
         setColumns(importPreview.columns);
-        setRows(importPreview.rows);
+        setRows(importedRows);
+        
+        // Скидаємо lastSuccessfulState щоб захист не блокував збереження
+        lastSuccessfulState.current = {
+          columns: JSON.parse(JSON.stringify(importPreview.columns)),
+          rows: JSON.parse(JSON.stringify(importedRows)),
+          aiSettings: { ...aiSettings },
+          savedAnalyses: [...savedAnalyses]
+        };
       } else {
         // Merge - додаємо нові колонки та рядки
         const existingColNames = columns.map(c => c.name.toLowerCase());
-        const newColumns = importPreview.columns.filter(c => !existingColNames.includes(c.name.toLowerCase()));
+        // Deep copy щоб не мутувати importPreview
+        const newColumns = importPreview.columns
+          .filter(c => !existingColNames.includes(c.name.toLowerCase()))
+          .map(c => ({ ...c }));
 
         // Оновлюємо ID нових колонок
-        const maxColId = Math.max(...columns.map(c => parseInt(c.id.replace('col', '')) || 0), 0);
+        const maxColId = Math.max(...columns.map(c => parseInt(c.id.replace('col', '')) || 0), Date.now());
         newColumns.forEach((col, i) => {
           col.id = `col${maxColId + i + 1}`;
         });
         setColumns([...columns, ...newColumns]);
 
-        // Додаємо рядки з унікальними датами
+        // Додаємо рядки з унікальними датами (deep copy!)
         const existingDates = new Set(rows.map(r => `${r.periodType}-${r.date}`));
-        const newRows = importPreview.rows.filter(r => !existingDates.has(`${r.periodType}-${r.date}`));
-        const maxRowId = Math.max(...rows.map(r => parseInt(r.id.replace('row', '').replace('month', '')) || 0), 0);
+        const newRows = importPreview.rows
+          .filter(r => !existingDates.has(`${r.periodType}-${r.date}`))
+          .map(r => ({ ...r, values: { ...r.values }, targets: { ...r.targets }, comments: { ...r.comments } }));
+        const maxRowId = Date.now();
         newRows.forEach((row, i) => {
           row.id = row.periodType === 'monthly' ? `month${maxRowId + i + 1}` : `row${maxRowId + i + 1}`;
         });
@@ -11047,10 +11407,16 @@ const App = () => {
     className: "badge text-xs bg-amber-100 text-amber-700 ml-1",
     title: "Офлайн режим — зміни синхронізуються при відновленні"
   }, /*#__PURE__*/React.createElement(Icons.WifiOff, { className: "w-3 h-3" })), otherTabActive && /*#__PURE__*/React.createElement("span", {
-    className: "badge text-xs bg-red-100 text-red-700 ml-1 cursor-pointer",
-    title: "Відкрито в іншій вкладці — можлива втрата даних!",
-    onClick: () => toast.warning('Закрийте інші вкладки з цим сайтом щоб уникнути втрати даних!')
-  }, "⚠️ 2+ вкладки"))), /*#__PURE__*/React.createElement("div", {
+    className: `badge text-xs ml-1 cursor-pointer ${tabLockBlocked ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`,
+    title: tabLockBlocked ? "Ця вкладка заблокована — редагування збережеться тільки в активній вкладці" : "Інша вкладка відкрита",
+    onClick: () => {
+      if (tabLockBlocked) {
+        toast.warning('Ця вкладка в режимі перегляду. Закрийте іншу вкладку або оновіть цю сторінку.');
+      } else {
+        toast.info('Ви маєте повний доступ. Інша вкладка заблокована.');
+      }
+    }
+  }, tabLockBlocked ? "🔒 Тільки перегляд" : "⚠️ 2+ вкладки"))), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-1 sm:gap-2 flex-shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowMenu(true),
@@ -12782,7 +13148,68 @@ const App = () => {
     onConfirm: confirmDialog.onConfirm,
     title: confirmDialog.title,
     message: confirmDialog.message
-  }));
+  }), showConflictModal && /*#__PURE__*/React.createElement(Modal, {
+    isOpen: showConflictModal,
+    onClose: () => { setShowConflictModal(false); setSaveStatus(null); },
+    title: "\u26A0\uFE0F Конфлікт даних",
+    size: "md"
+  }, /*#__PURE__*/React.createElement("div", { className: "space-y-4" },
+    /*#__PURE__*/React.createElement("div", { className: "p-4 bg-amber-50 border border-amber-200 rounded-xl" },
+      /*#__PURE__*/React.createElement("p", { className: "text-amber-800 font-medium mb-1" }, 
+        "Дані змінилися на іншому пристрої"
+      ),
+      /*#__PURE__*/React.createElement("p", { className: "text-amber-700 text-sm" }, 
+        "Поки ви працювали, хтось (або ви з іншого пристрою) зберіг зміни. Оберіть що робити:"
+      )
+    ),
+    /*#__PURE__*/React.createElement("div", { className: "space-y-2" },
+      /*#__PURE__*/React.createElement("button", { 
+        className: "w-full p-3 rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 text-left transition-colors",
+        onClick: async () => {
+          // Перезавантажити серверні дані
+          setShowConflictModal(false);
+          setSaveStatus(null);
+          isSavingRef.current = false;
+          if (companyId && user) {
+            toast.info('Завантаження актуальних даних...');
+            await loadCompanyData(companyId, user.uid);
+            toast.success('Дані оновлено з серверу');
+          }
+        }
+      }, 
+        /*#__PURE__*/React.createElement("div", { className: "font-medium text-blue-800" }, "\uD83D\uDD04 Завантажити серверну версію"),
+        /*#__PURE__*/React.createElement("div", { className: "text-xs text-blue-600 mt-1" }, "Ваші незбережені зміни буде втрачено. Безпечний варіант.")
+      ),
+      /*#__PURE__*/React.createElement("button", { 
+        className: "w-full p-3 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 text-left transition-colors",
+        onClick: async () => {
+          // Force save — перезаписати сервер
+          setShowConflictModal(false);
+          loadedVersionRef.current = null; // Скидаємо щоб не було повторного конфлікту
+          isSavingRef.current = false;
+          toast.info('Перезапис серверних даних...');
+          const result = await saveData(true);
+          if (result.success) {
+            toast.success('Ваші дані збережено на сервер');
+          }
+        }
+      }, 
+        /*#__PURE__*/React.createElement("div", { className: "font-medium text-red-800" }, "\u2B06\uFE0F Перезаписати сервер моїми даними"),
+        /*#__PURE__*/React.createElement("div", { className: "text-xs text-red-600 mt-1" }, "Серверні зміни будуть затерті вашими. Використовуйте якщо впевнені.")
+      ),
+      /*#__PURE__*/React.createElement("button", { 
+        className: "w-full p-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-left transition-colors",
+        onClick: () => {
+          setShowConflictModal(false);
+          setSaveStatus(null);
+          isSavingRef.current = false;
+        }
+      }, 
+        /*#__PURE__*/React.createElement("div", { className: "font-medium text-gray-700" }, "Скасувати"),
+        /*#__PURE__*/React.createElement("div", { className: "text-xs text-gray-500 mt-1" }, "Продовжити працювати без збереження (зміни залишаться локально)")
+      )
+    )
+  )));
 };
 
 // ==================== ROOT ====================
