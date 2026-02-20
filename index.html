@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#22c55e">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>Трекер статистики Pro</title>
+    <meta name="apple-mobile-web-app-title" content="TALKO Stats">
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiVEFMS08gU3RhdGlzdGljcyIsInNob3J0X25hbWUiOiJUQUxLTyBTdGF0cyIsImRlc2NyaXB0aW9uIjoi0KLRgNC10LrQtdGAINGB0YLQsNGC0LjRgdGC0LjQutC4INCx0ZbQt9C90LXRgdGDIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmOWZhZmIiLCJ0aGVtZV9jb2xvciI6IiMyMmM1NWUiLCJpY29ucyI6W3sic3JjIjoiZGF0YTppbWFnZS9zdmcreG1sLCUzQ3N2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJyUzRSUzQ3JlY3QgZmlsbD0nJTIzMjJjNTVlJyByeD0nMjAnIHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJy8lM0UlM0N0ZXh0IHg9JzUwJSUyNScgeT0nNTAlMjUnIGZpbGw9J3doaXRlJyBmb250LXNpemU9JzUwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBkeT0nLjNlbScgZm9udC1mYW1pbHk9J0ludGVyLHNhbnMtc2VyaWYnIGZvbnQtd2VpZ2h0PSdib2xkJyUzRVQlM0MvdGV4dCUzRSUzQy9zdmclM0UiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCIsInNpemVzIjoiYW55In1dfQ==" />
+    <title>TALKO Stats — Трекер статистики Pro</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,9 +20,6 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js" defer></script>
     
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -190,7 +190,15 @@
             padding: 2px; 
             border: 1px solid #e5e7eb; 
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            contain: layout style;
         }
+        
+        /* Performance: contain для великих блоків */
+        .card { contain: layout style; }
+        .bottom-nav { contain: layout style paint; }
+        .mobile-excel-table { contain: layout; }
         .mobile-excel-table td.sticky-col { 
             position: sticky; 
             left: 0; 
@@ -349,6 +357,15 @@
         }
         .fab:active { transform: scale(0.92); }
         .fab svg { width: 28px; height: 28px; }
+        
+        /* Animations */
+        .animate-slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
         
         /* Quick actions - швидкі дії */
         .quick-actions {
@@ -545,6 +562,261 @@ const {
 } = React;
 
 // ==================== CONSTANTS ====================
+// ==================== HAPTIC FEEDBACK ====================
+const haptic = {
+  light: () => { try { navigator.vibrate?.(10); } catch(e) {} },
+  medium: () => { try { navigator.vibrate?.(25); } catch(e) {} },
+  heavy: () => { try { navigator.vibrate?.(50); } catch(e) {} },
+  success: () => { try { navigator.vibrate?.([10, 50, 10]); } catch(e) {} },
+  error: () => { try { navigator.vibrate?.([50, 30, 50]); } catch(e) {} }
+};
+
+// ==================== PULL TO REFRESH HOOK ====================
+const usePullToRefresh = (onRefresh, { threshold = 80, enabled = true } = {}) => {
+  const [pulling, setPulling] = React.useState(false);
+  const [pullDistance, setPullDistance] = React.useState(0);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const startY = React.useRef(0);
+  const currentY = React.useRef(0);
+  const isPulling = React.useRef(false);
+  
+  React.useEffect(() => {
+    if (!enabled) return;
+    
+    const handleTouchStart = (e) => {
+      // Тільки якщо скролл на самому верху
+      if (window.scrollY > 5) return;
+      startY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    };
+    
+    const handleTouchMove = (e) => {
+      if (!isPulling.current) return;
+      currentY.current = e.touches[0].clientY;
+      const diff = currentY.current - startY.current;
+      
+      if (diff > 0 && window.scrollY <= 0) {
+        // Resistance effect: чим далі тягнеш, тим складніше
+        const distance = Math.min(diff * 0.4, 120);
+        setPullDistance(distance);
+        setPulling(true);
+        
+        if (distance >= threshold && !refreshing) {
+          haptic.medium();
+        }
+        
+        if (diff > 10) {
+          e.preventDefault();
+        }
+      }
+    };
+    
+    const handleTouchEnd = async () => {
+      if (!isPulling.current) return;
+      isPulling.current = false;
+      
+      if (pullDistance >= threshold && !refreshing) {
+        setRefreshing(true);
+        haptic.success();
+        try {
+          await onRefresh();
+        } finally {
+          setRefreshing(false);
+        }
+      }
+      
+      setPulling(false);
+      setPullDistance(0);
+    };
+    
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [enabled, threshold, onRefresh, refreshing, pullDistance]);
+  
+  return { pulling, pullDistance, refreshing };
+};
+
+// ==================== SWIPE HOOK ====================
+// ==================== LAZY LOADERS ====================
+const LazyLoader = {
+  _cache: {},
+  load: (url) => {
+    if (LazyLoader._cache[url]) return LazyLoader._cache[url];
+    LazyLoader._cache[url] = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = url;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    return LazyLoader._cache[url];
+  },
+  loadChartJS: () => LazyLoader.load('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'),
+  loadJsPDF: async () => {
+    await LazyLoader.load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    await LazyLoader.load('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js');
+  }
+};
+
+// ==================== GAMIFICATION ====================
+const Gamification = {
+  // Рахуємо streak — скільки тижнів поспіль заповнено
+  calculateStreak: (rows, columns) => {
+    const weeklyColumns = columns.filter(c => c.period !== 'monthly' && !c.hidden);
+    if (weeklyColumns.length === 0) return 0;
+    
+    const dataRows = rows.filter(r => !r.isTarget && r.periodType !== 'monthly' && r.date)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    
+    let streak = 0;
+    for (const row of dataRows) {
+      const filled = weeklyColumns.filter(c => {
+        const val = row.values?.[c.id];
+        return val !== undefined && val !== '' && val !== null;
+      }).length;
+      
+      // Рахуємо заповненим якщо > 80% показників введені
+      if (filled >= weeklyColumns.length * 0.8) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  },
+  
+  // Генеруємо повідомлення по streak
+  getStreakMessage: (streak) => {
+    if (streak >= 52) return { icon: 'Trophy', color: '#f59e0b', text: 'Рік стабільності! Легенда!' };
+    if (streak >= 26) return { icon: 'Diamond', color: '#8b5cf6', text: 'Пів року! Неймовірна дисципліна!' };
+    if (streak >= 12) return { icon: 'Flame', color: '#ef4444', text: '3 місяці поспіль! Машина!' };
+    if (streak >= 8) return { icon: 'Zap', color: '#f59e0b', text: '2 місяці! Стабільна робота!' };
+    if (streak >= 4) return { icon: 'Rocket', color: '#22c55e', text: 'Місяць! Набираєте обертів!' };
+    if (streak >= 2) return { icon: 'TrendingUp', color: '#3b82f6', text: `${streak} тижні поспіль!` };
+    return null;
+  }
+};
+
+// ==================== NOTIFICATION SYSTEM ====================
+const NotificationSystem = {
+  // Перевірити дозвіл
+  isSupported: () => 'Notification' in window,
+  
+  // Запросити дозвіл
+  requestPermission: async () => {
+    if (!NotificationSystem.isSupported()) return false;
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+  },
+  
+  // Показати нотифікацію
+  show: (title, options = {}) => {
+    if (Notification.permission !== 'granted') return;
+    try {
+      const n = new Notification(title, {
+        icon: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#22c55e" rx="20" width="100" height="100"/><text x="50%" y="50%" fill="white" font-size="50" text-anchor="middle" dy=".3em" font-family="Inter,sans-serif" font-weight="bold">T</text></svg>'),
+        badge: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="#22c55e" rx="20" width="100" height="100"/><text x="50%" y="50%" fill="white" font-size="50" text-anchor="middle" dy=".3em" font-family="Inter,sans-serif" font-weight="bold">T</text></svg>'),
+        tag: options.tag || 'talko-stats',
+        renotify: true,
+        ...options
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+      return n;
+    } catch (e) {
+      console.warn('Notification failed:', e);
+    }
+  },
+  
+  // Scheduled check (викликається при завантаженні)
+  scheduleReminders: (columns, rows) => {
+    // Перевіряємо чи потрібно нагадування
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Нд, 1=Пн
+    const hour = now.getHours();
+    
+    // Ключ для запобігання повторних нотифікацій
+    const todayKey = `talko_notif_${now.toISOString().split('T')[0]}`;
+    try {
+      if (localStorage.getItem(todayKey)) return; // Вже показали сьогодні
+    } catch (e) {}
+    
+    const weeklyColumns = columns.filter(c => c.period !== 'monthly' && !c.hidden);
+    const currentWeekKey = getWeekKey(now);
+    const currentRow = rows.find(r => !r.isTarget && r.periodType !== 'monthly' && getWeekKey(r.date) === currentWeekKey);
+    
+    const filledCount = currentRow ? weeklyColumns.filter(c => {
+      const val = currentRow?.values?.[c.id];
+      return val !== undefined && val !== '' && val !== null;
+    }).length : 0;
+    
+    const totalCount = weeklyColumns.length;
+    const unfilled = totalCount - filledCount;
+    
+    // Понеділок 9-11 ранку — нагадування заповнити
+    if (dayOfWeek === 1 && hour >= 9 && hour <= 11 && unfilled > 0) {
+      NotificationSystem.show('Час заповнити статистику!', {
+        body: `${unfilled} з ${totalCount} показників не заповнено за цей тиждень`,
+        tag: 'talko-weekly-reminder'
+      });
+      try { localStorage.setItem(todayKey, '1'); } catch (e) {}
+    }
+    
+    // П'ятниця 14-17 — нагадування якщо не все заповнено
+    if (dayOfWeek === 5 && hour >= 14 && hour <= 17 && unfilled > 0) {
+      NotificationSystem.show('⚠️ Тиждень закінчується!', {
+        body: `Залишилось заповнити ${unfilled} показників. Не відкладайте!`,
+        tag: 'talko-friday-reminder'
+      });
+      try { localStorage.setItem(todayKey, '1'); } catch (e) {}
+    }
+  }
+};
+
+const useSwipe = (onSwipeLeft, onSwipeRight, { threshold = 50, enabled = true } = {}) => {
+  const startX = React.useRef(0);
+  const startY = React.useRef(0);
+  const swiping = React.useRef(false);
+  
+  const handlers = React.useMemo(() => ({
+    onTouchStart: (e) => {
+      if (!enabled) return;
+      startX.current = e.touches[0].clientX;
+      startY.current = e.touches[0].clientY;
+      swiping.current = true;
+    },
+    onTouchEnd: (e) => {
+      if (!enabled || !swiping.current) return;
+      swiping.current = false;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const diffX = endX - startX.current;
+      const diffY = endY - startY.current;
+      
+      // Тільки горизонтальний свайп (не вертикальний скрол)
+      if (Math.abs(diffX) > threshold && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+        if (diffX < 0 && onSwipeLeft) {
+          onSwipeLeft();
+          haptic.light();
+        } else if (diffX > 0 && onSwipeRight) {
+          onSwipeRight();
+          haptic.light();
+        }
+      }
+    }
+  }), [onSwipeLeft, onSwipeRight, threshold, enabled]);
+  
+  return handlers;
+};
+
 const CONSTANTS = {
   DEBUG: false, // Встановити true для відладки
   SAVE_DEBOUNCE_MS: 1500,
@@ -1210,24 +1482,10 @@ const Icons = {
   }), /*#__PURE__*/React.createElement("path", {
     d: "m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"
   })),
-  Lock: p => /*#__PURE__*/React.createElement("svg", _extends({
-    xmlns: "http://www.w3.org/2000/svg",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, p), /*#__PURE__*/React.createElement("rect", {
-    width: "18",
-    height: "11",
-    x: "3",
-    y: "11",
-    rx: "2",
-    ry: "2"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M7 11V7a5 5 0 0 1 10 0v4"
-  })),
+  Mic: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("path", { d: "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" }), /*#__PURE__*/React.createElement("path", { d: "M19 10v2a7 7 0 0 1-14 0v-2" }), /*#__PURE__*/React.createElement("line", { x1: "12", x2: "12", y1: "19", y2: "22" })),
   Eye: p => /*#__PURE__*/React.createElement("svg", _extends({
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
@@ -1520,6 +1778,40 @@ const Icons = {
   }), /*#__PURE__*/React.createElement("path", {
     d: "M8 14h.01"
   })),
+  Trophy: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("path", { d: "M6 9H4.5a2.5 2.5 0 0 1 0-5H6" }), /*#__PURE__*/React.createElement("path", { d: "M18 9h1.5a2.5 2.5 0 0 0 0-5H18" }), /*#__PURE__*/React.createElement("path", { d: "M4 22h16" }), /*#__PURE__*/React.createElement("path", { d: "M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" }), /*#__PURE__*/React.createElement("path", { d: "M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22" }), /*#__PURE__*/React.createElement("path", { d: "M18 2H6v7a6 6 0 0 0 12 0V2Z" })),
+  Diamond: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("path", { d: "M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z" })),
+  Flame: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("path", { d: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" })),
+  Zap: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("polygon", { points: "13 2 3 14 12 14 11 22 21 10 12 10 13 2" })),
+  Rocket: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("path", { d: "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" }), /*#__PURE__*/React.createElement("path", { d: "m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" }), /*#__PURE__*/React.createElement("path", { d: "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" }), /*#__PURE__*/React.createElement("path", { d: "M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" })),
+  AlertTriangle: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("path", { d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" }), /*#__PURE__*/React.createElement("path", { d: "M12 9v4" }), /*#__PURE__*/React.createElement("path", { d: "M12 17h.01" })),
+  Lock: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg", width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("rect", { width: "18", height: "11", x: "3", y: "11", rx: "2" }), /*#__PURE__*/React.createElement("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })),
+  Bell: p => /*#__PURE__*/React.createElement("svg", _extends({
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 24, height: 24, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2,
+    strokeLinecap: "round", strokeLinejoin: "round"
+  }, p), /*#__PURE__*/React.createElement("path", { d: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" }), /*#__PURE__*/React.createElement("path", { d: "M13.73 21a2 2 0 0 1-3.46 0" })),
   Brain: p => /*#__PURE__*/React.createElement("svg", _extends({
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
@@ -2365,10 +2657,10 @@ const TableSkeleton = memo(({ rows = 5, cols = 4 }) => {
 // AI Progress Indicator з етапами
 const AIProgressIndicator = memo(({ stage = 0, stages = [] }) => {
   const defaultStages = [
-    { label: 'Збір даних', icon: '📊' },
-    { label: 'Аналіз трендів', icon: '📈' },
-    { label: 'Пошук проблем', icon: '🔍' },
-    { label: 'Генерація рішень', icon: '💡' }
+    { label: 'Збір даних', icon: 'data' },
+    { label: 'Аналіз трендів', icon: 'trend' },
+    { label: 'Пошук проблем', icon: 'search' },
+    { label: 'Генерація рішень', icon: 'idea' }
   ];
   const stageList = stages.length > 0 ? stages : defaultStages;
   const progress = Math.min(((stage + 1) / stageList.length) * 100, 100);
@@ -2380,7 +2672,12 @@ const AIProgressIndicator = memo(({ stage = 0, stages = [] }) => {
         stageList[Math.min(stage, stageList.length - 1)]?.label || 'Обробка...'
       ),
       React.createElement('span', { className: 'text-lg' }, 
-        stageList[Math.min(stage, stageList.length - 1)]?.icon || '⏳'
+        (() => {
+          const iconMap = { data: Icons.BarChart, trend: Icons.TrendingUp, search: Icons.Search, idea: Icons.Zap };
+          const stageIcon = stageList[Math.min(stage, stageList.length - 1)]?.icon;
+          const Ic = iconMap[stageIcon];
+          return Ic ? React.createElement(Ic, { className: 'w-5 h-5 text-purple-600' }) : React.createElement(Icons.Loader, { className: 'w-5 h-5 text-purple-400 animate-spin' });
+        })()
       )
     ),
     React.createElement('div', { className: 'h-2 bg-purple-100 rounded-full overflow-hidden' },
@@ -2390,12 +2687,14 @@ const AIProgressIndicator = memo(({ stage = 0, stages = [] }) => {
       })
     ),
     React.createElement('div', { className: 'flex justify-between mt-2' },
-      stageList.map((s, i) => 
-        React.createElement('div', { 
+      stageList.map((s, i) => {
+        const iconMap = { data: Icons.BarChart, trend: Icons.TrendingUp, search: Icons.Search, idea: Icons.Zap };
+        const Ic = iconMap[s.icon];
+        return React.createElement('div', { 
           key: i, 
-          className: `text-xs ${i <= stage ? 'text-purple-600 font-medium' : 'text-gray-400'}`
-        }, s.icon)
-      )
+          className: `text-xs flex items-center ${i <= stage ? 'text-purple-600 font-medium' : 'text-gray-400'}`
+        }, Ic ? React.createElement(Ic, { className: 'w-3 h-3' }) : s.icon);
+      })
     )
   );
 });
@@ -4281,6 +4580,597 @@ const StatsTable = ({
 // Мемоізована версія StatsTable
 const MemoizedStatsTable = memo(StatsTable);
 
+// ==================== SMART DASHBOARD (Mobile) ====================
+// ==================== PREDICTION ENGINE ====================
+const PredictionEngine = {
+  // Лінійна регресія для прогнозу
+  linearRegression: (data) => {
+    const n = data.length;
+    if (n < 3) return null;
+    
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    for (let i = 0; i < n; i++) {
+      sumX += i;
+      sumY += data[i];
+      sumXY += i * data[i];
+      sumX2 += i * i;
+    }
+    
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    return { slope, intercept, predict: (x) => slope * x + intercept };
+  },
+  
+  // Прогноз для конкретного показника
+  forecastColumn: (colId, rows, weeksAhead = 4) => {
+    const dataRows = rows
+      .filter(r => !r.isTarget && r.periodType !== 'monthly' && r.date)
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    
+    const values = dataRows
+      .map(r => parseFloat(String(r.values?.[colId] || '').replace(',', '.')))
+      .filter(v => !isNaN(v) && v !== 0);
+    
+    if (values.length < 4) return null;
+    
+    // Останні 8 тижнів для тренду
+    const recent = values.slice(-8);
+    const reg = PredictionEngine.linearRegression(recent);
+    if (!reg) return null;
+    
+    // Прогноз
+    const lastIdx = recent.length - 1;
+    const forecast = reg.predict(lastIdx + weeksAhead);
+    const currentAvg = recent.slice(-3).reduce((a, b) => a + b, 0) / Math.min(recent.length, 3);
+    const trend = reg.slope;
+    const trendPct = currentAvg !== 0 ? Math.round((trend / currentAvg) * 100 * weeksAhead) : 0;
+    
+    return {
+      forecast: Math.round(forecast * 10) / 10,
+      currentAvg: Math.round(currentAvg * 10) / 10,
+      trend,
+      trendPct,
+      confidence: recent.length >= 6 ? 'high' : 'medium',
+      dataPoints: recent.length
+    };
+  },
+  
+  // Прогноз по всіх ключових показниках
+  forecastAll: (columns, rows, targetRow) => {
+    const weeklyColumns = columns.filter(c => c.period !== 'monthly' && !c.hidden && !c.formula);
+    
+    return weeklyColumns.map(col => {
+      const forecast = PredictionEngine.forecastColumn(col.id, rows, 4);
+      if (!forecast) return null;
+      
+      const target = parseFloat(String(targetRow?.values?.[col.id] || '').replace(',', '.'));
+      const targetPct = !isNaN(target) && target > 0 
+        ? Math.round((forecast.forecast / target) * 100) 
+        : null;
+      
+      return {
+        col,
+        ...forecast,
+        target: isNaN(target) ? null : target,
+        targetPct,
+        isRising: forecast.trend > 0,
+        isDanger: targetPct !== null && targetPct < 80
+      };
+    }).filter(Boolean);
+  }
+};
+
+const SmartDashboard = memo(({ columns, rows, targetRow, t, onOpenQuickInput, onOpenAI }) => {
+  const dataRows = useMemo(() => rows.filter(r => !r.isTarget), [rows]);
+  const allColumns = useMemo(() => columns.filter(c => !c.hidden), [columns]);
+  
+  // Поточний тиждень
+  const currentWeekKey = useMemo(() => getWeekKey(new Date()), []);
+  const currentRow = useMemo(() => dataRows.find(r => r.periodType !== 'monthly' && getWeekKey(r.date) === currentWeekKey), [dataRows, currentWeekKey]);
+  
+  // Заповненість поточного тижня
+  const weeklyColumns = useMemo(() => allColumns.filter(c => c.period !== 'monthly'), [allColumns]);
+  const filledCount = currentRow ? weeklyColumns.filter(c => {
+    const val = currentRow.values?.[c.id];
+    return val !== undefined && val !== '' && val !== null;
+  }).length : 0;
+  const totalCount = weeklyColumns.length;
+  const fillPercent = totalCount > 0 ? Math.round(filledCount / totalCount * 100) : 0;
+  
+  // Прогрес по кожному показнику
+  const progressItems = useMemo(() => weeklyColumns.map(col => {
+    const value = currentRow?.values?.[col.id] || '';
+    const target = currentRow?.targets?.[col.id] || targetRow?.values?.[col.id] || '';
+    const progress = calcProgress(value, target, col.inverted);
+    return { col, value, target, progress };
+  }).filter(item => item.progress !== null), [weeklyColumns, currentRow, targetRow]);
+  
+  // Загальний % виконання
+  const avgProgress = progressItems.length > 0 
+    ? Math.round(progressItems.reduce((sum, p) => sum + Math.min(p.progress, 100), 0) / progressItems.length) 
+    : null;
+  
+  // Критичні показники (< 50%)
+  const criticalItems = useMemo(() => progressItems.filter(p => p.progress < 50), [progressItems]);
+  
+  // Показники що падають (порівняння з минулим тижнем)
+  const prevRow = useMemo(() => {
+    const prev = dataRows.filter(r => r.periodType !== 'monthly' && r.date && getWeekKey(r.date) !== currentWeekKey)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    return prev[0];
+  }, [dataRows, currentWeekKey]);
+  
+  // Streak
+  const streak = useMemo(() => Gamification.calculateStreak(rows, columns), [rows, columns]);
+  const streakMsg = useMemo(() => Gamification.getStreakMessage(streak), [streak]);
+  
+  const fallingItems = useMemo(() => prevRow ? weeklyColumns.filter(col => {
+    const curr = parseFloat(String(currentRow?.values?.[col.id] || '0').replace(',', '.'));
+    const prev = parseFloat(String(prevRow.values?.[col.id] || '0').replace(',', '.'));
+    if (isNaN(curr) || isNaN(prev) || prev === 0) return false;
+    const change = col.inverted ? (prev - curr) / prev : (curr - prev) / prev;
+    return change < -0.15; // Впали більше ніж на 15%
+  }).map(col => {
+    const curr = parseFloat(String(currentRow?.values?.[col.id] || '0').replace(',', '.'));
+    const prev = parseFloat(String(prevRow.values?.[col.id] || '0').replace(',', '.'));
+    const pct = prev !== 0 ? Math.round(((curr - prev) / prev) * 100) : 0;
+    return { col, curr, prev, pct: col.inverted ? -pct : pct };
+  }) : [], [prevRow, weeklyColumns, currentRow]);
+
+  return /*#__PURE__*/React.createElement("div", { className: "space-y-3 mb-4" },
+    // Головна картка: заповнення + план
+    /*#__PURE__*/React.createElement("div", { className: "bg-white rounded-2xl p-4 shadow-sm border border-gray-100" },
+      /*#__PURE__*/React.createElement("div", { className: "flex items-center justify-between mb-3" },
+        /*#__PURE__*/React.createElement("span", { className: "text-xs font-bold text-gray-500 uppercase tracking-wider" }, "Цей тиждень"),
+        currentRow && /*#__PURE__*/React.createElement("span", { className: "text-xs text-gray-400" }, currentRow.date ? getWeekRange(currentRow.date)?.start?.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }) : '')
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "flex gap-4" },
+        // Заповненість
+        /*#__PURE__*/React.createElement("div", { className: "flex-1 text-center" },
+          /*#__PURE__*/React.createElement("div", { 
+            className: "relative w-16 h-16 mx-auto mb-2",
+          },
+            /*#__PURE__*/React.createElement("svg", { viewBox: "0 0 36 36", className: "w-full h-full" },
+              /*#__PURE__*/React.createElement("path", {
+                d: "M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831",
+                fill: "none", stroke: "#e5e7eb", strokeWidth: "3"
+              }),
+              /*#__PURE__*/React.createElement("path", {
+                d: "M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831",
+                fill: "none", stroke: fillPercent >= 100 ? "#22c55e" : fillPercent >= 50 ? "#f59e0b" : "#ef4444",
+                strokeWidth: "3", strokeDasharray: `${fillPercent}, 100`,
+                strokeLinecap: "round", style: { transition: 'stroke-dasharray 0.5s' }
+              })
+            ),
+            /*#__PURE__*/React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" },
+              /*#__PURE__*/React.createElement("span", { className: "text-lg font-bold text-gray-900" }, filledCount),
+              /*#__PURE__*/React.createElement("span", { className: "text-xs text-gray-400" }, "/", totalCount)
+            )
+          ),
+          /*#__PURE__*/React.createElement("span", { className: "text-[10px] text-gray-500 font-medium" }, "Заповнено")
+        ),
+        // План
+        /*#__PURE__*/React.createElement("div", { className: "flex-1 text-center" },
+          /*#__PURE__*/React.createElement("div", { 
+            className: "relative w-16 h-16 mx-auto mb-2",
+          },
+            /*#__PURE__*/React.createElement("svg", { viewBox: "0 0 36 36", className: "w-full h-full" },
+              /*#__PURE__*/React.createElement("path", {
+                d: "M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831",
+                fill: "none", stroke: "#e5e7eb", strokeWidth: "3"
+              }),
+              avgProgress !== null && /*#__PURE__*/React.createElement("path", {
+                d: "M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831",
+                fill: "none", stroke: avgProgress >= 100 ? "#22c55e" : avgProgress >= 80 ? "#3b82f6" : avgProgress >= 50 ? "#f59e0b" : "#ef4444",
+                strokeWidth: "3", strokeDasharray: `${Math.min(avgProgress, 100)}, 100`,
+                strokeLinecap: "round", style: { transition: 'stroke-dasharray 0.5s' }
+              })
+            ),
+            /*#__PURE__*/React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" },
+              /*#__PURE__*/React.createElement("span", { className: "text-lg font-bold text-gray-900" }, avgProgress !== null ? avgProgress + "%" : "—")
+            )
+          ),
+          /*#__PURE__*/React.createElement("span", { className: "text-[10px] text-gray-500 font-medium" }, "План")
+        ),
+        // Кнопка Quick Input
+        totalCount > 0 && filledCount < totalCount && /*#__PURE__*/React.createElement("div", { className: "flex-1 flex items-center justify-center" },
+          /*#__PURE__*/React.createElement("button", {
+            onClick: onOpenQuickInput,
+            className: "w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-white flex flex-col items-center justify-center shadow-lg active:scale-95 transition-transform"
+          },
+            /*#__PURE__*/React.createElement(Icons.Edit, { className: "w-5 h-5 mb-1" }),
+            /*#__PURE__*/React.createElement("span", { className: "text-[9px] font-bold" }, "Ввести")
+          )
+        )
+      )
+    ),
+    
+    // Streak badge
+    streakMsg && /*#__PURE__*/React.createElement("div", {
+      className: "bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl px-4 py-2.5 border border-amber-100 flex items-center gap-2"
+    },
+      /*#__PURE__*/React.createElement("div", { 
+        className: "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+        style: { background: streakMsg.color + '15' }
+      }, Icons[streakMsg.icon] && /*#__PURE__*/React.createElement(Icons[streakMsg.icon], { 
+        className: "w-4 h-4", style: { color: streakMsg.color } 
+      })),
+      /*#__PURE__*/React.createElement("span", { className: "text-xs font-bold text-amber-800 flex-1" }, streakMsg.text),
+      /*#__PURE__*/React.createElement("span", { className: "text-xs text-amber-500 font-medium" }, streak, " тижн.")
+    ),
+    
+    // Критичні алерти  
+    (criticalItems.length > 0 || fallingItems.length > 0) && /*#__PURE__*/React.createElement("div", { 
+      className: "bg-red-50 rounded-2xl p-3 border border-red-100" 
+    },
+      /*#__PURE__*/React.createElement("div", { className: "flex items-center gap-2 mb-2" },
+        /*#__PURE__*/React.createElement(Icons.AlertTriangle, { className: "w-4 h-4 text-red-500" }),
+        /*#__PURE__*/React.createElement("span", { className: "text-xs font-bold text-red-700" }, "Потребує уваги")
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "space-y-1" },
+        criticalItems.slice(0, 3).map(item => /*#__PURE__*/React.createElement("div", { 
+          key: item.col.id, 
+          className: "flex items-center justify-between text-xs" 
+        },
+          /*#__PURE__*/React.createElement("span", { className: "text-red-800 truncate flex-1" }, item.col.name),
+          /*#__PURE__*/React.createElement("span", { className: "font-bold text-red-600 ml-2" }, item.progress, "%")
+        )),
+        fallingItems.filter(f => !criticalItems.some(c => c.col.id === f.col.id)).slice(0, 2).map(item => /*#__PURE__*/React.createElement("div", {
+          key: item.col.id,
+          className: "flex items-center justify-between text-xs"
+        },
+          /*#__PURE__*/React.createElement("span", { className: "text-red-800 truncate flex-1" }, item.col.name),
+          /*#__PURE__*/React.createElement("span", { className: "font-bold text-red-600 ml-2" }, item.pct, "% vs мин.тижд.")
+        ))
+      )
+    ),
+    
+    // Топ показники з sparklines
+    progressItems.length > 0 && /*#__PURE__*/React.createElement("div", { className: "bg-white rounded-2xl p-3 shadow-sm border border-gray-100" },
+      /*#__PURE__*/React.createElement("div", { className: "flex items-center justify-between mb-2" },
+        /*#__PURE__*/React.createElement("span", { className: "text-[10px] font-bold text-gray-400 uppercase tracking-wider" }, "Прогрес по показниках"),
+        onOpenAI && /*#__PURE__*/React.createElement("button", {
+          onClick: onOpenAI,
+          className: "text-[10px] text-purple-500 font-bold flex items-center gap-1"
+        }, /*#__PURE__*/React.createElement(Icons.Brain, { className: "w-3 h-3" }), "AI аналіз")
+      ),
+      /*#__PURE__*/React.createElement("div", { className: "mt-2 space-y-2" },
+        progressItems.sort((a, b) => a.progress - b.progress).slice(0, 5).map(item => {
+          // Sparkline data — останні 6 значень
+          const sparkData = dataRows
+            .filter(r => r.periodType !== 'monthly' && r.date)
+            .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+            .slice(-6)
+            .map(r => parseFloat(String(r.values?.[item.col.id] || '0').replace(',', '.')))
+            .filter(v => !isNaN(v));
+          
+          const hasSparkData = sparkData.length >= 3;
+          const sparkMin = hasSparkData ? Math.min(...sparkData) * 0.9 : 0;
+          const sparkMax = hasSparkData ? Math.max(...sparkData) * 1.1 || 1 : 1;
+          const sparkPoints = hasSparkData ? sparkData.map((v, i) => {
+            const x = (i / (sparkData.length - 1)) * 48;
+            const y = 16 - ((v - sparkMin) / (sparkMax - sparkMin || 1)) * 14;
+            return `${x},${y}`;
+          }).join(' ') : '';
+          
+          return /*#__PURE__*/React.createElement("div", { key: item.col.id },
+            /*#__PURE__*/React.createElement("div", { className: "flex items-center justify-between text-xs mb-0.5" },
+              /*#__PURE__*/React.createElement("span", { className: "text-gray-700 truncate flex-1 font-medium" }, item.col.name),
+              hasSparkData && /*#__PURE__*/React.createElement("svg", { 
+                width: "48", height: "16", className: "mx-2 flex-shrink-0",
+                viewBox: "0 0 48 16"
+              },
+                /*#__PURE__*/React.createElement("polyline", {
+                  points: sparkPoints,
+                  fill: "none",
+                  stroke: item.progress >= 100 ? '#22c55e' : item.progress >= 80 ? '#3b82f6' : item.progress >= 50 ? '#f59e0b' : '#ef4444',
+                  strokeWidth: "1.5",
+                  strokeLinecap: "round",
+                  strokeLinejoin: "round"
+                })
+              ),
+              /*#__PURE__*/React.createElement("span", { 
+                className: `font-bold ml-2 ${item.progress >= 100 ? 'text-emerald-600' : item.progress >= 80 ? 'text-blue-600' : item.progress >= 50 ? 'text-amber-600' : 'text-red-600'}` 
+              }, item.progress, "%")
+            ),
+            /*#__PURE__*/React.createElement("div", { className: "h-1.5 bg-gray-100 rounded-full overflow-hidden" },
+              /*#__PURE__*/React.createElement("div", {
+                className: "h-full rounded-full transition-all duration-500",
+                style: { 
+                  width: Math.min(item.progress, 100) + '%',
+                  background: item.progress >= 100 ? '#22c55e' : item.progress >= 80 ? '#3b82f6' : item.progress >= 50 ? '#f59e0b' : '#ef4444'
+                }
+              })
+            )
+          );
+        })
+      )
+    ),
+    
+    // Team Leaderboard — якщо є кілька відповідальних
+    (() => {
+      const responsibles = [...new Set(weeklyColumns.map(c => c.responsible).filter(Boolean))];
+      if (responsibles.length < 2) return null;
+      
+      const leaderboard = responsibles.map(person => {
+        const personCols = weeklyColumns.filter(c => c.responsible === person);
+        const personProgress = personCols.map(col => {
+          const value = currentRow?.values?.[col.id] || '';
+          const target = currentRow?.targets?.[col.id] || targetRow?.values?.[col.id] || '';
+          return calcProgress(value, target, col.inverted);
+        }).filter(p => p !== null);
+        
+        const avgProgress = personProgress.length > 0
+          ? Math.round(personProgress.reduce((a, b) => a + Math.min(b, 100), 0) / personProgress.length)
+          : null;
+        
+        const filled = personCols.filter(c => {
+          const val = currentRow?.values?.[c.id];
+          return val !== undefined && val !== '' && val !== null;
+        }).length;
+        
+        return { person, avgProgress, filled, total: personCols.length };
+      }).filter(l => l.avgProgress !== null).sort((a, b) => b.avgProgress - a.avgProgress);
+      
+      if (leaderboard.length < 2) return null;
+      
+      return /*#__PURE__*/React.createElement("div", { className: "bg-white rounded-2xl p-3 shadow-sm border border-gray-100" },
+        /*#__PURE__*/React.createElement("div", { className: "flex items-center gap-2 mb-2" },
+          /*#__PURE__*/React.createElement(Icons.Users, { className: "w-3.5 h-3.5 text-gray-400" }),
+          /*#__PURE__*/React.createElement("span", { className: "text-[10px] font-bold text-gray-400 uppercase tracking-wider" }, "Команда")
+        ),
+        /*#__PURE__*/React.createElement("div", { className: "space-y-1.5" },
+          leaderboard.slice(0, 5).map((item, idx) => /*#__PURE__*/React.createElement("div", {
+            key: item.person,
+            className: "flex items-center gap-2 text-xs"
+          },
+            /*#__PURE__*/React.createElement("span", { 
+              className: `w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${idx === 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}` 
+            }, idx + 1),
+            /*#__PURE__*/React.createElement("span", { className: "text-gray-800 truncate flex-1 font-medium" }, item.person),
+            /*#__PURE__*/React.createElement("span", { className: "text-gray-400 text-[10px]" }, item.filled, "/", item.total),
+            /*#__PURE__*/React.createElement("div", { className: "w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden" },
+              /*#__PURE__*/React.createElement("div", {
+                className: "h-full rounded-full",
+                style: { 
+                  width: Math.min(item.avgProgress, 100) + '%',
+                  background: item.avgProgress >= 100 ? '#22c55e' : item.avgProgress >= 80 ? '#3b82f6' : item.avgProgress >= 50 ? '#f59e0b' : '#ef4444'
+                }
+              })
+            ),
+            /*#__PURE__*/React.createElement("span", { 
+              className: `font-bold w-8 text-right ${item.avgProgress >= 100 ? 'text-emerald-600' : item.avgProgress >= 80 ? 'text-blue-600' : item.avgProgress >= 50 ? 'text-amber-600' : 'text-red-600'}` 
+            }, item.avgProgress, "%")
+          ))
+        )
+      );
+    })(),
+    
+    // Prediction Forecast
+    (() => {
+      const forecasts = PredictionEngine.forecastAll(columns, rows, targetRow);
+      if (forecasts.length === 0) return null;
+      
+      const dangers = forecasts.filter(f => f.isDanger);
+      const rising = forecasts.filter(f => f.isRising && !f.isDanger);
+      const topForecasts = [...dangers, ...rising].slice(0, 4);
+      
+      if (topForecasts.length === 0) return null;
+      
+      return /*#__PURE__*/React.createElement("div", { className: "bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-3 border border-indigo-100" },
+        /*#__PURE__*/React.createElement("div", { className: "flex items-center gap-2 mb-2" },
+          /*#__PURE__*/React.createElement(Icons.TrendingUp, { className: "w-3.5 h-3.5 text-indigo-500" }),
+          /*#__PURE__*/React.createElement("span", { className: "text-[10px] font-bold text-indigo-400 uppercase tracking-wider" }, "Прогноз на 4 тижні")
+        ),
+        /*#__PURE__*/React.createElement("div", { className: "space-y-1.5" },
+          topForecasts.map(f => /*#__PURE__*/React.createElement("div", {
+            key: f.col.id,
+            className: "flex items-center justify-between text-xs"
+          },
+            /*#__PURE__*/React.createElement("span", { className: "text-indigo-900 truncate flex-1 font-medium" }, f.col.name),
+            /*#__PURE__*/React.createElement("div", { className: "flex items-center gap-2 ml-2" },
+              /*#__PURE__*/React.createElement("span", { className: "text-indigo-600 font-mono" }, f.forecast),
+              f.trendPct !== 0 && /*#__PURE__*/React.createElement("span", { 
+                className: `text-[10px] font-bold px-1.5 py-0.5 rounded ${f.trendPct > 0 ? (f.col.inverted ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600') : (f.col.inverted ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600')}` 
+              }, f.trendPct > 0 ? '+' : '', f.trendPct, '%'),
+              f.targetPct !== null && /*#__PURE__*/React.createElement("span", {
+                className: `text-[10px] ${f.targetPct >= 100 ? 'text-emerald-500' : f.targetPct >= 80 ? 'text-blue-500' : 'text-red-500'}`
+              }, f.targetPct, "% плану")
+            )
+          ))
+        )
+      );
+    })()
+  );
+});
+
+// ==================== QUICK INPUT MODE (Mobile) ====================
+const QuickInputModal = memo(({ isOpen, onClose, columns, rows, targetRow, onValueChange, toast }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef(null);
+  
+  const weeklyColumns = columns.filter(c => c.period !== 'monthly' && !c.hidden && !c.formula);
+  const currentWeekKey = getWeekKey(new Date());
+  const currentRow = rows.find(r => !r.isTarget && r.periodType !== 'monthly' && getWeekKey(r.date) === currentWeekKey);
+  
+  // Показники що ще не заповнені
+  const emptyColumns = weeklyColumns.filter(col => {
+    const val = currentRow?.values?.[col.id];
+    return val === undefined || val === '' || val === null;
+  });
+  
+  // Всі показники для відображення прогресу
+  const allItems = weeklyColumns;
+  const filledCount = weeklyColumns.length - emptyColumns.length;
+  
+  const currentCol = emptyColumns[currentIndex];
+  const target = currentCol ? (currentRow?.targets?.[currentCol.id] || targetRow?.values?.[currentCol.id] || '') : '';
+  
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      setCurrentIndex(0);
+      setInputValue('');
+      setTimeout(() => inputRef.current?.focus(), 300);
+    }
+  }, [isOpen]);
+  
+  useEffect(() => {
+    if (inputRef.current && isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [currentIndex, isOpen]);
+  
+  const handleSubmit = () => {
+    if (!currentCol || !currentRow) return;
+    
+    if (inputValue.trim()) {
+      onValueChange(currentRow.id, currentCol.id, inputValue.trim());
+      haptic.light();
+    }
+    
+    setInputValue('');
+    if (currentIndex < emptyColumns.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    } else {
+      // Все заповнено!
+      haptic.success();
+      toast.success('Всі показники заповнено!');
+      onClose();
+    }
+  };
+  
+  const handleSkip = () => {
+    haptic.light();
+    setInputValue('');
+    if (currentIndex < emptyColumns.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    } else {
+      onClose();
+    }
+  };
+  
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+  
+  if (!isOpen || !currentRow) return null;
+  if (emptyColumns.length === 0) {
+    // Все вже заповнено
+    return /*#__PURE__*/React.createElement(Modal, { isOpen: isOpen, onClose: onClose, title: "Швидкий ввід" },
+      /*#__PURE__*/React.createElement("div", { className: "text-center py-8" },
+        /*#__PURE__*/React.createElement("div", { className: "w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4" },
+          /*#__PURE__*/React.createElement(Icons.Check, { className: "w-8 h-8 text-primary-600" })
+        ),
+        /*#__PURE__*/React.createElement("h3", { className: "text-xl font-bold text-gray-900 mb-2" }, "Все заповнено!"),
+        /*#__PURE__*/React.createElement("p", { className: "text-gray-500" }, "Всі показники за цей тиждень заповнені")
+      )
+    );
+  }
+
+  const progressPercent = Math.round(((filledCount + currentIndex) / allItems.length) * 100);
+  
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 z-[300] bg-white flex flex-col",
+    style: { paddingTop: 'var(--sat)', paddingBottom: 'var(--sab)' }
+  },
+    // Header
+    /*#__PURE__*/React.createElement("div", { className: "flex items-center justify-between px-4 py-3 border-b border-gray-100" },
+      /*#__PURE__*/React.createElement("button", { onClick: onClose, className: "p-2 -ml-2 text-gray-500" },
+        /*#__PURE__*/React.createElement(Icons.X, { className: "w-6 h-6" })
+      ),
+      /*#__PURE__*/React.createElement("span", { className: "text-sm font-bold text-gray-700" }, 
+        filledCount + currentIndex + (inputValue ? 1 : 0), " / ", allItems.length
+      ),
+      /*#__PURE__*/React.createElement("button", { onClick: handleSkip, className: "text-sm text-gray-400 font-medium p-2 -mr-2" }, "Пропустити")
+    ),
+    
+    // Progress bar
+    /*#__PURE__*/React.createElement("div", { className: "h-1 bg-gray-100" },
+      /*#__PURE__*/React.createElement("div", {
+        className: "h-full bg-primary-500 transition-all duration-300",
+        style: { width: progressPercent + '%' }
+      })
+    ),
+    
+    // Main content
+    /*#__PURE__*/React.createElement("div", { className: "flex-1 flex flex-col items-center justify-center px-6" },
+      // Назва показника
+      /*#__PURE__*/React.createElement("div", { className: "text-center mb-8" },
+        currentCol?.inverted && /*#__PURE__*/React.createElement("span", { className: "text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium mb-2 inline-block" }, "↓ Чим менше — тим краще"),
+        /*#__PURE__*/React.createElement("h2", { className: "text-2xl font-bold text-gray-900 mb-1" }, currentCol?.name),
+        currentCol?.responsible && /*#__PURE__*/React.createElement("span", { className: "text-sm text-gray-400" }, currentCol.responsible),
+        target && /*#__PURE__*/React.createElement("div", { className: "mt-2 text-sm text-gray-500" }, "Ціль: ", /*#__PURE__*/React.createElement("span", { className: "font-bold text-gray-700" }, target))
+      ),
+      
+      // Input
+      /*#__PURE__*/React.createElement("div", { className: "w-full max-w-xs" },
+        /*#__PURE__*/React.createElement("input", {
+          ref: inputRef,
+          type: "text",
+          inputMode: "decimal",
+          value: inputValue,
+          onChange: e => setInputValue(e.target.value),
+          onKeyDown: handleKeyDown,
+          className: "w-full text-center text-4xl font-bold py-4 border-b-4 border-primary-500 outline-none bg-transparent text-gray-900",
+          placeholder: "0",
+          autoFocus: true
+        })
+      )
+    ),
+    
+    // Submit button + Voice
+    /*#__PURE__*/React.createElement("div", { className: "px-6 py-4 flex gap-3" },
+      // Voice input button
+      ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) && /*#__PURE__*/React.createElement("button", {
+        onClick: () => {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'uk-UA';
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+          
+          haptic.medium();
+          toast.info('Говоріть...');
+          
+          recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            // Витягуємо числа з тексту
+            const numbers = transcript.match(/[\d.,]+/g);
+            if (numbers && numbers.length > 0) {
+              const value = numbers[0].replace(',', '.');
+              setInputValue(value);
+              haptic.success();
+            } else {
+              // Якщо число не розпізнано — ставимо весь текст
+              setInputValue(transcript.trim());
+            }
+          };
+          
+          recognition.onerror = () => {
+            toast.warning('Не вдалось розпізнати. Спробуйте ще.');
+            haptic.error();
+          };
+          
+          recognition.start();
+        },
+        className: "w-14 h-14 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center active:scale-95 transition-transform flex-shrink-0"
+      }, /*#__PURE__*/React.createElement(Icons.Mic, { className: "w-6 h-6" })),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: handleSubmit,
+        className: "flex-1 py-4 rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-lg shadow-lg active:scale-[0.98] transition-transform",
+        disabled: !inputValue.trim()
+      }, 
+        currentIndex < emptyColumns.length - 1 ? "Далі" : "Готово"
+      )
+    )
+  );
+});
+
 // ==================== AI ANALYSIS (INTERACTIVE CHAT) ====================
 const AIAnalysis = ({
   columns,
@@ -4302,10 +5192,10 @@ const AIAnalysis = ({
 
   // AI stages для прогрес-індикатора
   const AI_STAGES = [
-    { label: 'Збір даних', icon: '📊' },
-    { label: 'Аналіз трендів', icon: '📈' },
-    { label: 'Пошук вузьких місць', icon: '🔍' },
-    { label: 'Генерація рекомендацій', icon: '💡' }
+    { label: 'Збір даних', icon: 'data' },
+    { label: 'Аналіз трендів', icon: 'trend' },
+    { label: 'Пошук вузьких місць', icon: 'search' },
+    { label: 'Генерація рекомендацій', icon: 'idea' }
   ];
 
   // Chat state
@@ -6459,6 +7349,15 @@ const TrendsChart = ({
   useEffect(() => {
     if (!chartRef.current || selectedColumns.length === 0 || periodRows.length === 0) return;
 
+    // Lazy load Chart.js
+    if (typeof Chart === 'undefined') {
+      LazyLoader.loadChartJS().then(() => {
+        // Re-trigger effect after load
+        if (chartRef.current) chartRef.current.dataset.loaded = 'true';
+      });
+      return;
+    }
+
     // Знищуємо попередній графік
     if (chartInstance.current) {
       chartInstance.current.destroy();
@@ -6613,6 +7512,10 @@ const PDFExport = ({
   const generatePDF = async () => {
     setIsGenerating(true);
     try {
+      // Lazy load jsPDF
+      if (!window.jspdf) {
+        await LazyLoader.loadJsPDF();
+      }
       const {
         jsPDF
       } = window.jspdf;
@@ -7294,7 +8197,15 @@ const App = () => {
   const [saveStatus, setSaveStatus] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('stats');
+  
+  // Swipe між табами (Stats ↔ Plans)
+  const tabSwipeHandlers = useSwipe(
+    () => { if (activeTab === 'stats' && canEdit) setActiveTab('plans'); }, // свайп вліво → plans
+    () => { if (activeTab === 'plans') setActiveTab('stats'); },           // свайп вправо → stats
+    { enabled: true, threshold: 60 }
+  );
   const [showQuickActions, setShowQuickActions] = useState(false);
+  const [showQuickInput, setShowQuickInput] = useState(false);
   const [showAddStatsModal, setShowAddStatsModal] = useState(false);
   const [showAddPeriodModal, setShowAddPeriodModal] = useState(false);
   const [addPeriodType, setAddPeriodType] = useState('weekly');
@@ -7387,6 +8298,48 @@ const App = () => {
   const [generatedInviteLink, setGeneratedInviteLink] = useState('');
   const saveTimeoutRef = useRef(null);
   const SUPER_ADMIN_EMAIL = 'management.talco@gmail.com';
+  
+  // Pull-to-refresh
+  const handlePullRefresh = useCallback(async () => {
+    if (companyId && user) {
+      toast.info('Оновлення даних...');
+      await loadCompanyData(companyId, user.uid);
+      toast.success('Дані оновлено');
+    }
+  }, [companyId, user]);
+  const { pulling: isPullActive, pullDistance, refreshing: isPullRefreshing } = usePullToRefresh(handlePullRefresh, { 
+    enabled: !!companyId && !!user 
+  });
+  
+  // PWA Install prompt
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      // Показуємо банер тільки якщо юзер вже залогінений і не в PWA
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+      if (!isStandalone) {
+        // Показуємо через 30 секунд (не відразу, щоб не дратувати)
+        setTimeout(() => setShowInstallBanner(true), 30000);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+  
+  const handleInstallPWA = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      toast.success('Додаток встановлено!');
+      haptic.success();
+    }
+    setDeferredPrompt(null);
+    setShowInstallBanner(false);
+  };
 
   // Admin state
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -7399,8 +8352,8 @@ const App = () => {
   const isOwner = userProfile?.role === 'owner';
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const canEdit = isOwner || !companyId; // owner або демо режим (без companyId)
-  const targetRow = rows.find(r => r.isTarget);
-  const dataRows = rows.filter(r => !r.isTarget);
+  const targetRow = useMemo(() => rows.find(r => r.isTarget), [rows]);
+  const dataRows = useMemo(() => rows.filter(r => !r.isTarget), [rows]);
 
   // Унікальні відповідальні для фільтру
   const uniqueResponsibles = useMemo(() => {
@@ -7469,37 +8422,29 @@ const App = () => {
   const allMonthlyColumns = useMemo(() => columns.filter(c => c.period === 'monthly'), [columns]);
 
   // Групування рядків по типу періоду + СОРТУВАННЯ по даті (від нових до старих)
-  const parseDate = dateStr => {
+  const parseDate = useCallback(dateStr => {
     if (!dateStr) return 0;
-    // Спробуємо різні формати
-    // ISO: 2025-01-13
     if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
       return new Date(dateStr).getTime();
     }
-    // Monthly key: 2025-01
     if (/^\d{4}-\d{2}$/.test(dateStr)) {
       return new Date(dateStr + '-01').getTime();
     }
-    // Fallback
     return new Date(dateStr).getTime() || 0;
-  };
+  }, []);
   
-  // Сортування: спочатку по order (якщо є), потім по даті (новіші зверху)
-  const sortRows = (a, b) => {
-    // Якщо обидва мають order - сортуємо по order
+  const sortRows = useCallback((a, b) => {
     if (a.order !== undefined && b.order !== undefined) {
       return a.order - b.order;
     }
-    // Якщо тільки один має order - він йде перший
     if (a.order !== undefined) return -1;
     if (b.order !== undefined) return 1;
-    // Інакше сортуємо по даті (новіші зверху)
     return parseDate(b.date) - parseDate(a.date);
-  };
+  }, [parseDate]);
   
   // Базові рядки відсортовані
-  const sortedWeeklyRows = useMemo(() => dataRows.filter(r => r.periodType !== 'monthly').sort(sortRows), [dataRows]);
-  const sortedMonthlyRows = useMemo(() => dataRows.filter(r => r.periodType === 'monthly').sort(sortRows), [dataRows]);
+  const sortedWeeklyRows = useMemo(() => dataRows.filter(r => r.periodType !== 'monthly').sort(sortRows), [dataRows, sortRows]);
+  const sortedMonthlyRows = useMemo(() => dataRows.filter(r => r.periodType === 'monthly').sort(sortRows), [dataRows, sortRows]);
   
   // Фільтр по кількості періодів
   const weeklyRows = useMemo(() => {
@@ -10051,6 +10996,7 @@ const App = () => {
       
       isSavingRef.current = false; // Скидаємо mutex
       setSaveStatus('saved');
+      haptic.success();
       setTimeout(() => setSaveStatus(null), 2000);
       return { success: true };
     } catch (error) {
@@ -10090,6 +11036,7 @@ const App = () => {
       // Всі retry вичерпані - пропонуємо rollback
       isSavingRef.current = false; // Скидаємо mutex
       setSaveStatus('error');
+      haptic.error();
       saveRetryCount.current = 0;
       
       // Schedulе повторну спробу через 30 секунд (щоб не зависли зміни назавжди)
@@ -10138,6 +11085,35 @@ const App = () => {
   
   // Оновлюємо ref для handleOnline (який визначений раніше і не бачить saveData через closure)
   useEffect(() => { saveDataRef.current = saveData; }, [saveData]);
+  
+  // Notification reminders — після завантаження даних
+  useEffect(() => {
+    if (dataLoaded && columns.length > 0 && rows.length > 0 && isOwner) {
+      // Запитуємо дозвіл на нотифікації (тихо, без промпту якщо вже відмовили)
+      if (NotificationSystem.isSupported() && Notification.permission === 'default') {
+        // Не запитуємо одразу — чекаємо user interaction
+      }
+      // Перевіряємо scheduled reminders
+      NotificationSystem.scheduleReminders(columns, rows);
+      
+      // PWA Badge — показуємо кількість незаповнених на іконці
+      try {
+        const weeklyColumns = columns.filter(c => c.period !== 'monthly' && !c.hidden);
+        const currentWeekKey = getWeekKey(new Date());
+        const currentRow = rows.find(r => !r.isTarget && r.periodType !== 'monthly' && getWeekKey(r.date) === currentWeekKey);
+        const unfilled = weeklyColumns.filter(c => {
+          const val = currentRow?.values?.[c.id];
+          return val === undefined || val === '' || val === null;
+        }).length;
+        
+        if (navigator.setAppBadge && unfilled > 0) {
+          navigator.setAppBadge(unfilled);
+        } else if (navigator.clearAppBadge && unfilled === 0) {
+          navigator.clearAppBadge();
+        }
+      } catch (e) {}
+    }
+  }, [dataLoaded, columns, rows, isOwner]);
   
   // Ініціалізуємо lastSuccessfulState при першому завантаженні даних
   useEffect(() => {
@@ -10480,50 +11456,44 @@ const App = () => {
       }
     });
   };
-  const updateDate = (rowId, date) => {
-    const row = rows.find(r => r.id === rowId);
-    if (!row) return;
-    
-    // Перевірка на дублікат дати
-    const existingRow = rows.find(r => 
-      r.id !== rowId && 
-      !r.isTarget && 
-      r.periodType === row.periodType && 
-      r.date === date
-    );
-    
-    if (existingRow && date) {
-      toast.warning('Увага: такий період вже існує! Рекомендуємо обʼєднати дані.');
-    }
-    
-    setRows(rows.map(r => r.id === rowId ? { ...r, date } : r));
-  };
-  const updateValue = (rowId, colId, value) => {
-    // Дозволяємо порожне, числа, та проміжні стани вводу (мінус, крапка, кома)
+  const updateDate = useCallback((rowId, date) => {
+    setRows(prev => {
+      const row = prev.find(r => r.id === rowId);
+      if (!row) return prev;
+      
+      const existingRow = prev.find(r => 
+        r.id !== rowId && !r.isTarget && r.periodType === row.periodType && r.date === date
+      );
+      if (existingRow && date) {
+        toast.warning('Увага: такий період вже існує! Рекомендуємо обʼєднати дані.');
+      }
+      return prev.map(r => r.id === rowId ? { ...r, date } : r);
+    });
+  }, [toast]);
+  const updateValue = useCallback((rowId, colId, value) => {
     const sanitizedValue = value === '' ? '' : value;
     
-    setRows(rows.map(row => row.id === rowId ? {
+    setRows(prev => prev.map(row => row.id === rowId ? {
       ...row,
       values: {
         ...row.values,
         [colId]: sanitizedValue
       }
     } : row));
-  };
+  }, []);
   
-  const updateTarget = (rowId, colId, value) => {
-    // Валідація: тільки числа або порожнє значення
+  const updateTarget = useCallback((rowId, colId, value) => {
     const sanitizedValue = value === '' ? '' : 
       (isNaN(parseFloat(value)) ? '' : value);
     
-    setRows(rows.map(row => row.id === rowId ? {
+    setRows(prev => prev.map(row => row.id === rowId ? {
       ...row,
       targets: {
         ...row.targets,
         [colId]: sanitizedValue
       }
     } : row));
-  };
+  }, []);
 
   // Keyboard navigation для таблиці
   const handleTableKeyDown = useCallback((e, rowIdx, colIdx, totalRows, totalCols) => {
@@ -11353,7 +12323,14 @@ const App = () => {
   });
   return /*#__PURE__*/React.createElement("div", {
     className: "min-h-screen bg-gray-50"
-  }, /*#__PURE__*/React.createElement("input", {
+  }, (isPullActive || isPullRefreshing) && /*#__PURE__*/React.createElement("div", {
+    className: "fixed top-0 left-0 right-0 z-[200] flex justify-center transition-transform",
+    style: { transform: `translateY(${Math.min(pullDistance - 30, 40)}px)`, opacity: Math.min(pullDistance / 60, 1) }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center ${isPullRefreshing ? 'animate-spin' : ''}`,
+    style: { transform: isPullRefreshing ? '' : `rotate(${pullDistance * 3}deg)` }
+  }, /*#__PURE__*/React.createElement(Icons.Loader, { className: "w-5 h-5 text-primary-500" })
+  )), /*#__PURE__*/React.createElement("input", {
     type: "file",
     ref: fileInputRef,
     accept: ".xlsx,.xls,.csv",
@@ -11364,13 +12341,19 @@ const App = () => {
                             ${saveStatus === 'saving' ? 'bg-amber-100 text-amber-700' : ''}
                             ${saveStatus === 'saved' ? 'bg-green-100 text-green-700' : ''}
                             ${saveStatus === 'error' ? 'bg-red-100 text-red-700' : ''}
+                            ${saveStatus === 'offline' ? 'bg-blue-100 text-blue-700' : ''}
+                            ${saveStatus === 'conflict' ? 'bg-purple-100 text-purple-700' : ''}
                         `
   }, saveStatus === 'saving' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Spinner, {
     size: "sm",
     className: "mr-1"
   }), t.saving), saveStatus === 'saved' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.CheckCircle, {
     className: "w-4 h-4 inline mr-2"
-  }), t.saved), saveStatus === 'error' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.AlertCircle, {
+  }), t.saved), saveStatus === 'offline' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.WifiOff, {
+    className: "w-4 h-4 mr-1"
+  }), "Офлайн — збережено локально"), saveStatus === 'conflict' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.AlertTriangle, {
+    className: "w-4 h-4 mr-1"
+  }), "Конфлікт даних"), saveStatus === 'error' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.AlertCircle, {
     className: "w-4 h-4 mr-1"
   }), /*#__PURE__*/React.createElement("span", null, t.saveError), lastSuccessfulState.current && /*#__PURE__*/React.createElement("button", {
     onClick: rollbackToLastSaved,
@@ -11416,7 +12399,7 @@ const App = () => {
         toast.info('Ви маєте повний доступ. Інша вкладка заблокована.');
       }
     }
-  }, tabLockBlocked ? "🔒 Тільки перегляд" : "⚠️ 2+ вкладки"))), /*#__PURE__*/React.createElement("div", {
+  }, tabLockBlocked ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.Lock, { className: "w-3 h-3 mr-0.5" }), "Тільки перегляд") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icons.AlertTriangle, { className: "w-3 h-3 mr-0.5" }), "2+ вкладки")))), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-1 sm:gap-2 flex-shrink-0"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowMenu(true),
@@ -11473,6 +12456,21 @@ const App = () => {
     className: "btn btn-sm btn-secondary",
     title: "\u0411\u0435\u043A\u0430\u043F\u0438"
   }, /*#__PURE__*/React.createElement(Icons.Database, {
+    className: "w-4 h-4"
+  })), NotificationSystem.isSupported() && Notification.permission !== 'granted' && /*#__PURE__*/React.createElement("button", {
+    onClick: async () => {
+      const granted = await NotificationSystem.requestPermission();
+      if (granted) {
+        haptic.success();
+        toast.success('Нагадування увімкнено!');
+        NotificationSystem.show('TALKO Stats', { body: 'Нагадування активовано. Ви будете отримувати нагадування про заповнення статистики.' });
+      } else {
+        toast.warning('Дозвіл на нотифікації не надано');
+      }
+    },
+    className: "btn btn-sm btn-secondary",
+    title: "Увімкнути нагадування"
+  }, /*#__PURE__*/React.createElement(Icons.Bell, {
     className: "w-4 h-4"
   })), /*#__PURE__*/React.createElement("button", {
     onClick: handleLogout,
@@ -11629,9 +12627,9 @@ const App = () => {
     onClick: () => setShowToolsDropdown(false)
   }, /*#__PURE__*/React.createElement(Icons.Brain, {
     className: "w-4 h-4 text-purple-500"
-  }), "AI \u0412\u0443\u0437\u044C\u043A\u0456 \u043C\u0456\u0441\u0446\u044F"))))), /*#__PURE__*/React.createElement("div", {
+  }), "AI \u0412\u0443\u0437\u044C\u043A\u0456 \u043C\u0456\u0441\u0446\u044F"))))), /*#__PURE__*/React.createElement("div", Object.assign({
     className: "sm:hidden"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, tabSwipeHandlers), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 mb-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "relative flex-1"
@@ -11652,7 +12650,14 @@ const App = () => {
   }, "\u0412\u0441\u0456"), uniqueResponsibles.map(r => /*#__PURE__*/React.createElement("option", {
     key: r,
     value: r
-  }, r)))), weeklyColumns.length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, r)))), /*#__PURE__*/React.createElement(SmartDashboard, {
+    columns: columns,
+    rows: rows,
+    targetRow: targetRow,
+    t: t,
+    onOpenQuickInput: () => { setShowQuickInput(true); haptic.medium(); },
+    onOpenAI: () => setShowAIModal(true)
+  }), weeklyColumns.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "mb-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between mb-2"
@@ -11687,18 +12692,37 @@ const App = () => {
   }, "--"), WEEKS_CACHE.slice(0, 20).map(p => /*#__PURE__*/React.createElement("option", {
     key: p.key,
     value: p.key
-  }, p.label)))), weeklyColumns.map((col, colIdx) => /*#__PURE__*/React.createElement("td", {
-    key: col.id
-  }, /*#__PURE__*/React.createElement("input", {
+  }, p.label)))), weeklyColumns.map((col, colIdx) => {
+    const cellValue = row.values?.[col.id] || '';
+    const cellTarget = row.targets?.[col.id] || targetRow?.values?.[col.id] || '';
+    const cellProgress = calcProgress(cellValue, cellTarget, col.inverted);
+    const cellBg = cellProgress !== null 
+      ? cellProgress >= 100 ? '#f0fdf4' : cellProgress >= 80 ? '#eff6ff' : cellProgress >= 50 ? '#fffbeb' : '#fef2f2'
+      : 'transparent';
+    return /*#__PURE__*/React.createElement("td", {
+      key: col.id,
+      style: { background: cellBg, position: 'relative' }
+    }, /*#__PURE__*/React.createElement("input", {
     type: "text",
     inputMode: "decimal",
-    value: row.values?.[col.id] || '',
+    value: cellValue,
     onChange: e => updateValue(row.id, col.id, e.target.value),
     onKeyDown: e => handleTableKeyDown(e, idx, colIdx, weeklyRows.length, weeklyColumns.length),
     onPaste: e => handlePaste(e, row.id, col.id, 'weekly'),
     className: "mobile-cell-input",
     placeholder: "0"
-  }))), canEdit && /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
+  }), cellProgress !== null && /*#__PURE__*/React.createElement("div", {
+    style: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#e5e7eb', borderRadius: '0 0 2px 2px' }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { 
+      height: '100%', 
+      width: Math.min(cellProgress, 100) + '%', 
+      background: cellProgress >= 100 ? '#22c55e' : cellProgress >= 80 ? '#3b82f6' : cellProgress >= 50 ? '#f59e0b' : '#ef4444',
+      borderRadius: '0 0 2px 2px',
+      transition: 'width 0.3s'
+    }
+  })));
+  }), canEdit && /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
     onClick: () => deleteRow(row.id),
     className: "text-red-400 p-1"
   }, /*#__PURE__*/React.createElement(Icons.Trash, {
@@ -11738,18 +12762,37 @@ const App = () => {
   }, "--"), MONTHS_CACHE.slice(0, 12).map(p => /*#__PURE__*/React.createElement("option", {
     key: p.key,
     value: p.key
-  }, p.label)))), monthlyColumns.map((col, colIdx) => /*#__PURE__*/React.createElement("td", {
-    key: col.id
-  }, /*#__PURE__*/React.createElement("input", {
+  }, p.label)))), monthlyColumns.map((col, colIdx) => {
+    const cellValue = row.values?.[col.id] || '';
+    const cellTarget = row.targets?.[col.id] || targetRow?.values?.[col.id] || '';
+    const cellProgress = calcProgress(cellValue, cellTarget, col.inverted);
+    const cellBg = cellProgress !== null 
+      ? cellProgress >= 100 ? '#f0fdf4' : cellProgress >= 80 ? '#eff6ff' : cellProgress >= 50 ? '#fffbeb' : '#fef2f2'
+      : 'transparent';
+    return /*#__PURE__*/React.createElement("td", {
+      key: col.id,
+      style: { background: cellBg, position: 'relative' }
+    }, /*#__PURE__*/React.createElement("input", {
     type: "text",
     inputMode: "decimal",
-    value: row.values?.[col.id] || '',
+    value: cellValue,
     onChange: e => updateValue(row.id, col.id, e.target.value),
     onKeyDown: e => handleTableKeyDown(e, idx, colIdx, monthlyRows.length, monthlyColumns.length),
     onPaste: e => handlePaste(e, row.id, col.id, 'monthly'),
     className: "mobile-cell-input",
     placeholder: "0"
-  }))), canEdit && /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
+  }), cellProgress !== null && /*#__PURE__*/React.createElement("div", {
+    style: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#e5e7eb', borderRadius: '0 0 2px 2px' }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { 
+      height: '100%', 
+      width: Math.min(cellProgress, 100) + '%', 
+      background: cellProgress >= 100 ? '#22c55e' : cellProgress >= 80 ? '#3b82f6' : cellProgress >= 50 ? '#f59e0b' : '#ef4444',
+      borderRadius: '0 0 2px 2px',
+      transition: 'width 0.3s'
+    }
+  })));
+  }), canEdit && /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("button", {
     onClick: () => deleteRow(row.id),
     className: "text-red-400 p-1"
   }, /*#__PURE__*/React.createElement(Icons.Trash, {
@@ -11867,19 +12910,38 @@ const App = () => {
     onDelete: deletePlan,
     toast: toast,
     t: t
-  })), /*#__PURE__*/React.createElement("nav", {
+  })), showInstallBanner && deferredPrompt && /*#__PURE__*/React.createElement("div", {
+    className: "fixed bottom-[70px] left-3 right-3 z-[101] mobile-only animate-slide-up"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-4 shadow-xl flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0"
+  }, /*#__PURE__*/React.createElement(Icons.Download, { className: "w-5 h-5 text-white" })),
+  /*#__PURE__*/React.createElement("div", { className: "flex-1 min-w-0" },
+    /*#__PURE__*/React.createElement("div", { className: "text-white font-semibold text-sm" }, "Встановити додаток"),
+    /*#__PURE__*/React.createElement("div", { className: "text-white/70 text-xs" }, "Швидкий доступ з головного екрану")
+  ),
+  /*#__PURE__*/React.createElement("button", {
+    onClick: handleInstallPWA,
+    className: "px-4 py-2 bg-white text-primary-600 rounded-xl font-bold text-sm flex-shrink-0"
+  }, "OK"),
+  /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowInstallBanner(false),
+    className: "text-white/60 p-1"
+  }, /*#__PURE__*/React.createElement(Icons.X, { className: "w-4 h-4" }))
+  )), /*#__PURE__*/React.createElement("nav", {
     className: "bottom-nav mobile-only"
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActiveTab('stats'),
+    onClick: () => { setActiveTab('stats'); haptic.light(); },
     className: `bottom-nav-item ${activeTab === 'stats' ? 'active' : ''}`
   }, /*#__PURE__*/React.createElement(Icons.BarChart, null), /*#__PURE__*/React.createElement("span", null, "\u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430")), canEdit && /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowAIModal(true),
+    onClick: () => { setShowAIModal(true); haptic.light(); },
     className: `bottom-nav-item`
   }, /*#__PURE__*/React.createElement(Icons.Brain, null), /*#__PURE__*/React.createElement("span", null, "AI")), canEdit && /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActiveTab('plans'),
+    onClick: () => { setActiveTab('plans'); haptic.light(); },
     className: `bottom-nav-item ${activeTab === 'plans' ? 'active' : ''}`
   }, /*#__PURE__*/React.createElement(Icons.FileText, null), /*#__PURE__*/React.createElement("span", null, "\u041F\u043B\u0430\u043D\u0438")), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowMenu(true),
+    onClick: () => { setShowMenu(true); haptic.light(); },
     className: "bottom-nav-item"
   }, /*#__PURE__*/React.createElement(Icons.Menu, null), /*#__PURE__*/React.createElement("span", null, "\u041C\u0435\u043D\u044E"))), canEdit && /*#__PURE__*/React.createElement(React.Fragment, null, showQuickActions && /*#__PURE__*/React.createElement("div", {
     className: "quick-actions mobile-only animate-fade-in"
@@ -13209,7 +14271,15 @@ const App = () => {
         /*#__PURE__*/React.createElement("div", { className: "text-xs text-gray-500 mt-1" }, "Продовжити працювати без збереження (зміни залишаться локально)")
       )
     )
-  )));
+  )), /*#__PURE__*/React.createElement(QuickInputModal, {
+    isOpen: showQuickInput,
+    onClose: () => setShowQuickInput(false),
+    columns: columns,
+    rows: rows,
+    targetRow: targetRow,
+    onValueChange: updateValue,
+    toast: toast
+  }));
 };
 
 // ==================== ROOT ====================
