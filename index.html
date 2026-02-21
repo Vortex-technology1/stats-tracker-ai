@@ -14085,9 +14085,9 @@ const App = () => {
   }), /*#__PURE__*/React.createElement("button", {
     onClick: async () => {
       if (telegramCode.length < 4) return;
+      if (!companyId) { setTelegramLinkStatus('error'); return; }
       setTelegramLinkStatus('loading');
       try {
-        const db = firebase.firestore();
         const codeDoc = await db.collection('telegramCodes').doc(telegramCode).get();
         if (!codeDoc.exists) { setTelegramLinkStatus('not_found'); return; }
         const codeData = codeDoc.data();
