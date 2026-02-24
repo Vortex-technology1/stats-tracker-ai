@@ -8178,6 +8178,7 @@ const App = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const registeringRef = useRef(false);
   const [dataLoaded, setDataLoaded] = useState(false); // Флаг що дані завантажені
 
   // Data state
@@ -8638,6 +8639,14 @@ const App = () => {
     const unsubscribe = auth.onAuthStateChanged(async authUser => {
       setUser(authUser);
       if (authUser) {
+        // Якщо реєстрація ще в процесі — чекаємо поки handleAuth завершить запис в Firestore
+        if (registeringRef.current) {
+          const maxWait = 5000;
+          const start = Date.now();
+          while (registeringRef.current && Date.now() - start < maxWait) {
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
         // Якщо супер-адмін - завантажуємо список компаній
         if (authUser.email === SUPER_ADMIN_EMAIL) {
           // Скидаємо все для чистого стану
@@ -10750,11 +10759,13 @@ const App = () => {
     setIsSubmitting(true);
     try {
       if (isRegister) {
+        registeringRef.current = true;
         if (inviteCode) {
           // === РЕЄСТРАЦІЯ ЧЕРЕЗ INVITE (працівник або овнер по запрошенню) ===
           const inviteDoc = await db.collection('invites').doc(inviteCode).get();
           if (!inviteDoc.exists || inviteDoc.data().used) {
             toast.error('Невірний або використаний код запрошення');
+            registeringRef.current = false;
             return;
           }
           const invite = inviteDoc.data();
@@ -10764,6 +10775,7 @@ const App = () => {
             const createdTime = invite.createdAt.toDate().getTime();
             if (Date.now() - createdTime > INVITE_EXPIRY_MS) {
               toast.error('Код запрошення прострочений (діє 7 днів).');
+              registeringRef.current = false;
               return;
             }
           }
@@ -10796,6 +10808,7 @@ const App = () => {
           // === ВІЛЬНА РЕЄСТРАЦІЯ (новий овнер + нова компанія) ===
           if (!regName?.trim() || !regCompanyName?.trim()) {
             toast.error("Вкажіть ім'я та назву компанії");
+            registeringRef.current = false;
             return;
           }
 
@@ -10851,6 +10864,7 @@ const App = () => {
         toast.error(error.message);
       }
     } finally {
+      registeringRef.current = false;
       setIsSubmitting(false);
     }
   };
