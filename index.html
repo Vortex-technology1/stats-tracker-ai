@@ -3561,6 +3561,8 @@ const AuthForm = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [regName, setRegName] = useState('');
+  const [regCompanyName, setRegCompanyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [inviteData, setInviteData] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -3611,7 +3613,7 @@ const AuthForm = ({
   };
   const handleSubmit = e => {
     e.preventDefault();
-    onAuth(email, password, isRegister, inviteCode);
+    onAuth(email, password, isRegister, inviteCode, regName, regCompanyName);
   };
   return /*#__PURE__*/React.createElement("div", {
     className: "min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-green-50 p-4",
@@ -3672,7 +3674,33 @@ const AuthForm = ({
   }), " \u0412\u0432\u0435\u0434\u0456\u0442\u044C ", /*#__PURE__*/React.createElement("b", null, "\u0432\u0430\u0448\u0443 \u043F\u043E\u0448\u0442\u0443"), " \u0442\u0430 \u043F\u0440\u0438\u0434\u0443\u043C\u0430\u0439\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C"))), /*#__PURE__*/React.createElement("form", {
     onSubmit: handleSubmit,
     className: "card p-6 space-y-4"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }, isRegister && !inviteCode && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-semibold text-gray-700 mb-2"
+  }, "\u0412\u0430\u0448\u0435 \u0456\u043C\u02BC\u044F *"), /*#__PURE__*/React.createElement("div", {
+    className: "relative"
+  }, /*#__PURE__*/React.createElement(Icons.User, {
+    className: "absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: regName,
+    onChange: e => setRegName(e.target.value),
+    className: "input-field pl-12",
+    placeholder: "\u0406\u0432\u0430\u043D \u041F\u0435\u0442\u0440\u0435\u043D\u043A\u043E",
+    required: true
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "block text-sm font-semibold text-gray-700 mb-2"
+  }, "\u041D\u0430\u0437\u0432\u0430 \u043A\u043E\u043C\u043F\u0430\u043D\u0456\u0457 *"), /*#__PURE__*/React.createElement("div", {
+    className: "relative"
+  }, /*#__PURE__*/React.createElement(Icons.Building, {
+    className: "absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: regCompanyName,
+    onChange: e => setRegCompanyName(e.target.value),
+    className: "input-field pl-12",
+    placeholder: "\u041C\u043E\u044F \u043A\u043E\u043C\u043F\u0430\u043D\u0456\u044F",
+    required: true
+  })))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     className: "block text-sm font-semibold text-gray-700 mb-2"
   }, t.email), /*#__PURE__*/React.createElement("div", {
     className: "relative"
@@ -3724,11 +3752,7 @@ const AuthForm = ({
   }, isRegister ? t.hasAccount : t.noAccount, ' ', /*#__PURE__*/React.createElement("button", {
     onClick: () => setIsRegister(!isRegister),
     className: "text-primary-600 font-bold hover:underline"
-  }, isRegister ? t.login : t.register)), !inviteCode && isRegister && /*#__PURE__*/React.createElement("p", {
-    className: "text-center mt-4 text-xs text-gray-500 bg-amber-50 p-3 rounded-xl"
-  }, /*#__PURE__*/React.createElement(Icons.Info, {
-    className: "w-4 h-4 inline mr-1 text-amber-500"
-  }), "\u0420\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u044F \u043C\u043E\u0436\u043B\u0438\u0432\u0430 \u0442\u0456\u043B\u044C\u043A\u0438 \u0437\u0430 \u0437\u0430\u043F\u0440\u043E\u0448\u0435\u043D\u043D\u044F\u043C \u0432\u0456\u0434 \u0432\u043B\u0430\u0441\u043D\u0438\u043A\u0430")));
+  }, isRegister ? t.login : t.register))));
 };
 
 // ==================== PERIOD HELPERS ====================
@@ -10722,67 +10746,94 @@ const App = () => {
     toast.success(`${demo.name} — демо завантажено!`);
     setShowDemoModal(false);
   };
-  const handleAuth = async (email, password, isRegister, inviteCode) => {
+  const handleAuth = async (email, password, isRegister, inviteCode, regName, regCompanyName) => {
     setIsSubmitting(true);
     try {
       if (isRegister) {
-        // Реєстрація тільки через invite
-        if (!inviteCode) {
-          toast.error('Реєстрація можлива тільки за запрошенням');
-          return;
-        }
-
-        // Перевіряємо invite
-        const inviteDoc = await db.collection('invites').doc(inviteCode).get();
-        if (!inviteDoc.exists || inviteDoc.data().used) {
-          toast.error('Невірний або використаний код запрошення');
-          return;
-        }
-        const invite = inviteDoc.data();
-        
-        // Перевірка expiry (7 днів)
-        const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
-        if (invite.createdAt?.toDate) {
-          const createdTime = invite.createdAt.toDate().getTime();
-          if (Date.now() - createdTime > INVITE_EXPIRY_MS) {
-            toast.error('Код запрошення прострочений (діє 7 днів). Зверніться до адміністратора.');
+        if (inviteCode) {
+          // === РЕЄСТРАЦІЯ ЧЕРЕЗ INVITE (працівник або овнер по запрошенню) ===
+          const inviteDoc = await db.collection('invites').doc(inviteCode).get();
+          if (!inviteDoc.exists || inviteDoc.data().used) {
+            toast.error('Невірний або використаний код запрошення');
             return;
           }
+          const invite = inviteDoc.data();
+          
+          const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+          if (invite.createdAt?.toDate) {
+            const createdTime = invite.createdAt.toDate().getTime();
+            if (Date.now() - createdTime > INVITE_EXPIRY_MS) {
+              toast.error('Код запрошення прострочений (діє 7 днів).');
+              return;
+            }
+          }
+          
+          const authResult = await auth.createUserWithEmailAndPassword(email, password);
+          const inviteRole = invite.role || 'employee';
+
+          await db.collection('users').doc(authResult.user.uid).set({
+            email: email.toLowerCase(),
+            companyId: invite.companyId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          await db.collection('companies').doc(invite.companyId).collection('users').doc(authResult.user.uid).set({
+            email: email.toLowerCase(),
+            name: invite.name || email.split('@')[0],
+            role: inviteRole,
+            visibleColumns: invite.visibleColumns || [],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          await db.collection('invites').doc(inviteCode).update({
+            used: true,
+            usedBy: authResult.user.uid,
+            usedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          toast.success(inviteRole === 'owner' ? 'Вітаємо! Ви — власник компанії.' : 'Ви приєдналися до команди!');
+
+        } else {
+          // === ВІЛЬНА РЕЄСТРАЦІЯ (новий овнер + нова компанія) ===
+          if (!regName?.trim() || !regCompanyName?.trim()) {
+            toast.error("Вкажіть ім'я та назву компанії");
+            return;
+          }
+
+          const sanitizedName = SecurityUtils.sanitize(regName.trim());
+          const sanitizedCompany = SecurityUtils.sanitize(regCompanyName.trim());
+
+          const authResult = await auth.createUserWithEmailAndPassword(email, password);
+
+          const companyRef = await db.collection('companies').add({
+            name: sanitizedCompany,
+            ownerEmail: email.toLowerCase(),
+            ownerName: sanitizedName,
+            columns: [],
+            rows: [{ id: 'target', isTarget: true, date: '', values: {}, comments: {} }],
+            aiSettings: { businessContext: '', priorities: '', analysisPeriod: 5 },
+            savedAnalyses: [],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          await db.collection('users').doc(authResult.user.uid).set({
+            email: email.toLowerCase(),
+            companyId: companyRef.id,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          await db.collection('companies').doc(companyRef.id).collection('users').doc(authResult.user.uid).set({
+            email: email.toLowerCase(),
+            name: sanitizedName,
+            role: 'owner',
+            visibleColumns: [],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          toast.success('Компанію створено! Вітаємо!');
         }
-        
-        const inviteCompanyId = invite.companyId;
-
-        // Створюємо користувача в Firebase Auth
-        const authResult = await auth.createUserWithEmailAndPassword(email, password);
-
-        // Визначаємо роль з invite (owner або employee)
-        const inviteRole = invite.role || 'employee';
-
-        // 1. Додаємо в глобальний users (для пошуку companyId)
-        await db.collection('users').doc(authResult.user.uid).set({
-          email,
-          companyId: inviteCompanyId,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        // 2. Додаємо в companies/{companyId}/users
-        await db.collection('companies').doc(inviteCompanyId).collection('users').doc(authResult.user.uid).set({
-          email,
-          name: invite.name || email.split('@')[0],
-          role: inviteRole,
-          visibleColumns: invite.visibleColumns || [],
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        // 3. Позначаємо invite як використаний
-        await db.collection('invites').doc(inviteCode).update({
-          used: true,
-          usedBy: authResult.user.uid,
-          usedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        toast.success(inviteRole === 'owner' ? 'Вітаємо! Ви — власник компанії.' : 'Ви приєдналися до команди!');
       } else {
-        // Логін
+        // === ЛОГІН ===
         await auth.signInWithEmailAndPassword(email, password);
         toast.success('Вітаємо!');
       }
