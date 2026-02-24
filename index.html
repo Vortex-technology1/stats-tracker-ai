@@ -1028,16 +1028,26 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Налаштування persistence з synchronizeTabs для синхронізації між вкладками
+// Приглушуємо Firebase WebChannel transport помилки (404 на неіснуючих subcollections)
+const _origWarn = console.warn;
+console.warn = (...args) => {
+  const msg = args[0]?.toString?.() || '';
+  if (msg.includes('WebChannelConnection') || msg.includes('transport errored') || 
+      msg.includes('enableMultiTabIndexedDbPersistence') || msg.includes('FirestoreSettings.cache')) return;
+  _origWarn.apply(console, args);
+};
+
+// Налаштування persistence
+try {
+  db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+} catch(e) {}
 db.enablePersistence({ synchronizeTabs: true })
   .then(() => console.log('Firestore persistence enabled'))
   .catch(err => {
     if (err.code === 'failed-precondition') {
-      // Кілька вкладок відкрито
-      console.warn('Persistence failed: multiple tabs open');
+      console.warn('Persistence: multiple tabs');
     } else if (err.code === 'unimplemented') {
-      // Браузер не підтримує
-      console.warn('Persistence not supported');
+      console.warn('Persistence: not supported');
     }
   });
 
@@ -7862,7 +7872,11 @@ const ChangeHistory = ({
         }));
         setHistory(historyData);
       } catch (e) {
-        console.error('Error loading history:', e);
+        // Subcollection може не існувати — це нормально
+        if (!e.message?.includes('not found')) {
+          console.error('Error loading history:', e);
+        }
+        setHistory([]);
       } finally {
         setLoading(false);
       }
@@ -11883,8 +11897,10 @@ const App = () => {
       }));
       setBackups(loadedBackups);
     } catch (e) {
-      console.error('Error loading backups:', e);
-      toast.error('Помилка завантаження бекапів');
+      if (!e.message?.includes('not found')) {
+        console.error('Error loading backups:', e);
+      }
+      setBackups([]);
     } finally {
       setBackupLoading(false);
     }
